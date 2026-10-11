@@ -1,0 +1,549 @@
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import type { AppSettings, Task, RoadmapMilestone, Project, DailyRecord } from '../types';
+import { useAuth } from './AuthContext';
+import {
+  fetchUserTasks,
+  createCloudTask,
+  updateCloudTask,
+  deleteCloudTask,
+  subscribeToUserTasks,
+  seedStarterTasks,
+  STARTER_TASKS,
+} from '../services/taskService';
+import { nanoid } from '../utils/nanoid';
+import {
+  getSettings,
+  saveSettings,
+  getAllTasks,
+  saveTask,
+  deleteTask,
+  getAllMilestones,
+  saveMilestone,
+  getAllProjects,
+  saveProject,
+  deleteProject,
+  getAllDailyRecords,
+  saveDailyRecord,
+  getDefaultSettings,
+  exportAllData,
+  importAllData,
+  clearAllData,
+} from '../db/storage';
+import { INITIAL_MILESTONES, INITIAL_PROJECTS } from '../db/seedData';
+import { today, nowISO } from '../utils/dates';
+
+export type SyncStatus = 'synced' | 'syncing' | 'error' | 'offline';
+
+interface AppContextValue {
+  // State
+  settings: AppSettings;
+  tasks: Task[];
+  milestones: RoadmapMilestone[];
+  projects: Project[];
+  dailyRecords: DailyRecord[];
+  isLoading: boolean;
+  error: string | null;
+  syncStatus: SyncStatus;
+
+  // Settings
+  updateSettings: (partial: Partial<AppSettings>) => Promise<void>;
+
+  // Tasks CRUD
+  addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Task>;
+  updateTask: (task: Task) => Promise<void>;
+  completeTask: (id: string) => Promise<void>;
+  rescheduleTask: (id: string, newDate: string) => Promise<void>;
+  removeTask: (id: string) => Promise<void>;
+  loadStarterPack: () => Promise<void>;
+  todaysTasks: Task[];
+  overdueTasks: Task[];
+
+  // Milestones
+  updateMilestone: (milestone: RoadmapMilestone) => Promise<void>;
+
+  // Projects
+  updateProject: (project: Project) => Promise<void>;
+  removeProject: (id: string) => Promise<void>;
+
+  // Daily records
+  saveTodayRecord: () => Promise<void>;
+
+  // Data management
+  exportData: () => Promise<void>;
+  importData: (file: File) => Promise<void>;
+  resetData: () => Promise<void>;
+
+  // Computed & Weighted progress
+  todayCompletionRate: number;
+  weightedTodayRate: number;
+  weeklyCompletionRate: number;
+}
+
+const AppContext = createContext<AppContextValue | null>(null);
+
+export function AppProvider({ children }: { children: React.ReactNode }) {
+  const { user, isConfigured } = useAuth();
+
+  const [settings, setSettings] = useState<AppSettings>(getDefaultSettings());
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [milestones, setMilestones] = useState<RoadmapMilestone[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [dailyRecords, setDailyRecords] = useState<DailyRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('synced');
+
+  // ── Apply Theme ──────────────────────────────────────────────────────────
+  function applyTheme(theme: AppSettings['theme']) {
+    const root = document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else if (theme === 'light') {
+      root.classList.remove('dark');
+    } else {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (prefersDark) {
+        root.classList.add('dark');
+      } else {
+        root.classList.remove('dark');
+      }
+    }
+  }
+
+  // ── Initial Bootstrap (Settings, Milestones, Projects, Daily Records) ───
+  useEffect(() => {
+    (async () => {
+      try {
+        let s = await getSettings();
+        if (!s) {
+          s = getDefaultSettings();
+          await saveSettings(s);
+        }
+        setSettings(s);
+        applyTheme(s.theme);
+
+        let ms = await getAllMilestones();
+        if (ms.length === 0) {
+          for (const m of INITIAL_MILESTONES) await saveMilestone(m);
+          ms = INITIAL_MILESTONES;
+        }
+        setMilestones(ms);
+
+        let ps = await getAllProjects();
+        if (ps.length === 0) {
+          for (const p of INITIAL_PROJECTS) await saveProject(p);
+          ps = INITIAL_PROJECTS;
+        }
+        setProjects(ps);
+
+        const dr = await getAllDailyRecords();
+        setDailyRecords(dr);
+      } catch (e) {
+        setError(String(e));
+      }
+    })();
+  }, []);
+
+  // ── Load & Synchronize Tasks based on Auth State ─────────────────────────
+  const loadTasks = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      if (user && isConfigured) {
+        setSyncStatus('syncing');
+        const cloudTasks = await fetchUserTasks(user.id);
+        setTasks(cloudTasks);
+        setSyncStatus('synced');
+      } else {
+        // Fallback to local storage (Guest mode or unconfigured)
+        setSyncStatus('offline');
+        const localTasks = await getAllTasks();
+        setTasks(localTasks);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to load tasks';
+      setError(msg);
+      setSyncStatus('error');
+      // If cloud fails, fallback to local cache
+      const localTasks = await getAllTasks().catch(() => []);
+      if (localTasks.length > 0) {
+        setTasks(localTasks);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, isConfigured]);
+
+  useEffect(() => {
+    loadTasks();
+  }, [loadTasks]);
+
+  // ── Realtime Subscription for Authenticated User ─────────────────────────
+  useEffect(() => {
+    if (!user || !isConfigured) return;
+
+    const unsubscribe = subscribeToUserTasks(user.id, () => {
+      fetchUserTasks(user.id)
+        .then((fresh) => {
+          setTasks(fresh);
+          setSyncStatus('synced');
+        })
+        .catch(() => {});
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [user, isConfigured]);
+
+  // ── Settings ─────────────────────────────────────────────────────────────
+  const updateSettings = useCallback(async (partial: Partial<AppSettings>) => {
+    setSettings((prev) => {
+      const next = { ...prev, ...partial };
+      saveSettings(next);
+      if (partial.theme) applyTheme(partial.theme);
+      return next;
+    });
+  }, []);
+
+  // ── Tasks Operations (with Optimistic UI + Server Rollback) ──────────────
+  const addTask = useCallback(
+    async (taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>): Promise<Task> => {
+      setSyncStatus('syncing');
+      setError(null);
+
+      if (user && isConfigured) {
+        try {
+          const savedTask = await createCloudTask(taskData, user.id);
+          setTasks((prev) => [savedTask, ...prev]);
+          setSyncStatus('synced');
+          // Cache in local DB too
+          await saveTask(savedTask).catch(() => {});
+          return savedTask;
+        } catch (err: unknown) {
+          setSyncStatus('error');
+          const msg = err instanceof Error ? err.message : 'Failed to create cloud task';
+          setError(msg);
+          throw err;
+        }
+      } else {
+        // Offline / Guest Mode
+        const task: Task = {
+          ...taskData,
+          id: nanoid(),
+          createdAt: nowISO(),
+          updatedAt: nowISO(),
+        };
+        await saveTask(task);
+        setTasks((prev) => [task, ...prev]);
+        setSyncStatus('offline');
+        return task;
+      }
+    },
+    [user, isConfigured]
+  );
+
+  const updateTask = useCallback(
+    async (task: Task) => {
+      const previous = [...tasks];
+      const updated: Task = { ...task, updatedAt: nowISO() };
+
+      // Optimistic state update
+      setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
+      setSyncStatus('syncing');
+
+      if (user && isConfigured) {
+        try {
+          const saved = await updateCloudTask(updated, user.id);
+          setTasks((prev) => prev.map((t) => (t.id === task.id ? saved : t)));
+          setSyncStatus('synced');
+          await saveTask(saved).catch(() => {});
+        } catch (err: unknown) {
+          // Rollback on error
+          setTasks(previous);
+          setSyncStatus('error');
+          const msg = err instanceof Error ? err.message : 'Failed to update cloud task';
+          setError(msg);
+          throw err;
+        }
+      } else {
+        await saveTask(updated);
+        setSyncStatus('offline');
+      }
+    },
+    [tasks, user, isConfigured]
+  );
+
+  const completeTask = useCallback(
+    async (id: string) => {
+      const current = tasks.find((t) => t.id === id);
+      if (!current) return;
+
+      const isCompleted = current.status === 'completed';
+      const newStatus = isCompleted ? 'not-started' : 'completed';
+      const updated: Task = {
+        ...current,
+        status: newStatus,
+        completedAt: newStatus === 'completed' ? nowISO() : undefined,
+        updatedAt: nowISO(),
+      };
+
+      await updateTask(updated);
+    },
+    [tasks, updateTask]
+  );
+
+  const rescheduleTask = useCallback(
+    async (id: string, newDate: string) => {
+      const current = tasks.find((t) => t.id === id);
+      if (!current) return;
+
+      const updated: Task = {
+        ...current,
+        status: 'rescheduled',
+        rescheduledFrom: current.dueDate,
+        rescheduledTo: newDate,
+        dueDate: newDate,
+        updatedAt: nowISO(),
+      };
+
+      await updateTask(updated);
+    },
+    [tasks, updateTask]
+  );
+
+  const removeTask = useCallback(
+    async (id: string) => {
+      const previous = [...tasks];
+      // Optimistic delete
+      setTasks((prev) => prev.filter((t) => t.id !== id));
+      setSyncStatus('syncing');
+
+      if (user && isConfigured) {
+        try {
+          await deleteCloudTask(id, user.id);
+          setSyncStatus('synced');
+          await deleteTask(id).catch(() => {});
+        } catch (err: unknown) {
+          // Rollback
+          setTasks(previous);
+          setSyncStatus('error');
+          const msg = err instanceof Error ? err.message : 'Failed to delete task from cloud';
+          setError(msg);
+          throw err;
+        }
+      } else {
+        await deleteTask(id);
+        setSyncStatus('offline');
+      }
+    },
+    [tasks, user, isConfigured]
+  );
+
+  const loadStarterPack = useCallback(async () => {
+    if (user && isConfigured) {
+      setSyncStatus('syncing');
+      try {
+        const seeded = await seedStarterTasks(user.id);
+        setTasks((prev) => [...seeded, ...prev]);
+        setSyncStatus('synced');
+      } catch (err: unknown) {
+        setSyncStatus('error');
+        const msg = err instanceof Error ? err.message : 'Failed to load starter pack';
+        setError(msg);
+      }
+    } else {
+      // Local seed
+      const localSeeded: Task[] = [];
+      for (const st of STARTER_TASKS) {
+        const t: Task = {
+          ...st,
+          id: nanoid(),
+          createdAt: nowISO(),
+          updatedAt: nowISO(),
+        };
+        await saveTask(t);
+        localSeeded.push(t);
+      }
+      setTasks((prev) => [...localSeeded, ...prev]);
+    }
+  }, [user, isConfigured]);
+
+  // ── Computed Lists & Metrics ─────────────────────────────────────────────
+  const currentDate = today();
+
+  const todaysTasks = tasks.filter(
+    (t) => t.dueDate === currentDate && t.status !== 'rescheduled'
+  );
+
+  const overdueTasks = tasks.filter(
+    (t) =>
+      t.dueDate < currentDate &&
+      t.status !== 'completed' &&
+      t.status !== 'rescheduled'
+  );
+
+  const todayCompletionRate = todaysTasks.length
+    ? Math.round(
+        (todaysTasks.filter((t) => t.status === 'completed').length / todaysTasks.length) * 100
+      )
+    : 0;
+
+  // Weighted Today completion based on LifeArea planning weights (50, 15, 15, 10, 10)
+  const weightedTodayRate = (() => {
+    if (!todaysTasks.length) return 0;
+    const weights = settings.lifeAreaWeights;
+    const areas = Object.keys(weights) as (keyof typeof weights)[];
+
+    let totalWeightActive = 0;
+    let earnedWeight = 0;
+
+    for (const area of areas) {
+      const areaTasks = todaysTasks.filter((t) => t.lifeArea === area);
+      if (areaTasks.length > 0) {
+        const areaWeight = weights[area] || 0;
+        totalWeightActive += areaWeight;
+        const completedInArea = areaTasks.filter((t) => t.status === 'completed').length;
+        const ratio = completedInArea / areaTasks.length;
+        earnedWeight += ratio * areaWeight;
+      }
+    }
+
+    if (totalWeightActive === 0) return 0;
+    return Math.round((earnedWeight / totalWeightActive) * 100);
+  })();
+
+  const weeklyCompletionRate = (() => {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+    const weekDueTasks = tasks.filter((t) => t.dueDate >= sevenDaysAgo);
+    const weekCompleted = weekDueTasks.filter((t) => t.status === 'completed').length;
+    return weekDueTasks.length ? Math.round((weekCompleted / weekDueTasks.length) * 100) : 0;
+  })();
+
+  // ── Milestones & Projects ────────────────────────────────────────────────
+  const updateMilestone = useCallback(async (milestone: RoadmapMilestone) => {
+    await saveMilestone(milestone);
+    setMilestones((prev) => prev.map((m) => (m.id === milestone.id ? milestone : m)));
+  }, []);
+
+  const updateProject = useCallback(async (project: Project) => {
+    const updated = { ...project, updatedAt: nowISO() };
+    await saveProject(updated);
+    setProjects((prev) => prev.map((p) => (p.id === project.id ? updated : p)));
+  }, []);
+
+  const removeProject = useCallback(async (id: string) => {
+    await deleteProject(id);
+    setProjects((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+
+  // ── Daily Record ─────────────────────────────────────────────────────────
+  const saveTodayRecord = useCallback(async () => {
+    const record: DailyRecord = {
+      date: today(),
+      tasksCompleted: todaysTasks.filter((t) => t.status === 'completed').length,
+      tasksTotal: todaysTasks.length,
+      minutesSpent: todaysTasks
+        .filter((t) => t.status === 'completed')
+        .reduce((sum, t) => sum + (t.actualMinutes ?? t.estimatedMinutes ?? 0), 0),
+      savedAt: nowISO(),
+    };
+    await saveDailyRecord(record);
+    setDailyRecords((prev) => {
+      const exists = prev.findIndex((r) => r.date === today());
+      return exists >= 0 ? prev.map((r, i) => (i === exists ? record : r)) : [...prev, record];
+    });
+  }, [todaysTasks]);
+
+  // ── Backup / Export / Import / Reset ─────────────────────────────────────
+  const exportData = useCallback(async () => {
+    const data = await exportAllData();
+    data.tasks = tasks; // Export live tasks
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `lifemap-backup-${today()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [tasks]);
+
+  const importData = useCallback(async (file: File) => {
+    const text = await file.text();
+    let data: unknown;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      throw new Error('Invalid JSON file format');
+    }
+    await importAllData(data as Parameters<typeof importAllData>[0]);
+    // Reload state
+    const [t, ms, ps, dr, s] = await Promise.all([
+      getAllTasks(),
+      getAllMilestones(),
+      getAllProjects(),
+      getAllDailyRecords(),
+      getSettings(),
+    ]);
+    setTasks(t);
+    setMilestones(ms);
+    setProjects(ps);
+    setDailyRecords(dr);
+    if (s) setSettings(s);
+  }, []);
+
+  const resetData = useCallback(async () => {
+    await clearAllData();
+    const s = getDefaultSettings();
+    await saveSettings(s);
+    setSettings(s);
+    setTasks([]);
+    setDailyRecords([]);
+    for (const m of INITIAL_MILESTONES) await saveMilestone(m);
+    for (const p of INITIAL_PROJECTS) await saveProject(p);
+    setMilestones(INITIAL_MILESTONES);
+    setProjects(INITIAL_PROJECTS);
+  }, []);
+
+  return (
+    <AppContext.Provider
+      value={{
+        settings,
+        tasks,
+        milestones,
+        projects,
+        dailyRecords,
+        isLoading,
+        error,
+        syncStatus,
+        updateSettings,
+        addTask,
+        updateTask,
+        completeTask,
+        rescheduleTask,
+        removeTask,
+        loadStarterPack,
+        todaysTasks,
+        overdueTasks,
+        updateMilestone,
+        updateProject,
+        removeProject,
+        saveTodayRecord,
+        exportData,
+        importData,
+        resetData,
+        todayCompletionRate,
+        weightedTodayRate,
+        weeklyCompletionRate,
+      }}
+    >
+      {children}
+    </AppContext.Provider>
+  );
+}
+
+export function useApp(): AppContextValue {
+  const ctx = useContext(AppContext);
+  if (!ctx) throw new Error('useApp must be used within AppProvider');
+  return ctx;
+}
