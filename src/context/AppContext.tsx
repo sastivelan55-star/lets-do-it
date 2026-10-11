@@ -149,11 +149,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const loadTasks = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    setTasks([]);
     try {
       if (user && isConfigured) {
         setSyncStatus('syncing');
-        const cloudTasks = await fetchUserTasks(user.id);
+        let cloudTasks = await fetchUserTasks(user.id);
+
+        // If newly logged in cloud account is empty, migrate existing local tasks so user work is preserved
+        if (cloudTasks.length === 0) {
+          const localTasks = await getAllTasks().catch(() => []);
+          if (localTasks.length > 0) {
+            for (const lt of localTasks) {
+              await createCloudTask(lt, user.id).catch(() => {});
+            }
+            cloudTasks = await fetchUserTasks(user.id).catch(() => cloudTasks);
+          }
+        }
+
         setTasks(cloudTasks);
         setSyncStatus('synced');
       } else {
@@ -170,6 +181,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
       setError(msg);
       setSyncStatus('error');
+      // Preserve existing data in view so user never loses their tasks while resolving migration
+      const fallbackLocal = await getAllTasks().catch(() => []);
+      if (fallbackLocal.length > 0) {
+        setTasks(fallbackLocal);
+      }
     } finally {
       setIsLoading(false);
     }

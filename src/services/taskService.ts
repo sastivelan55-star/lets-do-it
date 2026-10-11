@@ -95,13 +95,17 @@ export async function fetchUserTasks(userId: string): Promise<Task[]> {
 }
 
 export async function createCloudTask(
-  taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>,
+  taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'> | Task,
   userId: string
 ): Promise<Task> {
   const supabase = getSupabase();
   if (!supabase) throw new Error('Supabase is not configured');
 
   const insertPayload = taskToDbRow(taskData, userId);
+  // Ensure non-UUID client ids (e.g. from local nanoid) are stripped so Postgres generates a valid UUID
+  if (insertPayload.id && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(insertPayload.id)) {
+    delete insertPayload.id;
+  }
 
   const { data, error } = await supabase
     .from('tasks')
