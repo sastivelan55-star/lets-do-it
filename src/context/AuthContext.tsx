@@ -14,12 +14,56 @@ interface AuthContextValue {
   isPasswordRecovery: boolean;
   signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signUp: (email: string, password: string) => Promise<{ success: boolean; error?: string; message?: string }>;
+  signInWithGoogle: () => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ success: boolean; error?: string; message?: string }>;
   updatePassword: (newPassword: string) => Promise<{ success: boolean; error?: string; message?: string }>;
   clearError: () => void;
   continueAsGuest: () => void;
   dismissPasswordRecovery: () => void;
+}
+
+export function formatAuthErrorMessage(
+  rawMessage: string,
+  context: 'signup' | 'signin' | 'reset' | 'google' = 'signin'
+): string {
+  if (!rawMessage) return 'An unexpected authentication error occurred.';
+  const lower = rawMessage.toLowerCase();
+
+  // Supabase provider email rate limit
+  if (
+    lower.includes('rate limit') ||
+    lower.includes('over_email_send_rate_limit') ||
+    lower.includes('email rate limit exceeded') ||
+    lower.includes('too many requests')
+  ) {
+    if (context === 'signup' || context === 'reset') {
+      return 'Supabase email rate limit exceeded: The built-in email sender hourly quota has been reached on this Supabase project. If you already created an account, you can Sign In directly without needing a new email. Otherwise, please wait for the hourly cooldown or configure a custom SMTP provider in the Supabase Dashboard.';
+    }
+    return 'Rate limit exceeded: Too many requests were sent to the authentication provider. Please wait a few moments before trying again.';
+  }
+
+  if (lower.includes('email not confirmed')) {
+    return 'Your email has not been verified yet. Please check your inbox for the confirmation email before signing in.';
+  }
+
+  if (lower.includes('invalid login credentials')) {
+    return 'Invalid email or password. Please verify your credentials and try again.';
+  }
+
+  if (lower.includes('user already registered') || lower.includes('already exists')) {
+    return 'An account with this email already exists. Please sign in or reset your password.';
+  }
+
+  if (
+    lower.includes('provider is not enabled') ||
+    lower.includes('unsupported provider') ||
+    lower.includes('provider disabled')
+  ) {
+    return 'Google sign-in is not enabled in this Supabase project. Please enable Google provider under Supabase Dashboard -> Authentication -> Providers -> Google.';
+  }
+
+  return rawMessage;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -41,10 +85,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       let msg = errorDescription
         ? decodeURIComponent(errorDescription.replace(/\+/g, ' '))
         : 'Authentication verification failed';
-      if (errorCode === 'otp_expired' || msg.toLowerCase().includes('expired')) {
+      const lower = msg.toLowerCase();
+      if (errorCode === 'otp_expired' || lower.includes('expired')) {
         msg = 'The verification or reset link has expired. Please request a new link.';
       } else if (errorCode === 'access_denied') {
         msg = 'Access denied. The verification link is invalid or has already been used.';
+      } else if (errorCode === 'over_email_send_rate_limit' || lower.includes('rate limit')) {
+        msg = formatAuthErrorMessage(msg, 'signup');
       }
       return msg;
     }
@@ -82,7 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .then(({ data: { session }, error }) => {
         if (!isMounted) return;
         if (error) {
-          setAuthError(error.message);
+          setAuthError(formatAuthErrorMessage(error.message));
         }
         setSession(session);
         setUser(session?.user ?? null);
@@ -152,14 +199,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
 
         if (error) {
-          let userFriendlyMessage = error.message;
-          const lower = error.message.toLowerCase();
-          if (lower.includes('email not confirmed')) {
-            userFriendlyMessage =
-              'Your email has not been verified yet. Please check your inbox for the confirmation email before signing in.';
-          } else if (lower.includes('invalid login credentials')) {
-            userFriendlyMessage = 'Invalid email or password. Please verify your credentials and try again.';
-          }
+          const userFriendlyMessage = formatAuthErrorMessage(error.message, 'signin');
           setAuthError(userFriendlyMessage);
           return { success: false, error: userFriendlyMessage };
         }
@@ -169,7 +209,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsGuest(false);
         return { success: true };
       } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Unexpected sign in error';
+        const raw = err instanceof Error ? err.message : 'Unexpected sign in error';
+        const message = formatAuthErrorMessage(raw, 'signin');
         setAuthError(message);
         return { success: false, error: message };
       } finally {
@@ -210,8 +251,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
 
         if (error) {
-          setAuthError(error.message);
-          return { success: false, error: error.message };
+          const formatted = formatAuthErrorMessage(error.message, 'signup');
+          setAuthError(formatted);
+          return { success: false, error: formatted };
         }
 
         // Supabase returns an empty identities array if an account with this email already exists
@@ -234,7 +276,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           };
         }
       } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Unexpected sign up error';
+        const raw = err instanceof Error ? err.message : 'Unexpected sign up error';
+        const message = formatAuthErrorMessage(raw, 'signup');
         setAuthError(message);
         return { success: false, error: message };
       } finally {
@@ -243,6 +286,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     },
     []
   );
+
+  const signInWithGoogle = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
+    setAuthError(null);
+    const supabase = getSupabase();
+    if (!supabase) {
+      const err = 'Supabase credentials are not configured.';
+      setAuthError(err);
+      return { success: false, error: err };
+    }
+
+    setIsLoading(true);
+    try {
+      const redirectUrl = typeof window !== 'undefined' ? window.location.origin : undefined;
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl,
+        },
+      });
+
+      if (error) {
+        const formatted = formatAuthErrorMessage(error.message, 'google');
+        setAuthError(formatted);
+        return { success: false, error: formatted };
+      }
+
+      // If Supabase returned an OAuth authorization URL, redirect the browser
+      if (data?.url && typeof window !== 'undefined') {
+        window.location.assign(data.url);
+      }
+
+      return { success: true };
+    } catch (err: unknown) {
+      const raw = err instanceof Error ? err.message : 'Unexpected Google sign-in error';
+      const formatted = formatAuthErrorMessage(raw, 'google');
+      setAuthError(formatted);
+      return { success: false, error: formatted };
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   const signOut = useCallback(async () => {
     const supabase = getSupabase();
@@ -282,7 +366,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
 
         if (error) {
-          return { success: false, error: error.message };
+          const formatted = formatAuthErrorMessage(error.message, 'reset');
+          setAuthError(formatted);
+          return { success: false, error: formatted };
         }
 
         return {
@@ -290,8 +376,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           message: 'Password reset link sent to your email. Check your inbox and follow the link to set a new password.',
         };
       } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Failed to request password reset';
-        return { success: false, error: message };
+        const raw = err instanceof Error ? err.message : 'Failed to request password reset';
+        const formatted = formatAuthErrorMessage(raw, 'reset');
+        return { success: false, error: formatted };
       }
     },
     []
@@ -315,8 +402,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const { error } = await supabase.auth.updateUser({ password: newPassword });
         if (error) {
-          setAuthError(error.message);
-          return { success: false, error: error.message };
+          const formatted = formatAuthErrorMessage(error.message, 'signin');
+          setAuthError(formatted);
+          return { success: false, error: formatted };
         }
         setIsPasswordRecovery(false);
         return {
@@ -324,9 +412,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           message: 'Password updated successfully! You can now continue using your account.',
         };
       } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Failed to update password';
-        setAuthError(message);
-        return { success: false, error: message };
+        const raw = err instanceof Error ? err.message : 'Failed to update password';
+        const formatted = formatAuthErrorMessage(raw, 'signin');
+        setAuthError(formatted);
+        return { success: false, error: formatted };
       } finally {
         setIsLoading(false);
       }
@@ -360,6 +449,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isPasswordRecovery,
         signIn,
         signUp,
+        signInWithGoogle,
         signOut,
         resetPassword,
         updatePassword,

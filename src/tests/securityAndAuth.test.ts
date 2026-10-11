@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { taskToDbRow } from '../services/taskService';
+import { formatAuthErrorMessage } from '../context/AuthContext';
 import type { Task } from '../types';
 
 describe('Security & Isolation Assurances', () => {
@@ -30,6 +31,19 @@ describe('Security & Isolation Assurances', () => {
     expect(validatePassword('12345').error).toBe('Password must be at least 6 characters.');
     expect(validatePassword('123456').valid).toBe(true);
     expect(validatePassword('securePassword2026').valid).toBe(true);
+  });
+
+  it('enforces that password and confirm password match during account creation', () => {
+    const validateConfirmation = (password: string, confirmPassword: string): { valid: boolean; error?: string } => {
+      if (password !== confirmPassword) {
+        return { valid: false, error: 'Passwords do not match. Please verify your password confirmation.' };
+      }
+      return { valid: true };
+    };
+
+    expect(validateConfirmation('password123', 'password999').valid).toBe(false);
+    expect(validateConfirmation('password123', 'password999').error).toContain('Passwords do not match');
+    expect(validateConfirmation('SecretPass!2026', 'SecretPass!2026').valid).toBe(true);
   });
 
   it('validates email syntax before dispatching auth requests', () => {
@@ -64,20 +78,31 @@ describe('Security & Isolation Assurances', () => {
     expect(isNew).toBe(false);
   });
 
-  it('translates provider errors into clear, actionable messages without exposing secrets', () => {
-    const formatAuthError = (rawMessage: string): string => {
-      const lower = rawMessage.toLowerCase();
-      if (lower.includes('email not confirmed')) {
-        return 'Your email has not been verified yet. Please check your inbox for the confirmation email before signing in.';
-      }
-      if (lower.includes('invalid login credentials')) {
-        return 'Invalid email or password. Please verify your credentials and try again.';
-      }
-      return rawMessage;
-    };
+  it('translates provider rate limit errors into clear, actionable explanations', () => {
+    const rawRateLimit = 'email rate limit exceeded';
+    const formatted = formatAuthErrorMessage(rawRateLimit, 'signup');
 
-    expect(formatAuthError('Email not confirmed')).toContain('Please check your inbox');
-    expect(formatAuthError('Invalid login credentials')).toContain('Invalid email or password');
+    expect(formatted).toContain('Supabase email rate limit exceeded');
+    expect(formatted).toContain('hourly quota');
+    expect(formatted).toContain('Sign In directly');
+
+    // Code 429 string
+    const raw429 = 'over_email_send_rate_limit: Too many requests';
+    const formatted429 = formatAuthErrorMessage(raw429, 'signup');
+    expect(formatted429).toContain('Supabase email rate limit exceeded');
+  });
+
+  it('translates disabled Google OAuth provider errors into clear setup instructions', () => {
+    const rawGoogleError = 'Unsupported provider: provider is not enabled';
+    const formatted = formatAuthErrorMessage(rawGoogleError, 'google');
+
+    expect(formatted).toContain('Google sign-in is not enabled in this Supabase project');
+    expect(formatted).toContain('Supabase Dashboard -> Authentication -> Providers -> Google');
+  });
+
+  it('translates standard auth credentials errors into user-friendly messages', () => {
+    expect(formatAuthErrorMessage('Email not confirmed', 'signin')).toContain('Please check your inbox');
+    expect(formatAuthErrorMessage('Invalid login credentials', 'signin')).toContain('Invalid email or password');
   });
 
   it('parses redirect URL error fragments from expired or invalid email verification links', () => {
