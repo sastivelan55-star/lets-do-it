@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Plus, Briefcase, ExternalLink, Check } from 'lucide-react';
 import ProgressRing from '../components/ui/ProgressRing';
 import Modal from '../components/ui/Modal';
@@ -55,24 +55,31 @@ export default function CareerPage() {
   const getItemForType = (type: CareerItem['type']): CareerItem | undefined =>
     items.find((i) => i.type === type);
 
-  const toggleToolkitStatus = async (type: CareerItem['type'], title: string) => {
-    const existing = getItemForType(type);
-    if (existing) {
-      const next: CareerItem = {
-        ...existing,
-        status: existing.status === 'done' ? 'todo' : 'done',
-        updatedAt: new Date().toISOString(),
-      };
-      await saveToStore('careerItems', next);
-      setItems((prev) => prev.map((i) => (i.id === next.id ? next : i)));
-    } else {
-      const newItem: CareerItem = {
-        id: nanoid(), type, title, status: 'done', updatedAt: new Date().toISOString(),
-      };
-      await saveToStore('careerItems', newItem);
-      setItems((prev) => [...prev, newItem]);
-    }
-  };
+  const toggleToolkitStatus = useCallback(async (type: CareerItem['type'], title: string) => {
+    const now = new Date().toISOString();
+    setItems((prev) => {
+      const existing = prev.find((i) => i.type === type);
+      if (existing) {
+        const next: CareerItem = {
+          ...existing,
+          status: existing.status === 'done' ? 'todo' : 'done',
+          updatedAt: now,
+        };
+        saveToStore('careerItems', next);
+        return prev.map((i) => (i.id === next.id ? next : i));
+      } else {
+        const newItem: CareerItem = {
+          id: nanoid(),
+          type,
+          title,
+          status: 'done',
+          updatedAt: now,
+        };
+        saveToStore('careerItems', newItem);
+        return [...prev, newItem];
+      }
+    });
+  }, []);
 
   const saveApp = async () => {
     if (!appForm.company.trim() || !appForm.role.trim()) return;

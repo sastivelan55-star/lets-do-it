@@ -58,12 +58,13 @@ export default function TaskCard({ task, onComplete, onEdit, onDelete, onResched
       className={clsx('task-card', isCompleted && 'completed')}
       style={{ borderLeft: `3px solid ${areaColor}` }}
     >
-      {/* Checkbox */}
+      {/* Reversible completion checkbox toggle */}
       <button
+        type="button"
         className={clsx('task-checkbox', isCompleted && 'checked')}
-        onClick={() => !isCompleted && onComplete(task.id)}
-        aria-label={isCompleted ? 'Task completed' : 'Mark task complete'}
-        disabled={isCompleted}
+        onClick={() => onComplete(task.id)}
+        aria-label={isCompleted ? 'Mark task as incomplete' : 'Mark task as completed'}
+        title={isCompleted ? 'Click to restore to incomplete' : 'Click to mark complete'}
         style={{ borderColor: isCompleted ? 'transparent' : areaColor }}
       >
         {isCompleted && <Check size={12} color="white" strokeWidth={3} />}

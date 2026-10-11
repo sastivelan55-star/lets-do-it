@@ -59,10 +59,18 @@ export function taskToDbRow(task: Partial<Task>, userId: string): Partial<DbTask
   if (task.estimatedMinutes !== undefined) row.estimated_minutes = task.estimatedMinutes;
   if (task.actualMinutes !== undefined) row.actual_minutes = task.actualMinutes;
   if (task.priority !== undefined) row.priority = task.priority;
-  if (task.status !== undefined) row.status = task.status;
+  if (task.status !== undefined) {
+    row.status = task.status;
+    if (task.status === 'completed') {
+      row.completed_at = task.completedAt || new Date().toISOString();
+    } else {
+      row.completed_at = null;
+    }
+  } else if (task.completedAt !== undefined) {
+    row.completed_at = task.completedAt || null;
+  }
   if (task.recurring !== undefined) row.recurring_rule = task.recurring || null;
   if (task.notes !== undefined) row.notes = task.notes || null;
-  if (task.completedAt !== undefined) row.completed_at = task.completedAt || null;
 
   return row;
 }

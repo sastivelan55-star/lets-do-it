@@ -66,7 +66,10 @@ export default function TodayPage() {
 
   const currentMilestone = milestones.find((m) => m.status === 'in-progress') ?? milestones[0];
 
-  const quote = MOTIVATIONAL_QUOTES[new Date().getDate() % MOTIVATIONAL_QUOTES.length];
+  const [quote] = useState(() => {
+    const day = new Date().getDate();
+    return MOTIVATIONAL_QUOTES[day % MOTIVATIONAL_QUOTES.length];
+  });
 
   const handleAddTask = async (data: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => {
     await addTask(data);

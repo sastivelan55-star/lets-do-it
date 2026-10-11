@@ -60,4 +60,28 @@ describe('Task Data Mapping and Serialization', () => {
     expect(row.priority).toBe('medium');
     expect(row.status).toBe('not-started');
   });
+
+  it('sets completed_at to timestamp when marking complete, and NULL when restoring to incomplete', () => {
+    const userId = 'auth-user-999';
+
+    // 1. Marking complete
+    const completedTask: Partial<Task> = {
+      id: 'task-100',
+      status: 'completed',
+      completedAt: '2026-10-11T12:00:00.000Z',
+    };
+    const completedRow = taskToDbRow(completedTask, userId);
+    expect(completedRow.status).toBe('completed');
+    expect(completedRow.completed_at).toBe('2026-10-11T12:00:00.000Z');
+
+    // 2. Reversing completion back to not-started
+    const restoredTask: Partial<Task> = {
+      id: 'task-100',
+      status: 'not-started',
+      completedAt: undefined,
+    };
+    const restoredRow = taskToDbRow(restoredTask, userId);
+    expect(restoredRow.status).toBe('not-started');
+    expect(restoredRow.completed_at).toBeNull();
+  });
 });

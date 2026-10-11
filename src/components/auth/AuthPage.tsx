@@ -17,7 +17,18 @@ import {
 import SupabaseSetupNotice from './SupabaseSetupNotice';
 
 export default function AuthPage() {
-  const { signIn, signUp, resetPassword, authError, clearError, isConfigured, continueAsGuest } = useAuth();
+  const {
+    signIn,
+    signUp,
+    resetPassword,
+    updatePassword,
+    authError,
+    clearError,
+    isConfigured,
+    continueAsGuest,
+    isPasswordRecovery,
+    dismissPasswordRecovery,
+  } = useAuth();
 
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
@@ -30,6 +41,12 @@ export default function AuthPage() {
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetStatus, setResetStatus] = useState<string | null>(null);
+
+  // New password update state (recovery flow)
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [recoveryStatus, setRecoveryStatus] = useState<string | null>(null);
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,6 +86,36 @@ export default function AuthPage() {
         setResetStatus(result.message);
       } else if (result.error) {
         setResetStatus(`Error: ${result.error}`);
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRecoveryError(null);
+    setRecoveryStatus(null);
+
+    if (newPassword.length < 6) {
+      setRecoveryError('Password must be at least 6 characters.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setRecoveryError('Passwords do not match.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const result = await updatePassword(newPassword);
+      if (result.success && result.message) {
+        setRecoveryStatus(result.message);
+        setTimeout(() => {
+          dismissPasswordRecovery();
+        }, 1500);
+      } else if (result.error) {
+        setRecoveryError(result.error);
       }
     } finally {
       setSubmitting(false);
@@ -517,6 +564,163 @@ export default function AuthPage() {
                   }}
                 >
                   Send Link
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Password Recovery Modal (when user clicks reset link in email) */}
+      {isPasswordRecovery && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.75)',
+            backdropFilter: 'blur(10px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1100,
+            padding: '1rem',
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '420px',
+              background: '#0f172a',
+              borderRadius: '16px',
+              border: '1px solid rgba(99, 102, 241, 0.3)',
+              padding: '1.75rem',
+              boxShadow: '0 24px 60px rgba(0, 0, 0, 0.6)',
+            }}
+          >
+            <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.2rem', fontWeight: 700, color: '#fff' }}>
+              Set New Password
+            </h3>
+            <p style={{ margin: '0 0 1.25rem 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+              Enter a new secure password for your account (minimum 6 characters).
+            </p>
+
+            {recoveryError && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.65rem 0.85rem',
+                  borderRadius: '8px',
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  color: '#f87171',
+                  fontSize: '0.85rem',
+                  marginBottom: '1rem',
+                }}
+              >
+                <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                <span>{recoveryError}</span>
+              </div>
+            )}
+
+            {recoveryStatus && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.65rem 0.85rem',
+                  borderRadius: '8px',
+                  background: 'rgba(16, 185, 129, 0.15)',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  color: '#34d399',
+                  fontSize: '0.85rem',
+                  marginBottom: '1rem',
+                }}
+              >
+                <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
+                <span>{recoveryStatus}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleUpdatePassword} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Min. 6 characters"
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    borderRadius: '8px',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    color: '#fff',
+                    fontSize: '0.9rem',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Repeat new password"
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    borderRadius: '8px',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    color: '#fff',
+                    fontSize: '0.9rem',
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={dismissPasswordRecovery}
+                  style={{
+                    flex: 1,
+                    padding: '0.7rem',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    background: 'transparent',
+                    color: '#fff',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  style={{
+                    flex: 1,
+                    padding: '0.7rem',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                    color: '#fff',
+                    fontWeight: 600,
+                    cursor: submitting ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 4px 14px rgba(99, 102, 241, 0.3)',
+                  }}
+                >
+                  {submitting ? 'Saving…' : 'Save Password'}
                 </button>
               </div>
             </form>

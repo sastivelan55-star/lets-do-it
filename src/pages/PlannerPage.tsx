@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, SortAsc, Calendar } from 'lucide-react';
+import { Plus, SortAsc, Calendar, AlertCircle } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import TaskCard from '../components/tasks/TaskCard';
 import TaskForm from '../components/tasks/TaskForm';
@@ -26,7 +26,7 @@ const STATUS_FILTERS: { value: TaskStatus | 'all'; label: string }[] = [
 ];
 
 export default function PlannerPage() {
-  const { tasks, addTask, updateTask, completeTask, rescheduleTask, removeTask } = useApp();
+  const { tasks, addTask, updateTask, completeTask, rescheduleTask, removeTask, error } = useApp();
   const [showAdd, setShowAdd]       = useState(false);
   const [editing, setEditing]       = useState<Task | null>(null);
   const [areaFilter, setAreaFilter] = useState<LifeArea | 'all'>('all');
@@ -74,6 +74,26 @@ export default function PlannerPage() {
           Plan and manage your tasks by day or week.
         </p>
       </div>
+
+      {error && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            padding: '0.75rem 1rem',
+            background: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            borderRadius: '10px',
+            color: '#f87171',
+            fontSize: '0.85rem',
+            marginBottom: '1.25rem',
+          }}
+        >
+          <AlertCircle size={18} style={{ flexShrink: 0 }} />
+          <span>{error}</span>
+        </div>
+      )}
 
       {/* Controls */}
       <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.25rem', flexWrap: 'wrap', alignItems: 'center' }}>

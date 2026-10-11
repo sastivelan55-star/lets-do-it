@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+/* oxlint-disable react/only-export-components */
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import type { AppSettings, Task, RoadmapMilestone, Project, DailyRecord } from '../types';
 import { useAuth } from './AuthContext';
 import {
@@ -148,6 +149,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const loadTasks = useCallback(async () => {
     setIsLoading(true);
     setError(null);
+    setTasks([]);
     try {
       if (user && isConfigured) {
         setSyncStatus('syncing');
@@ -161,14 +163,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setTasks(localTasks);
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to load tasks';
+      let msg = err instanceof Error ? err.message : 'Failed to load tasks';
+      if (msg.includes('public.tasks') || msg.includes('schema cache')) {
+        msg =
+          "Database table 'tasks' not found in Supabase. Please execute the migration in supabase/migrations/20261011000000_create_tasks_table.sql via Supabase SQL Editor.";
+      }
       setError(msg);
       setSyncStatus('error');
-      // If cloud fails, fallback to local cache
-      const localTasks = await getAllTasks().catch(() => []);
-      if (localTasks.length > 0) {
-        setTasks(localTasks);
-      }
     } finally {
       setIsLoading(false);
     }
@@ -217,12 +218,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const savedTask = await createCloudTask(taskData, user.id);
           setTasks((prev) => [savedTask, ...prev]);
           setSyncStatus('synced');
-          // Cache in local DB too
-          await saveTask(savedTask).catch(() => {});
           return savedTask;
         } catch (err: unknown) {
           setSyncStatus('error');
-          const msg = err instanceof Error ? err.message : 'Failed to create cloud task';
+          let msg = err instanceof Error ? err.message : 'Failed to create cloud task';
+          if (msg.includes('public.tasks') || msg.includes('schema cache')) {
+            msg = "Cannot save task: table 'tasks' does not exist in Supabase. Please run the SQL migration.";
+          }
           setError(msg);
           throw err;
         }
@@ -257,12 +259,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const saved = await updateCloudTask(updated, user.id);
           setTasks((prev) => prev.map((t) => (t.id === task.id ? saved : t)));
           setSyncStatus('synced');
-          await saveTask(saved).catch(() => {});
         } catch (err: unknown) {
           // Rollback on error
           setTasks(previous);
           setSyncStatus('error');
-          const msg = err instanceof Error ? err.message : 'Failed to update cloud task';
+          let msg = err instanceof Error ? err.message : 'Failed to update cloud task';
+          if (msg.includes('public.tasks') || msg.includes('schema cache')) {
+            msg = "Cannot update task: table 'tasks' does not exist in Supabase. Please run the SQL migration.";
+          }
           setError(msg);
           throw err;
         }
@@ -288,7 +292,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         updatedAt: nowISO(),
       };
 
-      await updateTask(updated);
+      try {
+        await updateTask(updated);
+      } catch {
+        // Rollback and error display are already handled inside updateTask
+      }
     },
     [tasks, updateTask]
   );
@@ -307,7 +315,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         updatedAt: nowISO(),
       };
 
-      await updateTask(updated);
+      try {
+        await updateTask(updated);
+      } catch {
+        // Rollback and error handled in updateTask
+      }
     },
     [tasks, updateTask]
   );
@@ -323,7 +335,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         try {
           await deleteCloudTask(id, user.id);
           setSyncStatus('synced');
-          await deleteTask(id).catch(() => {});
         } catch (err: unknown) {
           // Rollback
           setTasks(previous);
@@ -413,12 +424,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return Math.round((earnedWeight / totalWeightActive) * 100);
   })();
 
-  const weeklyCompletionRate = (() => {
-    const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+  const weeklyCompletionRate = useMemo(() => {
+    const d = new Date(currentDate);
+    d.setDate(d.getDate() - 7);
+    const sevenDaysAgo = d.toISOString().slice(0, 10);
     const weekDueTasks = tasks.filter((t) => t.dueDate >= sevenDaysAgo);
     const weekCompleted = weekDueTasks.filter((t) => t.status === 'completed').length;
     return weekDueTasks.length ? Math.round((weekCompleted / weekDueTasks.length) * 100) : 0;
-  })();
+  }, [tasks, currentDate]);
 
   // ── Milestones & Projects ────────────────────────────────────────────────
   const updateMilestone = useCallback(async (milestone: RoadmapMilestone) => {
