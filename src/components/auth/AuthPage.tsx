@@ -51,6 +51,7 @@ export default function AuthPage() {
     isConfigured,
     isPasswordRecovery,
     dismissPasswordRecovery,
+    continueAsGuest,
   } = useAuth();
 
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
@@ -755,6 +756,30 @@ export default function AuthPage() {
               </button>
             </span>
           )}
+        </div>
+
+        {/* Continue as Guest option */}
+        <div style={{ marginTop: '0.85rem', textAlign: 'center' }}>
+          <button
+            type="button"
+            id="continue-as-guest-button"
+            onClick={continueAsGuest}
+            style={{
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              color: 'var(--text-secondary)',
+              padding: '0.5rem 0.9rem',
+              borderRadius: '8px',
+              fontSize: '0.8rem',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              transition: 'background 0.2s',
+            }}
+          >
+            Explore Dashboard as Guest →
+          </button>
         </div>
       </div>
 
