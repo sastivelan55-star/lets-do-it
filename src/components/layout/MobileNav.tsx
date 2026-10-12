@@ -1,5 +1,9 @@
-import type { ReactNode } from 'react';
-import { LayoutDashboard, CalendarDays, Code2, FolderOpen, Settings } from 'lucide-react';
+import { useState } from 'react';
+import {
+  LayoutDashboard, CalendarDays, Map, FolderOpen,
+  MoreHorizontal, Code2, MessageSquare, Briefcase, Palette, Heart,
+  BarChart3, Settings, X,
+} from 'lucide-react';
 import type { NavSection } from '../../App';
 
 interface MobileNavProps {
@@ -7,57 +11,99 @@ interface MobileNavProps {
   onNavigate: (section: NavSection) => void;
 }
 
-const MOBILE_NAV: { id: NavSection; label: string; icon: ReactNode }[] = [
-  { id: 'today',        label: 'Today',    icon: <LayoutDashboard size={20} /> },
-  { id: 'planner',      label: 'Planner',  icon: <CalendarDays size={20} /> },
-  { id: 'technical',    label: 'Learn',    icon: <Code2 size={20} /> },
-  { id: 'projects',     label: 'Projects', icon: <FolderOpen size={20} /> },
-  { id: 'settings',     label: 'More',     icon: <Settings size={20} /> },
+// Primary 4 tabs always shown in the bottom bar alongside More
+const PRIMARY_NAV: { id: NavSection; label: string; icon: React.ReactNode }[] = [
+  { id: 'today',     label: 'Today',    icon: <LayoutDashboard size={20} /> },
+  { id: 'planner',   label: 'Planner',  icon: <CalendarDays size={20} /> },
+  { id: 'technical', label: 'Learn',    icon: <Code2 size={20} /> },
+  { id: 'projects',  label: 'Projects', icon: <FolderOpen size={20} /> },
 ];
 
+// All sections accessible from the "More" drawer
+const MORE_NAV: { id: NavSection; label: string; icon: React.ReactNode }[] = [
+  { id: 'roadmap',      label: 'Roadmap',       icon: <Map size={20} /> },
+  { id: 'communication',label: 'Communication', icon: <MessageSquare size={20} /> },
+  { id: 'career',       label: 'Career',        icon: <Briefcase size={20} /> },
+  { id: 'creativity',   label: 'Creativity',    icon: <Palette size={20} /> },
+  { id: 'health',       label: 'Health',        icon: <Heart size={20} /> },
+  { id: 'review',       label: 'Review',        icon: <BarChart3 size={20} /> },
+  { id: 'settings',     label: 'Settings',      icon: <Settings size={20} /> },
+];
+
+// All sections not in the primary bar
+const MORE_SECTION_IDS = MORE_NAV.map(n => n.id) as NavSection[];
+
 export default function MobileNav({ active, onNavigate }: MobileNavProps) {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const moreIsActive = MORE_SECTION_IDS.includes(active);
+
+  const handleNavigate = (id: NavSection) => {
+    onNavigate(id);
+    setDrawerOpen(false);
+  };
+
   return (
-    <nav
-      style={{
-        position: 'fixed',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        background: 'var(--bg-sidebar)',
-        borderTop: '1px solid var(--border)',
-        display: 'flex',
-        zIndex: 50,
-        paddingBottom: 'env(safe-area-inset-bottom)',
-      }}
-      aria-label="Mobile navigation"
-    >
-      {MOBILE_NAV.map((item) => (
+    <>
+      {/* Bottom Nav Bar */}
+      <nav className="mobile-nav" aria-label="Mobile navigation">
+        {PRIMARY_NAV.map((item) => (
+          <button
+            key={item.id}
+            className={`mobile-nav-btn${active === item.id ? ' active' : ''}`}
+            onClick={() => handleNavigate(item.id)}
+            aria-label={item.label}
+            aria-current={active === item.id ? 'page' : undefined}
+            style={{ position: 'relative' }}
+          >
+            <span className="mobile-nav-indicator" />
+            {item.icon}
+            <span>{item.label}</span>
+          </button>
+        ))}
+
+        {/* More button */}
         <button
-          key={item.id}
-          onClick={() => onNavigate(item.id)}
-          aria-label={item.label}
-          aria-current={active === item.id ? 'page' : undefined}
-          style={{
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '3px',
-            padding: '0.6rem 0.25rem',
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            color: active === item.id ? '#818cf8' : 'rgba(148,163,184,0.65)',
-            fontSize: '0.65rem',
-            fontWeight: 600,
-            transition: 'color 0.15s ease',
-          }}
+          className={`mobile-nav-btn${moreIsActive || drawerOpen ? ' active' : ''}`}
+          onClick={() => setDrawerOpen(v => !v)}
+          aria-label="More sections"
+          aria-expanded={drawerOpen}
+          style={{ position: 'relative' }}
         >
-          {item.icon}
-          <span>{item.label}</span>
+          <span className="mobile-nav-indicator" />
+          {drawerOpen ? <X size={20} /> : <MoreHorizontal size={20} />}
+          <span>More</span>
         </button>
-      ))}
-    </nav>
+      </nav>
+
+      {/* More drawer */}
+      {drawerOpen && (
+        <>
+          <div
+            className="mobile-drawer-backdrop"
+            onClick={() => setDrawerOpen(false)}
+            aria-hidden="true"
+          />
+          <div className="mobile-drawer" role="dialog" aria-label="More navigation">
+            <p style={{ fontSize: '0.72rem', color: 'rgba(148,163,184,0.5)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.75rem', textAlign: 'center' }}>
+              Life Areas & More
+            </p>
+            <div className="mobile-drawer-grid">
+              {MORE_NAV.map((item) => (
+                <button
+                  key={item.id}
+                  className={`mobile-drawer-item${active === item.id ? ' active' : ''}`}
+                  onClick={() => handleNavigate(item.id)}
+                  aria-label={item.label}
+                  aria-current={active === item.id ? 'page' : undefined}
+                >
+                  {item.icon}
+                  <span>{item.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </>
   );
 }

@@ -103,7 +103,7 @@ export default function CareerPage() {
   };
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: '960px', margin: '0 auto' }}>
+    <div className="page-container pb-safe">
       {/* Hero */}
       <div
         className="card"
@@ -118,7 +118,7 @@ export default function CareerPage() {
         }}
       >
         <ProgressRing value={pct} size={100} strokeWidth={10} color="#f59e0b" trackColor="rgba(245,158,11,0.12)" label={`${pct}%`} sublabel="Toolkit" />
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
             <Briefcase size={20} color="#f59e0b" />
             <h1 style={{ fontSize: '1.4rem', fontWeight: 800 }}>
@@ -151,7 +151,7 @@ export default function CareerPage() {
       {/* Career Toolkit */}
       <div className="card" style={{ marginBottom: '1.25rem' }}>
         <h2 style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '1rem' }}>🛠️ Your Career Toolkit</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: '0.75rem' }}>
           {CAREER_TOOLKIT.map((t) => {
             const item = getItemForType(t.type);
             const isDone = item?.status === 'done';
@@ -205,7 +205,7 @@ export default function CareerPage() {
                 {dailyChecked[r.task] && <Check size={10} color="white" />}
               </div>
               <span className="badge" style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b', flexShrink: 0 }}>{r.time}</span>
-              <span style={{ fontSize: '0.85rem', color: dailyChecked[r.task] ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: dailyChecked[r.task] ? 'line-through' : 'none' }}>
+              <span className="task-title" style={{ flex: 1, minWidth: 0, fontSize: '0.85rem', color: dailyChecked[r.task] ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: dailyChecked[r.task] ? 'line-through' : 'none', overflowWrap: 'anywhere' }}>
                 {r.task}
               </span>
             </label>
@@ -276,7 +276,7 @@ export default function CareerPage() {
       {/* Application form modal */}
       <Modal isOpen={showAppForm} onClose={() => { setShowAppForm(false); setEditingApp(null); }} title={editingApp ? 'Edit Application' : 'Add Application'}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+          <div className="form-grid-2">
             <div>
               <label>Company *</label>
               <input className="input" value={appForm.company} onChange={(e) => setAppForm((f) => ({ ...f, company: e.target.value }))} placeholder="e.g. Google" />
@@ -290,7 +290,7 @@ export default function CareerPage() {
             <label>Job Link (optional)</label>
             <input className="input" value={appForm.link} onChange={(e) => setAppForm((f) => ({ ...f, link: e.target.value }))} placeholder="https://..." />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
+          <div className="form-grid-3">
             <div>
               <label>Applied Date</label>
               <input type="date" className="input" value={appForm.appliedDate} onChange={(e) => setAppForm((f) => ({ ...f, appliedDate: e.target.value }))} />

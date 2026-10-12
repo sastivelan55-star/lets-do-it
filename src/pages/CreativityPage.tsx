@@ -72,11 +72,11 @@ export default function CreativityPage() {
   ];
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: '960px', margin: '0 auto' }}>
+    <div className="page-container pb-safe">
       {/* Hero */}
       <div className="card" style={{ background: 'linear-gradient(135deg, rgba(236,72,153,0.1), rgba(236,72,153,0.03))', borderColor: 'rgba(236,72,153,0.25)', marginBottom: '1.5rem', display: 'flex', gap: '1.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
         <ProgressRing value={pct} size={100} strokeWidth={10} color="#ec4899" trackColor="rgba(236,72,153,0.12)" label={`${pct}%`} sublabel="Published" />
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
             <Palette size={20} color="#ec4899" />
             <h1 style={{ fontSize: '1.4rem', fontWeight: 800 }}>
@@ -99,7 +99,7 @@ export default function CreativityPage() {
       </div>
 
       {/* Creative Pillars */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '0.75rem', marginBottom: '1.25rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: '0.75rem', marginBottom: '1.25rem' }}>
         {CREATIVE_PILLARS.map((p) => {
           const count = items.filter((i) => i.type === p.type).length;
           return (
@@ -150,7 +150,7 @@ export default function CreativityPage() {
                   <span style={{ fontSize: '1.3rem', flexShrink: 0 }}>{pillar?.icon}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                      <p style={{ fontWeight: 700, fontSize: '0.9rem' }}>{item.title}</p>
+                      <p className="task-title" style={{ fontWeight: 700, fontSize: '0.9rem', flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>{item.title}</p>
                       {item.isPrivate && <Lock size={12} color="var(--text-muted)" />}
                     </div>
                     {item.idea && <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{item.idea}</p>}
@@ -196,7 +196,7 @@ export default function CreativityPage() {
       {/* Add Content Modal */}
       <Modal isOpen={showAdd} onClose={() => setShowAdd(false)} title="Add Creative Content">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+          <div className="form-grid-2">
             <div>
               <label>Type</label>
               <select className="input select" value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as ContentItem['type'] }))}>
@@ -218,7 +218,7 @@ export default function CreativityPage() {
             <label>Idea / Concept</label>
             <textarea className="input" style={{ minHeight: '72px' }} placeholder="Your idea, angle, or hook…" value={form.idea} onChange={(e) => setForm((f) => ({ ...f, idea: e.target.value }))} />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+          <div className="form-grid-2">
             <div>
               <label>Planned Date</label>
               <input type="date" className="input" value={form.plannedDate} onChange={(e) => setForm((f) => ({ ...f, plannedDate: e.target.value }))} />

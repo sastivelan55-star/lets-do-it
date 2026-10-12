@@ -70,7 +70,7 @@ export default function CommunicationPage() {
   };
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: '960px', margin: '0 auto' }}>
+    <div className="page-container pb-safe">
       {/* Hero */}
       <div
         className="card"
@@ -93,7 +93,7 @@ export default function CommunicationPage() {
           label={`${pct}%`}
           sublabel="Progress"
         />
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
             <MessageSquare size={20} color="#06b6d4" />
             <h1 style={{ fontSize: '1.4rem', fontWeight: 800 }}>
@@ -127,7 +127,7 @@ export default function CommunicationPage() {
       </div>
 
       {/* Why it matters */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginBottom: '1.25rem' }}>
+      <div className="grid-2col" style={{ marginBottom: "1.25rem" }}>
         <div className="card">
           <h2 style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.75rem' }}>🎯 Why It Matters</h2>
           {[
@@ -155,7 +155,7 @@ export default function CommunicationPage() {
       </div>
 
       {/* Daily checklists */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginBottom: '1.25rem' }}>
+      <div className="grid-2col" style={{ marginBottom: "1.25rem" }}>
         <DailyChecklist
           title="🗣️ English Communication (Daily)"
           subtitle="Speak better. Think better. Express better."
@@ -177,7 +177,7 @@ export default function CommunicationPage() {
       {/* 4-Week Plan */}
       <div className="card" style={{ marginBottom: '1.25rem' }}>
         <h2 style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '1rem' }}>📅 4-Week Focus Plan</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem' }}>
+        <div className="grid-4col">
           {[
             { week: 'Week 1', theme: 'Build the Habit', color: '#06b6d4', items: ['Self-introduction', 'Basic vocabulary', 'Daily speaking', 'Listening habit'] },
             { week: 'Week 2', theme: 'Deepen Skills', color: '#6366f1', items: ['Grammar & fluency', 'Real conversations', 'Asking questions', 'Summary practice'] },
@@ -201,11 +201,11 @@ export default function CommunicationPage() {
           <h2 style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.875rem' }}>📋 Recent Practice Sessions</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {entries.slice(-5).reverse().map((e) => (
-              <div key={e.id} style={{ display: 'flex', gap: '1rem', padding: '0.6rem 0.75rem', background: 'var(--bg-surface-2)', borderRadius: '8px', fontSize: '0.83rem', alignItems: 'center' }}>
-                <span style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap', width: '80px' }}>{e.date}</span>
+              <div key={e.id} style={{ display: 'flex', gap: '0.75rem', padding: '0.6rem 0.75rem', background: 'var(--bg-surface-2)', borderRadius: '8px', fontSize: '0.83rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                <span style={{ color: 'var(--text-muted)', flexShrink: 0, minWidth: '4.5rem' }}>{e.date}</span>
                 <span className="badge" style={{ background: 'rgba(6,182,212,0.12)', color: '#06b6d4', flexShrink: 0 }}>{e.type}</span>
-                <span style={{ flex: 1, color: 'var(--text-primary)' }}>{e.topic}</span>
-                <span style={{ color: '#06b6d4', fontWeight: 700, whiteSpace: 'nowrap' }}>{e.practiceMinutes}m</span>
+                <span className="task-title" style={{ flex: 1, minWidth: 0, color: 'var(--text-primary)', overflowWrap: 'anywhere' }}>{e.topic}</span>
+                <span style={{ color: '#06b6d4', fontWeight: 700, flexShrink: 0 }}>{e.practiceMinutes}m</span>
               </div>
             ))}
           </div>
@@ -284,8 +284,8 @@ function DailyChecklist({
               {checked[item.title] && <Check size={10} color="white" />}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <span style={{ fontSize: '0.83rem', fontWeight: 600, color: checked[item.title] ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: checked[item.title] ? 'line-through' : 'none' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <span className="task-title" style={{ flex: 1, minWidth: 0, fontSize: '0.83rem', fontWeight: 600, color: checked[item.title] ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: checked[item.title] ? 'line-through' : 'none', overflowWrap: 'anywhere' }}>
                   {item.title}
                 </span>
                 <span className="badge" style={{ background: `${color}15`, color, fontSize: '0.68rem', flexShrink: 0 }}>{item.time}</span>

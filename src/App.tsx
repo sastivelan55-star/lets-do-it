@@ -147,7 +147,6 @@ function AppContent() {
       {/* Main content */}
       <main
         className="main-content"
-        style={{ paddingBottom: isMobile ? '70px' : '0' }}
         id="main-content"
         role="main"
       >
@@ -174,7 +173,7 @@ class AppErrorBoundary extends React.Component<{ children: React.ReactNode }, { 
   render() {
     if (this.state.error) {
       return (
-        <div style={{ padding: '2rem', maxWidth: '600px', margin: '4rem auto', textAlign: 'center' }}>
+        <div style={{ padding: 'clamp(1rem, 4vw, 2rem)', maxWidth: '38rem', width: '100%', margin: '4rem auto', textAlign: 'center' }}>
           <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>😕</div>
           <h1 style={{ marginBottom: '0.5rem', color: '#ef4444' }}>Something went wrong</h1>
           <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>

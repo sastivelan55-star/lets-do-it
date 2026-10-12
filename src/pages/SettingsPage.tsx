@@ -73,7 +73,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: '800px', margin: '0 auto' }}>
+    <div className="page-container pb-safe">
       <div style={{ marginBottom: '1.5rem' }}>
         <h1 style={{ fontSize: '1.6rem', fontWeight: 800, marginBottom: '0.25rem' }}>
           ⚙️ <span className="gradient-text">Settings & Data</span>
@@ -89,21 +89,21 @@ export default function SettingsPage() {
           <Cloud size={18} color="#818cf8" /> Cloud Database & Account
         </h2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.85rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', background: 'var(--bg-surface-2)', borderRadius: '8px' }}>
-            <span style={{ color: 'var(--text-muted)' }}>Authenticated Account</span>
-            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+          <div className="setting-row">
+            <span className="setting-row-label">Authenticated Account</span>
+            <span className="setting-row-value">
               {user?.email ?? 'Not signed in (Guest Mode)'}
             </span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', background: 'var(--bg-surface-2)', borderRadius: '8px' }}>
-            <span style={{ color: 'var(--text-muted)' }}>Database Sync Status</span>
-            <span style={{ fontWeight: 600, color: syncStatus === 'synced' ? '#10b981' : syncStatus === 'syncing' ? '#818cf8' : '#f59e0b' }}>
-              {syncStatus === 'synced' ? '🟢 Active & Synced to Supabase PostgreSQL' : syncStatus === 'syncing' ? '🔄 Syncing…' : '🟡 Local / Offline'}
+          <div className="setting-row">
+            <span className="setting-row-label">Database Sync Status</span>
+            <span className="setting-row-value" style={{ color: syncStatus === 'synced' ? '#10b981' : syncStatus === 'syncing' ? '#818cf8' : '#f59e0b' }}>
+              {syncStatus === 'synced' ? '🟢 Active & Synced' : syncStatus === 'syncing' ? '🔄 Syncing…' : '🟡 Local / Offline'}
             </span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', background: 'var(--bg-surface-2)', borderRadius: '8px' }}>
-            <span style={{ color: 'var(--text-muted)' }}>Security Architecture</span>
-            <span style={{ fontWeight: 600, color: '#34d399', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <div className="setting-row">
+            <span className="setting-row-label">Security Architecture</span>
+            <span className="setting-row-value" style={{ color: '#34d399', display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
               <ShieldCheck size={14} /> PostgreSQL RLS (auth.uid() Isolated)
             </span>
           </div>
@@ -119,8 +119,8 @@ export default function SettingsPage() {
       {/* Profile */}
       <div className="card" style={{ marginBottom: '1.25rem' }}>
         <h2 style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '1rem' }}>👤 Profile</h2>
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end' }}>
-          <div style={{ flex: 1 }}>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <label htmlFor="display-name">Display Name</label>
             <input
               id="display-name"
@@ -173,29 +173,31 @@ export default function SettingsPage() {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           {(Object.entries(weightsEdit) as [keyof LifeAreaWeights, number][]).map(([area, value]) => (
-            <div key={area} style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <label style={{ margin: 0, width: '220px', flexShrink: 0, color: AREA_COLORS[area], fontWeight: 600, fontSize: '0.85rem' }}>
+            <div key={area} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <label style={{ margin: 0, minWidth: '130px', flex: '1 1 130px', color: AREA_COLORS[area], fontWeight: 600, fontSize: '0.85rem' }}>
                 {AREA_LABELS[area] ?? area}
               </label>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={value}
-                onChange={(e) => setWeightsEdit((w: LifeAreaWeights) => ({ ...w, [area]: Number(e.target.value) }))}
-                style={{ flex: 1, accentColor: AREA_COLORS[area] }}
-              />
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: '2 1 180px', minWidth: 0 }}>
                 <input
-                  type="number"
-                  className="input"
-                  style={{ width: '64px', textAlign: 'center', padding: '0.4rem 0.5rem' }}
+                  type="range"
                   min={0}
                   max={100}
                   value={value}
                   onChange={(e) => setWeightsEdit((w: LifeAreaWeights) => ({ ...w, [area]: Number(e.target.value) }))}
+                  style={{ flex: 1, minWidth: 0, accentColor: AREA_COLORS[area] }}
                 />
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>%</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
+                  <input
+                    type="number"
+                    className="input"
+                    style={{ width: '56px', textAlign: 'center', padding: '0.4rem 0.5rem' }}
+                    min={0}
+                    max={100}
+                    value={value}
+                    onChange={(e) => setWeightsEdit((w: LifeAreaWeights) => ({ ...w, [area]: Number(e.target.value) }))}
+                  />
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>%</span>
+                </div>
               </div>
             </div>
           ))}
@@ -278,7 +280,7 @@ export default function SettingsPage() {
       {/* Reset confirmation modal */}
       {showReset && (
         <div className="modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) setShowReset(false); }}>
-          <div className="modal-box" style={{ maxWidth: '420px' }}>
+          <div className="modal-box" style={{ maxWidth: '28rem', width: '100%' }}>
             <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
               <AlertTriangle size={24} color="#ef4444" style={{ flexShrink: 0, marginTop: 2 }} />
               <div>

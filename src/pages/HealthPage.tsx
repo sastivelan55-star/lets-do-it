@@ -80,11 +80,11 @@ export default function HealthPage() {
   ];
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: '960px', margin: '0 auto' }}>
+    <div className="page-container pb-safe">
       {/* Hero */}
       <div className="card" style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.1), rgba(16,185,129,0.03))', borderColor: 'rgba(16,185,129,0.25)', marginBottom: '1.5rem', display: 'flex', gap: '1.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
         <ProgressRing value={pct} size={100} strokeWidth={10} color="#10b981" trackColor="rgba(16,185,129,0.12)" label={`${pct}%`} sublabel="Reflection" />
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
             <Heart size={20} color="#10b981" />
             <h1 style={{ fontSize: '1.4rem', fontWeight: 800 }}>
@@ -120,7 +120,7 @@ export default function HealthPage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginBottom: '1.25rem' }}>
+      <div className="grid-2col" style={{ marginBottom: '1.25rem' }}>
         {/* Daily health */}
         <div className="card">
           <h2 style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.875rem' }}>🏥 Daily Health Routine</h2>
@@ -174,7 +174,7 @@ export default function HealthPage() {
       {/* Healthy boundaries */}
       <div className="card" style={{ marginBottom: '1.25rem' }}>
         <h2 style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.75rem' }}>🛡️ Healthy Boundaries</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '0.6rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '0.6rem' }}>
           {[
             { icon: '🛏️', text: "Don't sacrifice sleep for unnecessary work" },
             { icon: '⚖️', text: "Don't compare your progress with others" },
@@ -199,7 +199,7 @@ export default function HealthPage() {
             <div key={e.id} style={{ display: 'flex', gap: '0.75rem', padding: '0.6rem 0.75rem', background: 'var(--bg-surface-2)', borderRadius: '8px', marginBottom: '0.4rem', fontSize: '0.82rem', alignItems: 'center' }}>
               <span style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{e.date}</span>
               {e.sleepHours && <span style={{ color: '#10b981' }}>😴 {e.sleepHours}h</span>}
-              {e.energyNote && <span style={{ color: 'var(--text-secondary)', flex: 1 }}>{e.energyNote}</span>}
+              {e.energyNote && <span className="task-title" style={{ color: 'var(--text-secondary)', flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>{e.energyNote}</span>}
               <Lock size={12} color="var(--text-muted)" />
             </div>
           ))}
@@ -212,7 +212,7 @@ export default function HealthPage() {
           All fields are optional. This data is private and never shared unless you choose to export it.
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+          <div className="form-grid-2">
             <div>
               <label>Sleep Hours</label>
               <input className="input" type="number" step={0.5} min={0} max={24} placeholder="e.g. 7.5" value={form.sleepHours} onChange={(e) => setForm((f) => ({ ...f, sleepHours: e.target.value }))} />

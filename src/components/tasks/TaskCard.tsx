@@ -73,15 +73,18 @@ export default function TaskCard({ task, onComplete, onEdit, onDelete, onResched
       {/* Content */}
       <div style={{ flex: 1, minWidth: 0 }}>
         {/* Title row */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', width: '100%', minWidth: 0 }}>
           <span
+            className="task-title"
             style={{
               flex: 1,
+              minWidth: 0,
               fontWeight: 600,
               fontSize: '0.9rem',
               color: isCompleted ? 'var(--text-muted)' : 'var(--text-primary)',
               textDecoration: isCompleted ? 'line-through' : 'none',
-              wordBreak: 'break-word',
+              overflowWrap: 'anywhere',
+              wordBreak: 'normal',
             }}
           >
             {task.title}

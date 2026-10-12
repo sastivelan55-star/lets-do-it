@@ -261,7 +261,7 @@ export default function AuthPage() {
           WebkitBackdropFilter: 'blur(20px)',
           border: '1px solid rgba(255, 255, 255, 0.1)',
           borderRadius: '20px',
-          padding: '2rem',
+          padding: 'clamp(1.25rem, 5vw, 2rem)',
           boxShadow: '0 20px 50px rgba(0, 0, 0, 0.55)',
         }}
       >
@@ -627,6 +627,9 @@ export default function AuthPage() {
               gap: '0.5rem',
               opacity: submitting || googleSubmitting ? 0.7 : 1,
               transition: 'opacity 0.2s',
+              width: '100%',
+              minHeight: '48px',
+              touchAction: 'manipulation',
             }}
           >
             {submitting ? (
@@ -759,13 +762,13 @@ export default function AuthPage() {
       <div
         style={{
           display: 'flex',
-          gap: '1.5rem',
-          marginTop: '2rem',
+          gap: '0.75rem 1.25rem',
+          marginTop: '1.5rem',
           flexWrap: 'wrap',
           justifyContent: 'center',
           maxWidth: '560px',
           color: 'rgba(148, 163, 184, 0.75)',
-          fontSize: '0.8rem',
+          fontSize: '0.78rem',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>

@@ -26,7 +26,7 @@ export default function RoadmapPage() {
   const overallPct = totalSubtasks ? Math.round((completedSubtasks / totalSubtasks) * 100) : 0;
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: '900px', margin: '0 auto' }}>
+    <div className="page-container pb-safe">
       {/* Header */}
       <div style={{ marginBottom: '1.5rem' }}>
         <h1 style={{ fontSize: '1.6rem', fontWeight: 800, marginBottom: '0.25rem' }}>
@@ -37,8 +37,8 @@ export default function RoadmapPage() {
         </p>
 
         {/* Overall progress */}
-        <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ flex: 1 }}>
+        <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
               <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 600 }}>Overall Progress</span>
               <span style={{ fontSize: '0.82rem', color: 'var(--accent)', fontWeight: 700 }}>{overallPct}%</span>
@@ -173,12 +173,13 @@ function MilestoneCard({
           width: '100%',
           display: 'flex',
           alignItems: 'center',
-          gap: '1rem',
-          padding: '1rem 1.25rem',
+          gap: 'clamp(0.5rem, 2.5vw, 1rem)',
+          padding: 'clamp(0.75rem, 2.5vw, 1rem) clamp(0.75rem, 3vw, 1.25rem)',
           background: 'none',
           border: 'none',
           cursor: 'pointer',
           textAlign: 'left',
+          flexWrap: 'wrap',
         }}
       >
         {/* Month badge */}
@@ -294,11 +295,15 @@ function MilestoneCard({
                     {st.completed && <CheckCircle2 size={10} color="white" />}
                   </button>
                   <span
+                    className="task-title"
                     style={{
                       flex: 1,
+                      minWidth: 0,
                       fontSize: '0.85rem',
                       color: st.completed ? 'var(--text-muted)' : 'var(--text-primary)',
                       textDecoration: st.completed ? 'line-through' : 'none',
+                      overflowWrap: 'anywhere',
+                      wordBreak: 'normal',
                     }}
                   >
                     {st.title}
@@ -366,10 +371,10 @@ function MilestoneCard({
             )}
 
             {milestone.learningSessions.slice(-3).reverse().map((sess) => (
-              <div key={sess.id} style={{ display: 'flex', gap: '0.75rem', padding: '0.5rem 0', borderBottom: '1px solid var(--border)', fontSize: '0.82rem' }}>
-                <span style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{sess.date}</span>
-                <span style={{ flex: 1, color: 'var(--text-primary)' }}>{sess.topic}</span>
-                <span style={{ color, fontWeight: 700, whiteSpace: 'nowrap' }}>{sess.minutes}m</span>
+              <div key={sess.id} style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid var(--border)', fontSize: '0.82rem', flexWrap: 'wrap' }}>
+                <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}>{sess.date}</span>
+                <span style={{ flex: 1, minWidth: 0, color: 'var(--text-primary)', overflowWrap: 'anywhere' }}>{sess.topic}</span>
+                <span style={{ color, fontWeight: 700, flexShrink: 0 }}>{sess.minutes}m</span>
               </div>
             ))}
           </div>

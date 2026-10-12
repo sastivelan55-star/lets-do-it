@@ -110,59 +110,42 @@ export default function TodayPage() {
   }
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: '1100px', margin: '0 auto' }}>
+    <div className="page-container pb-safe">
       {/* Header & Sync Status Banner */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
-        <div>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '0.25rem' }}>
+      <div className="today-header">
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: '0.2rem' }}>
             {formatDateLong(today())}
           </p>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800 }}>
+          <h1 className="today-greeting">
             <span className="gradient-text">{getGreeting()}</span>
             {settings.displayName && `, ${settings.displayName}`}! 👋
           </h1>
-          <p style={{ color: 'var(--text-secondary)', marginTop: '0.35rem', fontSize: '0.9rem' }}>
+          <p style={{ color: 'var(--text-secondary)', marginTop: '0.3rem', fontSize: '0.875rem' }}>
             {quote}
           </p>
         </div>
 
         {/* Sync status indicator badge */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '0.4rem 0.85rem',
-            borderRadius: '999px',
-            background: 'var(--bg-surface-2)',
-            border: '1px solid var(--border)',
-            fontSize: '0.78rem',
-            fontWeight: 600,
-          }}
-        >
+        <div className="sync-badge">
           {syncStatus === 'synced' && <Cloud size={14} color="#10b981" />}
           {syncStatus === 'syncing' && <RefreshCw size={14} color="#818cf8" className="animate-spin" />}
           {syncStatus === 'offline' && <CloudOff size={14} color="#f59e0b" />}
           {syncStatus === 'error' && <AlertCircle size={14} color="#ef4444" />}
           <span
+            className="sync-badge-text"
             style={{
               color:
-                syncStatus === 'synced'
-                  ? '#10b981'
-                  : syncStatus === 'syncing'
-                  ? '#818cf8'
-                  : syncStatus === 'error'
-                  ? '#ef4444'
-                  : '#f59e0b',
+                syncStatus === 'synced' ? '#10b981'
+                : syncStatus === 'syncing' ? '#818cf8'
+                : syncStatus === 'error' ? '#ef4444'
+                : '#f59e0b',
             }}
           >
-            {syncStatus === 'synced'
-              ? 'Cloud Database Synced'
-              : syncStatus === 'syncing'
-              ? 'Saving to Cloud…'
-              : syncStatus === 'error'
-              ? 'Sync Error (Retrying)'
-              : 'Offline Mode'}
+            {syncStatus === 'synced' ? 'Synced'
+              : syncStatus === 'syncing' ? 'Saving…'
+              : syncStatus === 'error' ? 'Sync Error'
+              : 'Offline'}
           </span>
         </div>
       </div>
@@ -189,7 +172,7 @@ export default function TodayPage() {
       )}
 
       {/* Stats Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+      <div className="stats-grid" style={{ marginBottom: '1.25rem' }}>
         <StatCard
           icon={<CheckCircle2 size={20} color="#10b981" />}
           label="Tasks Completed"
@@ -227,8 +210,8 @@ export default function TodayPage() {
         />
       </div>
 
-      {/* Main 2-column layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr)', gap: '1.5rem' }}>
+      {/* Main 2-column layout — single column on mobile, 2-col on desktop */}
+      <div className="today-main-grid">
         {/* Left column */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           {/* Overdue alert card if any */}
@@ -266,14 +249,14 @@ export default function TodayPage() {
 
           {/* Today's Tasks */}
           <div className="card">
-            <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                 <h2 className="section-title" style={{ margin: 0 }}>📋 Today's Tasks</h2>
                 <span className="badge" style={{ background: 'var(--bg-surface-2)', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
                   {totalToday}
                 </span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                 <ProgressRing value={todayCompletionRate} size={44} strokeWidth={5} label={`${todayCompletionRate}%`} />
                 <button className="btn btn-primary btn-sm" onClick={() => setShowAddTask(true)}>
                   <Plus size={14} /> Add Task
@@ -361,7 +344,7 @@ export default function TodayPage() {
               padding: '1.25rem',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
               <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Sparkles size={16} color="#818cf8" /> The 5 Life Planning Areas
               </h3>
@@ -370,13 +353,13 @@ export default function TodayPage() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.85rem' }}>
               {AREA_WEIGHT_INFO.map((item) => (
-                <div key={item.area} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.82rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: item.color }} />
-                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{item.label}</span>
-                    <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>— {item.desc}</span>
+                <div key={item.area} className="weight-row">
+                  <div className="weight-row-left">
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: item.color, flexShrink: 0 }} />
+                    <span className="weight-label">{item.label}</span>
+                    <span className="weight-desc">— {item.desc}</span>
                   </div>
-                  <span style={{ fontWeight: 700, color: item.color }}>{item.weight}%</span>
+                  <span style={{ fontWeight: 700, color: item.color, flexShrink: 0 }}>{item.weight}%</span>
                 </div>
               ))}
             </div>
@@ -421,8 +404,8 @@ export default function TodayPage() {
                   >
                     <div
                       style={{
-                        width: '24px',
-                        height: '24px',
+                        width: '1.5rem',
+                        height: '1.5rem',
                         borderRadius: '50%',
                         background: 'rgba(99,102,241,0.2)',
                         color: '#818cf8',
@@ -437,7 +420,7 @@ export default function TodayPage() {
                       {i + 1}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontWeight: 600, fontSize: '0.88rem', margin: '0 0 2px 0', color: 'var(--text-primary)' }}>
+                      <p className="task-title" style={{ fontWeight: 600, fontSize: '0.88rem', margin: '0 0 2px 0', color: 'var(--text-primary)', flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>
                         {t.title}
                       </p>
                       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
@@ -510,9 +493,9 @@ export default function TodayPage() {
                 { time: '30 min',       title: 'Java / SQL / roadmap revision' },
                 { time: '15 min',       title: 'Night reflection & tomorrow plan' },
               ].map((item, idx) => (
-                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>{item.time}</span>
-                  <span style={{ fontWeight: 500 }}>{item.title}</span>
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', color: 'var(--text-secondary)' }}>
+                  <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}>{item.time}</span>
+                  <span style={{ fontWeight: 500, flex: 1, minWidth: 0, textAlign: 'right', overflowWrap: 'anywhere' }}>{item.title}</span>
                 </div>
               ))}
             </div>
@@ -607,16 +590,7 @@ function FocusMode({ task, onComplete, onExit }: { task: Task; onComplete: () =>
         )}
 
         {/* Timer */}
-        <div
-          style={{
-            fontSize: '4rem',
-            fontWeight: 800,
-            fontFamily: 'var(--font-display)',
-            color: 'var(--accent)',
-            margin: '1.5rem 0',
-            letterSpacing: '0.05em',
-          }}
-        >
+        <div className="focus-timer">
           {String(mins).padStart(2, '0')}:{String(secs).padStart(2, '0')}
         </div>
 

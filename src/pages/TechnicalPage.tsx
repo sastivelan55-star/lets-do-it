@@ -13,7 +13,7 @@ export default function TechnicalPage() {
   const overallPct = totalSubtasks ? Math.round((completedSubtasks / totalSubtasks) * 100) : 0;
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: '900px', margin: '0 auto' }}>
+    <div className="page-container pb-safe">
       {/* Hero */}
       <div
         className="card"
@@ -28,7 +28,7 @@ export default function TechnicalPage() {
         }}
       >
         <ProgressRing value={overallPct} size={100} strokeWidth={10} label={`${overallPct}%`} sublabel="Roadmap" />
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
             <Code2 size={20} color="#818cf8" />
             <h1 style={{ fontSize: '1.4rem', fontWeight: 800 }}>
@@ -49,7 +49,7 @@ export default function TechnicalPage() {
       {/* Milestones overview */}
       <div style={{ marginBottom: '1.5rem' }}>
         <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1rem' }}>📅 8-Month Roadmap Progress</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '0.875rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.875rem' }}>
           {milestones.map((m, i) => {
             const done = m.subtasks.filter((s) => s.completed).length;
             const total = m.subtasks.length;
@@ -82,7 +82,7 @@ export default function TechnicalPage() {
       {/* Daily reminders from the roadmap */}
       <div className="card">
         <h2 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '1rem' }}>⚡ Ongoing Daily Tasks</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: '0.75rem' }}>
           {[
             { icon: '🧩', title: 'LeetCode / DSA', sub: '2+ hrs/day · solve problems, review patterns' },
             { icon: '🐙', title: 'GitHub', sub: 'Push code daily · consistent commits' },

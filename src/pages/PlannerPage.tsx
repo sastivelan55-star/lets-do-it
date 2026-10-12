@@ -65,7 +65,7 @@ export default function PlannerPage() {
   };
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: '900px', margin: '0 auto' }}>
+    <div className="page-container pb-safe">
       <div style={{ marginBottom: '1.25rem' }}>
         <h1 style={{ fontSize: '1.6rem', fontWeight: 800, marginBottom: '0.25rem' }}>
           📅 <span className="gradient-text">Daily Planner</span>
@@ -96,14 +96,14 @@ export default function PlannerPage() {
       )}
 
       {/* Controls */}
-      <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: '0.6rem', marginBottom: '1.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
         {/* View mode toggle */}
         <div style={{ display: 'flex', background: 'var(--bg-surface-2)', borderRadius: '10px', padding: '3px' }}>
           {(['day', 'week'] as const).map((m) => (
             <button
               key={m}
               className={`btn btn-sm ${viewMode === m ? 'btn-primary' : 'btn-ghost'}`}
-              style={{ borderRadius: '8px', minWidth: '60px' }}
+              style={{ borderRadius: '8px', minWidth: '3.75rem' }}
               onClick={() => setViewMode(m)}
             >
               {m === 'day' ? 'Day' : 'Week'}
@@ -133,22 +133,20 @@ export default function PlannerPage() {
       </div>
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-          {FILTER_AREAS.map((a) => (
-            <button
-              key={a.value}
-              className={`btn btn-sm ${areaFilter === a.value ? 'btn-primary' : 'btn-ghost'}`}
-              onClick={() => setAreaFilter(a.value as LifeArea | 'all')}
-            >
-              {a.label}
-            </button>
-          ))}
-        </div>
+      <div className="filter-scroll" style={{ marginBottom: '1rem' }}>
+        {FILTER_AREAS.map((a) => (
+          <button
+            key={a.value}
+            className={`btn btn-sm ${areaFilter === a.value ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => setAreaFilter(a.value as LifeArea | 'all')}
+          >
+            {a.label}
+          </button>
+        ))}
       </div>
 
       {/* Status filter */}
-      <div style={{ display: 'flex', gap: '0.35rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+      <div className="filter-scroll" style={{ marginBottom: '1.25rem' }}>
         {STATUS_FILTERS.map((s) => (
           <button
             key={s.value}
@@ -181,7 +179,7 @@ export default function PlannerPage() {
                   background: d === viewDate ? 'linear-gradient(135deg,#6366f1,#8b5cf6)' : 'var(--bg-surface)',
                   border: `1px solid ${d === today() ? '#818cf8' : 'var(--border)'}`,
                   cursor: 'pointer',
-                  minWidth: '70px',
+                  minWidth: '4.25rem',
                   flexShrink: 0,
                 }}
               >

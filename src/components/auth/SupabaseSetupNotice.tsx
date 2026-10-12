@@ -21,8 +21,9 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsIn...`;
         backdropFilter: 'blur(12px)',
         border: '1px solid rgba(99, 102, 241, 0.25)',
         borderRadius: '16px',
-        padding: '1.5rem',
-        maxWidth: '640px',
+        padding: 'clamp(1rem, 3.5vw, 1.5rem)',
+        width: '100%',
+        maxWidth: '40rem',
         margin: '1.5rem auto',
         boxShadow: '0 12px 36px rgba(0,0,0,0.4)',
       }}

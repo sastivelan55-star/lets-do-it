@@ -97,7 +97,7 @@ export default function TaskForm({ initial = {}, onSave, onSubmit, onCancel }: T
         />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+      <div className="form-grid-2">
         <div>
           <label htmlFor="task-area">Life Area *</label>
           <select
@@ -127,7 +127,7 @@ export default function TaskForm({ initial = {}, onSave, onSubmit, onCancel }: T
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
+      <div className="form-grid-3">
         <div>
           <label htmlFor="task-due">Due Date *</label>
           <input

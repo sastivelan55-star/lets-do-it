@@ -74,7 +74,7 @@ export default function WeeklyReviewPage() {
   const [weeklyChecked, setWeeklyChecked] = useState<Record<string, boolean>>({});
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: '900px', margin: '0 auto' }}>
+    <div className="page-container pb-safe">
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div>
@@ -91,7 +91,7 @@ export default function WeeklyReviewPage() {
       </div>
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: '0.75rem', marginBottom: '1.5rem' }}>
         {[
           { label: 'Tasks This Week', value: weekTasks.length, color: '#818cf8' },
           { label: 'Completed', value: completedThisWeek, color: '#10b981' },
@@ -116,12 +116,12 @@ export default function WeeklyReviewPage() {
             const colors: Record<string, string> = { technical: '#6366f1', communication: '#06b6d4', career: '#f59e0b', creativity: '#ec4899', health: '#10b981' };
             const c = colors[area] ?? '#818cf8';
             return (
-              <div key={area} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <span style={{ width: 110, fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'capitalize' }}>{area}</span>
-                <div className="progress-bar-track" style={{ flex: 1 }}>
+              <div key={area} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', width: '100%', minWidth: 0 }}>
+                <span style={{ minWidth: '4.5rem', width: '6.5rem', flexShrink: 0, fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'capitalize' }}>{area}</span>
+                <div className="progress-bar-track" style={{ flex: 1, minWidth: 0 }}>
                   <div className="progress-bar-fill" style={{ width: `${pct}%`, background: c }} />
                 </div>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', width: '70px', textAlign: 'right' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', flexShrink: 0, minWidth: '4rem', textAlign: 'right' }}>
                   {done}/{total} · {pct}%
                 </span>
               </div>
@@ -148,13 +148,13 @@ export default function WeeklyReviewPage() {
       {/* Weekly review checklist from image */}
       <div className="card" style={{ marginBottom: '1.25rem', background: 'linear-gradient(135deg, rgba(99,102,241,0.06), rgba(99,102,241,0.02))', borderColor: 'rgba(99,102,241,0.18)' }}>
         <h2 style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '0.875rem' }}>📊 Weekly Review Checklist</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+        <div className="form-grid-2">
           {['Solved DSA Problems', 'Committed Code', 'Learned New Concepts', 'Built / Improved Projects', 'Revised & Practiced', 'Logged in STAR Doc'].map((item) => (
-            <label key={item} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.83rem', color: 'var(--text-secondary)' }}>
-              <div onClick={() => setWeeklyChecked((p) => ({ ...p, [item]: !p[item] }))} style={{ width: 16, height: 16, borderRadius: '4px', border: `2px solid ${weeklyChecked[item] ? '#818cf8' : 'var(--border)'}`, background: weeklyChecked[item] ? '#818cf8' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer' }}>
-                {weeklyChecked[item] && <span style={{ fontSize: '9px', color: 'white' }}>✓</span>}
+            <label key={item} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.83rem', color: 'var(--text-secondary)', width: '100%', minWidth: 0 }}>
+              <div onClick={() => setWeeklyChecked((p) => ({ ...p, [item]: !p[item] }))} style={{ width: '1rem', height: '1rem', borderRadius: '4px', border: `2px solid ${weeklyChecked[item] ? '#818cf8' : 'var(--border)'}`, background: weeklyChecked[item] ? '#818cf8' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer' }}>
+                {weeklyChecked[item] && <span style={{ fontSize: '0.6rem', color: 'white' }}>✓</span>}
               </div>
-              {item}
+              <span className="task-title" style={{ flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>{item}</span>
             </label>
           ))}
         </div>
@@ -181,7 +181,7 @@ export default function WeeklyReviewPage() {
       {/* Write review modal */}
       {showForm && (
         <div className="modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) setShowForm(false); }}>
-          <div className="modal-box" style={{ maxWidth: '640px' }}>
+          <div className="modal-box" style={{ maxWidth: '40rem', width: '100%' }}>
             <h2 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '1.25rem' }}>✍️ Write Weekly Review</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
               <div>
@@ -192,7 +192,7 @@ export default function WeeklyReviewPage() {
                 <label>💪 Challenges (one per line)</label>
                 <textarea className="input" style={{ minHeight: '60px' }} placeholder="Struggled with recursion&#10;Missed two planned tasks" value={form.challenges} onChange={(e) => setForm((f) => ({ ...f, challenges: e.target.value }))} />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
+              <div className="form-grid-3">
                 <div>
                   <label>▶️ Continue</label>
                   <textarea className="input" style={{ minHeight: '80px', resize: 'vertical' }} placeholder="Daily LeetCode\nMorning reading" value={form.continueItems} onChange={(e) => setForm((f) => ({ ...f, continueItems: e.target.value }))} />

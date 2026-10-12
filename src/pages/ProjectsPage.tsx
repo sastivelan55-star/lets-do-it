@@ -60,7 +60,7 @@ export default function ProjectsPage() {
   };
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: '960px', margin: '0 auto' }}>
+    <div className="page-container pb-safe">
       <div style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div>
           <h1 style={{ fontSize: '1.6rem', fontWeight: 800, marginBottom: '0.25rem' }}>
@@ -108,7 +108,7 @@ export default function ProjectsPage() {
           return (
             <div key={project.id} className="card" style={{ borderLeft: `3px solid ${cfg.color}`, padding: 0, overflow: 'hidden' }}>
               {/* Header */}
-              <div style={{ padding: '1rem 1.25rem', display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+              <div style={{ padding: 'clamp(0.75rem, 3vw, 1.25rem)', display: 'flex', gap: '0.75rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem', flexWrap: 'wrap' }}>
                     <h3 style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>{project.name}</h3>
@@ -191,14 +191,14 @@ export default function ProjectsPage() {
                     <div style={{ marginBottom: '1rem' }}>
                       <p style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Milestones</p>
                       {project.milestones.map((m) => (
-                        <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+                        <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem', width: '100%', minWidth: 0 }}>
                           <button
                             onClick={() => handleMilestoneToggle(project, m.id)}
-                            style={{ width: 16, height: 16, borderRadius: '4px', border: `2px solid ${m.completed ? cfg.color : 'var(--border)'}`, background: m.completed ? cfg.color : 'transparent', flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            style={{ width: '1rem', height: '1rem', borderRadius: '4px', border: `2px solid ${m.completed ? cfg.color : 'var(--border)'}`, background: m.completed ? cfg.color : 'transparent', flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                           >
-                            {m.completed && <span style={{ fontSize: '9px', color: 'white' }}>✓</span>}
+                            {m.completed && <span style={{ fontSize: '0.6rem', color: 'white' }}>✓</span>}
                           </button>
-                          <span style={{ fontSize: '0.83rem', color: m.completed ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: m.completed ? 'line-through' : 'none' }}>{m.title}</span>
+                          <span className="task-title" style={{ flex: 1, minWidth: 0, fontSize: '0.83rem', color: m.completed ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: m.completed ? 'line-through' : 'none', overflowWrap: 'anywhere' }}>{m.title}</span>
                         </div>
                       ))}
                     </div>
@@ -242,7 +242,7 @@ export default function ProjectsPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
           <div><label>Project Name *</label><input className="input" value={newForm.name} onChange={(e) => setNewForm((f) => ({ ...f, name: e.target.value }))} placeholder="e.g. MyAwesome App" /></div>
           <div><label>Description</label><textarea className="input" style={{ minHeight: '72px' }} value={newForm.description} onChange={(e) => setNewForm((f) => ({ ...f, description: e.target.value }))} placeholder="What is this project about?" /></div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+          <div className="form-grid-2">
             <div><label>Initial Status</label><select className="input select" value={newForm.status} onChange={(e) => setNewForm((f) => ({ ...f, status: e.target.value as ProjectStatus }))}>{STATUSES.map((s) => <option key={s} value={s}>{STATUS_CONFIG[s].label}</option>)}</select></div>
             <div><label>Technologies (comma-separated)</label><input className="input" value={newForm.technologies} onChange={(e) => setNewForm((f) => ({ ...f, technologies: e.target.value }))} placeholder="React, Spring Boot, Python" /></div>
           </div>
@@ -290,7 +290,7 @@ function ProjectEditModal({ project, onSave, onClose }: { project: Project; onSa
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
         <div><label>Name</label><input className="input" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} /></div>
         <div><label>Description</label><textarea className="input" style={{ minHeight: '72px' }} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} /></div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+        <div className="form-grid-2">
           <div><label>Status</label><select className="input select" value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as ProjectStatus }))}>{STATUSES.map((s) => <option key={s} value={s}>{STATUS_CONFIG[s].label}</option>)}</select></div>
           <div><label>Technologies</label><input className="input" value={form.technologies} onChange={(e) => setForm((f) => ({ ...f, technologies: e.target.value }))} /></div>
         </div>
