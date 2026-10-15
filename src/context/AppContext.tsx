@@ -1,5 +1,5 @@
 /* oxlint-disable react/only-export-components */
-import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import type { AppSettings, Task, RoadmapMilestone, Project, DailyRecord } from '../types';
 import { useAuth } from './AuthContext';
 import {
@@ -83,16 +83,20 @@ interface AppContextValue {
 const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const { user, isConfigured } = useAuth();
+  const { user, isConfigured, isLoading: authIsLoading } = useAuth();
 
   const [settings, setSettings] = useState<AppSettings>(getDefaultSettings());
   const [tasks, setTasks] = useState<Task[]>([]);
   const [milestones, setMilestones] = useState<RoadmapMilestone[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [dailyRecords, setDailyRecords] = useState<DailyRecord[]>([]);
+  // Start loading=true until auth resolves, so we never flash stale/offline data
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('synced');
+
+  // Track previous user id so we can detect account switches
+  const prevUserIdRef = useRef<string | null | undefined>(undefined);
 
   // ── Apply Theme ──────────────────────────────────────────────────────────
   function applyTheme(theme: AppSettings['theme']) {
@@ -146,30 +150,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // ── Load & Synchronize Tasks based on Auth State ─────────────────────────
+  // IMPORTANT: Do NOT run while auth is still resolving — user could be transiently null
+  // during session restoration, which would incorrectly fall through to offline mode.
   const loadTasks = useCallback(async () => {
+    if (authIsLoading) return;
+
     setIsLoading(true);
     setError(null);
     try {
       if (user && isConfigured) {
         setSyncStatus('syncing');
-        let cloudTasks = await fetchUserTasks(user.id);
-
-        // If newly logged in cloud account is empty, migrate existing local tasks so user work is preserved
-        if (cloudTasks.length === 0) {
-          const localTasks = await getAllTasks().catch(() => []);
-          if (localTasks.length > 0) {
-            for (const lt of localTasks) {
-              await createCloudTask(lt, user.id).catch(() => {});
-            }
-            cloudTasks = await fetchUserTasks(user.id).catch(() => cloudTasks);
-          }
-        }
-
+        // Clear tasks first so we never show a previous user's data while fetching
+        setTasks([]);
+        const cloudTasks = await fetchUserTasks(user.id);
         setTasks(cloudTasks);
         setSyncStatus('synced');
       } else {
-        // Fallback to local storage (Guest mode or unconfigured)
+        // Fallback to local storage (Guest mode or Supabase not configured)
         setSyncStatus('offline');
+        setTasks([]);
         const localTasks = await getAllTasks();
         setTasks(localTasks);
       }
@@ -178,26 +177,44 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (msg.includes('public.tasks') || msg.includes('schema cache')) {
         msg =
           "Database table 'tasks' not found in Supabase. Please execute the migration in supabase/migrations/20261011000000_create_tasks_table.sql via Supabase SQL Editor.";
+      } else if (msg.includes('401') || msg.includes('Invalid API key') || msg.includes('JWT')) {
+        msg =
+          'Authentication failed when loading tasks from Supabase. Your VITE_SUPABASE_ANON_KEY may be incorrect or expired. Check your Supabase API keys in .env.local.';
       }
       setError(msg);
       setSyncStatus('error');
-      // Preserve existing data in view so user never loses their tasks while resolving migration
-      const fallbackLocal = await getAllTasks().catch(() => []);
-      if (fallbackLocal.length > 0) {
-        setTasks(fallbackLocal);
-      }
+      // Do NOT fall back to local tasks here — local data belongs to guest/offline mode,
+      // not to an authenticated user. Showing it would be misleading and could cause
+      // data to be attributed to the wrong account.
     } finally {
       setIsLoading(false);
     }
-  }, [user, isConfigured]);
+  }, [user, isConfigured, authIsLoading]);
+
+  // Guard: clear tasks immediately when user identity changes to prevent cross-account flash
+  useEffect(() => {
+    const prevId = prevUserIdRef.current;
+    const currentId = user?.id ?? null;
+
+    // If we have seen a previous value (not the initial undefined) and the user changed
+    if (prevId !== undefined && prevId !== currentId) {
+      setTasks([]);
+      setSyncStatus('synced');
+      setError(null);
+    }
+    prevUserIdRef.current = currentId;
+  }, [user]);
 
   useEffect(() => {
-    loadTasks();
-  }, [loadTasks]);
+    // Wait for auth to finish resolving before loading tasks
+    if (!authIsLoading) {
+      loadTasks();
+    }
+  }, [loadTasks, authIsLoading]);
 
   // ── Realtime Subscription for Authenticated User ─────────────────────────
   useEffect(() => {
-    if (!user || !isConfigured) return;
+    if (!user || !isConfigured || authIsLoading) return;
 
     const unsubscribe = subscribeToUserTasks(user.id, () => {
       fetchUserTasks(user.id)
@@ -205,13 +222,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           setTasks(fresh);
           setSyncStatus('synced');
         })
-        .catch(() => {});
+        .catch((err: unknown) => {
+          // Surface realtime refresh errors — do not silently swallow them
+          const msg = err instanceof Error ? err.message : 'Realtime sync failed';
+          console.error('[LifeMap] Realtime refresh error:', msg);
+          setSyncStatus('error');
+          setError(`Live sync failed: ${msg}`);
+        });
     });
 
     return () => {
       unsubscribe();
     };
-  }, [user, isConfigured]);
+  }, [user, isConfigured, authIsLoading]);
 
   // ── Settings ─────────────────────────────────────────────────────────────
   const updateSettings = useCallback(async (partial: Partial<AppSettings>) => {
@@ -263,11 +286,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const updateTask = useCallback(
     async (task: Task) => {
-      const previous = [...tasks];
       const updated: Task = { ...task, updatedAt: nowISO() };
 
-      // Optimistic state update
-      setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
+      // Optimistic state update — capture previous via functional updater to avoid stale closure
+      let previousSnapshot: Task[] = [];
+      setTasks((prev) => {
+        previousSnapshot = prev;
+        return prev.map((t) => (t.id === task.id ? updated : t));
+      });
       setSyncStatus('syncing');
 
       if (user && isConfigured) {
@@ -276,12 +302,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           setTasks((prev) => prev.map((t) => (t.id === task.id ? saved : t)));
           setSyncStatus('synced');
         } catch (err: unknown) {
-          // Rollback on error
-          setTasks(previous);
+          // Rollback using the snapshot captured atomically above
+          setTasks(previousSnapshot);
           setSyncStatus('error');
           let msg = err instanceof Error ? err.message : 'Failed to update cloud task';
           if (msg.includes('public.tasks') || msg.includes('schema cache')) {
             msg = "Cannot update task: table 'tasks' does not exist in Supabase. Please run the SQL migration.";
+          } else if (msg.includes('401') || msg.includes('Invalid API key') || msg.includes('JWT')) {
+            msg = 'Task update rejected: Supabase authentication failed. Check your VITE_SUPABASE_ANON_KEY.';
           }
           setError(msg);
           throw err;
@@ -291,7 +319,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setSyncStatus('offline');
       }
     },
-    [tasks, user, isConfigured]
+    [user, isConfigured]
   );
 
   const completeTask = useCallback(
@@ -342,9 +370,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const removeTask = useCallback(
     async (id: string) => {
-      const previous = [...tasks];
-      // Optimistic delete
-      setTasks((prev) => prev.filter((t) => t.id !== id));
+      // Optimistic delete — capture previous atomically to avoid stale closure
+      let previousSnapshot: Task[] = [];
+      setTasks((prev) => {
+        previousSnapshot = prev;
+        return prev.filter((t) => t.id !== id);
+      });
       setSyncStatus('syncing');
 
       if (user && isConfigured) {
@@ -352,8 +383,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           await deleteCloudTask(id, user.id);
           setSyncStatus('synced');
         } catch (err: unknown) {
-          // Rollback
-          setTasks(previous);
+          // Rollback using atomically captured snapshot
+          setTasks(previousSnapshot);
           setSyncStatus('error');
           const msg = err instanceof Error ? err.message : 'Failed to delete task from cloud';
           setError(msg);
@@ -364,7 +395,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setSyncStatus('offline');
       }
     },
-    [tasks, user, isConfigured]
+    [user, isConfigured]
   );
 
   const loadStarterPack = useCallback(async () => {
