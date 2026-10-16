@@ -3,7 +3,8 @@ import { Plus, Palette, Check, Lock } from 'lucide-react';
 import ProgressRing from '../components/ui/ProgressRing';
 import Modal from '../components/ui/Modal';
 import type { ContentItem } from '../types';
-import { getAllFromStore, saveToStore, deleteFromStore } from '../db/storage';
+import { getAllFromStore, saveToStore, deleteFromStore, getStoredChecklist, saveStoredChecklist } from '../db/storage';
+import { today } from '../utils/dates';
 import { nanoid } from '../utils/nanoid';
 
 const CREATIVE_PILLARS = [
@@ -20,13 +21,16 @@ const ITEM_STATUSES: ContentItem['status'][] = ['idea', 'draft', 'scheduled', 'p
 export default function CreativityPage() {
   const [items, setItems] = useState<ContentItem[]>([]);
   const [showAdd, setShowAdd] = useState(false);
+  const [editingItem, setEditingItem] = useState<ContentItem | null>(null);
   const [form, setForm] = useState({
     type: 'instagram' as ContentItem['type'],
     title: '', idea: '', draft: '', plannedDate: '', status: 'idea' as ContentItem['status'],
     link: '', isPrivate: true, notes: '',
   });
   const [filter, setFilter] = useState<ContentItem['type'] | 'all'>('all');
-  const [dailyChecked, setDailyChecked] = useState<Record<string, boolean>>({});
+  const [dailyChecked, setDailyChecked] = useState<Record<string, boolean>>(() =>
+    getStoredChecklist('creativity_' + today())
+  );
 
   useEffect(() => {
     getAllFromStore<ContentItem>('contentItems').then(setItems);
@@ -39,16 +43,43 @@ export default function CreativityPage() {
 
   const saveItem = async () => {
     if (!form.title.trim()) return;
-    const item: ContentItem = {
-      id: nanoid(),
-      ...form,
-      title: form.title.trim(),
-      createdAt: new Date().toISOString(),
-    };
-    await saveToStore('contentItems', item);
-    setItems((prev) => [...prev, item]);
+    if (editingItem) {
+      const updated: ContentItem = {
+        ...editingItem,
+        ...form,
+        title: form.title.trim(),
+      };
+      await saveToStore('contentItems', updated);
+      setItems((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+    } else {
+      const item: ContentItem = {
+        id: nanoid(),
+        ...form,
+        title: form.title.trim(),
+        createdAt: new Date().toISOString(),
+      };
+      await saveToStore('contentItems', item);
+      setItems((prev) => [...prev, item]);
+    }
     setForm({ type: 'instagram', title: '', idea: '', draft: '', plannedDate: '', status: 'idea', link: '', isPrivate: true, notes: '' });
+    setEditingItem(null);
     setShowAdd(false);
+  };
+
+  const startEdit = (item: ContentItem) => {
+    setEditingItem(item);
+    setForm({
+      type: item.type,
+      title: item.title,
+      idea: item.idea ?? '',
+      draft: item.draft ?? '',
+      plannedDate: item.plannedDate ?? '',
+      status: item.status,
+      link: item.link ?? '',
+      isPrivate: item.isPrivate ?? false,
+      notes: item.notes ?? '',
+    });
+    setShowAdd(true);
   };
 
   const deleteItem = async (id: string) => {
@@ -62,6 +93,14 @@ export default function CreativityPage() {
     const updated = { ...item, status };
     await saveToStore('contentItems', updated);
     setItems((prev) => prev.map((i) => (i.id === id ? updated : i)));
+  };
+
+  const toggleDaily = (task: string) => {
+    setDailyChecked((prev) => {
+      const next = { ...prev, [task]: !prev[task] };
+      saveStoredChecklist('creativity_' + today(), next);
+      return next;
+    });
   };
 
   const DAILY_ROUTINE = [
@@ -136,10 +175,20 @@ export default function CreativityPage() {
           <button className="btn btn-sm btn-ghost" onClick={() => setFilter('all')} style={{ display: filter === 'all' ? 'none' : 'flex' }}>Clear filter</button>
         </div>
         {filtered.length === 0 ? (
-          <div className="empty-state">
+          <div className="empty-state" style={{ textAlign: 'center', padding: '2rem 1rem' }}>
             <Palette size={28} />
             <p style={{ fontWeight: 600, marginTop: '0.5rem' }}>No content yet</p>
-            <p style={{ fontSize: '0.82rem' }}>Start capturing your creative ideas!</p>
+            <p style={{ fontSize: '0.82rem', marginBottom: '0.875rem' }}>Start capturing your creative ideas!</p>
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => {
+                setEditingItem(null);
+                setForm({ type: filter !== 'all' ? filter : 'instagram', title: '', idea: '', draft: '', plannedDate: '', status: 'idea', link: '', isPrivate: true, notes: '' });
+                setShowAdd(true);
+              }}
+            >
+              <Plus size={14} /> Add First Idea
+            </button>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
@@ -166,7 +215,10 @@ export default function CreativityPage() {
                       {item.plannedDate && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>📅 {item.plannedDate}</span>}
                     </div>
                   </div>
-                  <button className="btn btn-ghost btn-sm btn-icon" style={{ color: '#ef4444' }} onClick={() => deleteItem(item.id)}>🗑</button>
+                  <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+                    <button className="btn btn-ghost btn-sm btn-icon" onClick={() => startEdit(item)} title="Edit item">✏️</button>
+                    <button className="btn btn-ghost btn-sm btn-icon" style={{ color: '#ef4444' }} onClick={() => deleteItem(item.id)} title="Delete item">🗑</button>
+                  </div>
                 </div>
               );
             })}
@@ -180,7 +232,7 @@ export default function CreativityPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {DAILY_ROUTINE.map((r) => (
             <label key={r.task} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', padding: '0.5rem 0.75rem', background: dailyChecked[r.task] ? 'rgba(236,72,153,0.07)' : 'var(--bg-surface-2)', borderRadius: '8px' }}>
-              <div onClick={() => setDailyChecked((p) => ({ ...p, [r.task]: !p[r.task] }))} style={{ width: 18, height: 18, borderRadius: '4px', border: `2px solid ${dailyChecked[r.task] ? '#ec4899' : 'var(--border)'}`, background: dailyChecked[r.task] ? '#ec4899' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer' }}>
+              <div onClick={() => toggleDaily(r.task)} style={{ width: 18, height: 18, borderRadius: '4px', border: `2px solid ${dailyChecked[r.task] ? '#ec4899' : 'var(--border)'}`, background: dailyChecked[r.task] ? '#ec4899' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer' }}>
                 {dailyChecked[r.task] && <Check size={10} color="white" />}
               </div>
               <span className="badge" style={{ background: 'rgba(236,72,153,0.12)', color: '#ec4899', flexShrink: 0 }}>{r.time}</span>
@@ -194,7 +246,7 @@ export default function CreativityPage() {
       </div>
 
       {/* Add Content Modal */}
-      <Modal isOpen={showAdd} onClose={() => setShowAdd(false)} title="Add Creative Content">
+      <Modal isOpen={showAdd} onClose={() => { setShowAdd(false); setEditingItem(null); }} title={editingItem ? "Edit Creative Content" : "Add Creative Content"}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
           <div className="form-grid-2">
             <div>
@@ -233,8 +285,8 @@ export default function CreativityPage() {
             Keep this private (excluded from exports)
           </label>
           <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-            <button className="btn btn-secondary" onClick={() => setShowAdd(false)}>Cancel</button>
-            <button className="btn btn-primary" onClick={saveItem}>Add Content</button>
+            <button className="btn btn-secondary" onClick={() => { setShowAdd(false); setEditingItem(null); }}>Cancel</button>
+            <button className="btn btn-primary" onClick={saveItem}>{editingItem ? 'Save Changes' : 'Add Content'}</button>
           </div>
         </div>
       </Modal>

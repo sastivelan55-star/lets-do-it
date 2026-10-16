@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { MessageSquare, Check, Mic } from 'lucide-react';
+import { MessageSquare, Check, Mic, Trash2, Plus } from 'lucide-react';
 import ProgressRing from '../components/ui/ProgressRing';
 import Modal from '../components/ui/Modal';
 import type { CommunicationEntry } from '../types';
-import { getAllFromStore, saveToStore } from '../db/storage';
+import { getAllFromStore, saveToStore, deleteFromStore, getStoredChecklist, saveStoredChecklist } from '../db/storage';
 import { today } from '../utils/dates';
 import { nanoid } from '../utils/nanoid';
+
 
 const DAILY_ENGLISH: { title: string; time: string; desc: string }[] = [
   { title: 'Speak for 2–5 minutes', time: '5 min', desc: 'Talk about your day, thoughts or any topic.' },
@@ -38,7 +39,9 @@ export default function CommunicationPage() {
   const [entries, setEntries] = useState<CommunicationEntry[]>([]);
   const [showLog, setShowLog] = useState(false);
   const [form, setForm] = useState({ topic: '', minutes: '30', confidence: '', notes: '', type: 'speaking' as CommunicationEntry['type'] });
-  const [dailyChecked, setDailyChecked] = useState<Record<string, boolean>>({});
+  const [dailyChecked, setDailyChecked] = useState<Record<string, boolean>>(() =>
+    getStoredChecklist('comm_' + today())
+  );
 
   useEffect(() => {
     getAllFromStore<CommunicationEntry>('communicationEntries').then(setEntries);
@@ -65,9 +68,19 @@ export default function CommunicationPage() {
     setShowLog(false);
   };
 
-  const toggleDaily = (title: string) => {
-    setDailyChecked((prev) => ({ ...prev, [title]: !prev[title] }));
+  const deleteEntry = async (id: string) => {
+    await deleteFromStore('communicationEntries', id);
+    setEntries((prev) => prev.filter((e) => e.id !== id));
   };
+
+  const toggleDaily = (title: string) => {
+    setDailyChecked((prev) => {
+      const next = { ...prev, [title]: !prev[title] };
+      saveStoredChecklist('comm_' + today(), next);
+      return next;
+    });
+  };
+
 
   return (
     <div className="page-container pb-safe">
@@ -196,7 +209,7 @@ export default function CommunicationPage() {
       </div>
 
       {/* Recent sessions */}
-      {entries.length > 0 && (
+      {entries.length > 0 ? (
         <div className="card">
           <h2 style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.875rem' }}>📋 Recent Practice Sessions</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -206,9 +219,24 @@ export default function CommunicationPage() {
                 <span className="badge" style={{ background: 'rgba(6,182,212,0.12)', color: '#06b6d4', flexShrink: 0 }}>{e.type}</span>
                 <span className="task-title" style={{ flex: 1, minWidth: 0, color: 'var(--text-primary)', overflowWrap: 'anywhere' }}>{e.topic}</span>
                 <span style={{ color: '#06b6d4', fontWeight: 700, flexShrink: 0 }}>{e.practiceMinutes}m</span>
+                <button
+                  className="btn btn-ghost"
+                  style={{ padding: '0.2rem 0.4rem', color: 'var(--text-muted)' }}
+                  onClick={() => deleteEntry(e.id)}
+                  title="Delete practice session"
+                >
+                  <Trash2 size={14} />
+                </button>
               </div>
             ))}
           </div>
+        </div>
+      ) : (
+        <div className="card" style={{ textAlign: 'center', padding: '2rem 1rem' }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '0.75rem' }}>No practice sessions logged yet.</p>
+          <button className="btn btn-primary" onClick={() => setShowLog(true)}>
+            <Plus size={14} /> Log Your First Practice Session
+          </button>
         </div>
       )}
 

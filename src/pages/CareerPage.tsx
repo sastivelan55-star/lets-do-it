@@ -3,7 +3,7 @@ import { Plus, Briefcase, ExternalLink, Check } from 'lucide-react';
 import ProgressRing from '../components/ui/ProgressRing';
 import Modal from '../components/ui/Modal';
 import type { CareerItem, InternshipApplication } from '../types';
-import { getAllFromStore, saveToStore, deleteFromStore } from '../db/storage';
+import { getAllFromStore, saveToStore, deleteFromStore, getStoredChecklist, saveStoredChecklist } from '../db/storage';
 import { today } from '../utils/dates';
 import { nanoid } from '../utils/nanoid';
 
@@ -42,7 +42,17 @@ export default function CareerPage() {
     company: '', role: '', link: '', appliedDate: today(), status: 'applied' as InternshipApplication['status'],
     nextFollowUp: '', notes: '',
   });
-  const [dailyChecked, setDailyChecked] = useState<Record<string, boolean>>({});
+  const [dailyChecked, setDailyChecked] = useState<Record<string, boolean>>(() =>
+    getStoredChecklist('career_' + today())
+  );
+
+  const toggleDaily = (task: string) => {
+    setDailyChecked((prev) => {
+      const next = { ...prev, [task]: !prev[task] };
+      saveStoredChecklist('career_' + today(), next);
+      return next;
+    });
+  };
 
   useEffect(() => {
     getAllFromStore<CareerItem>('careerItems').then(setItems);
@@ -194,7 +204,7 @@ export default function CareerPage() {
               style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', padding: '0.5rem 0.75rem', background: dailyChecked[r.task] ? 'rgba(245,158,11,0.07)' : 'var(--bg-surface-2)', borderRadius: '8px', border: `1px solid ${dailyChecked[r.task] ? 'rgba(245,158,11,0.25)' : 'transparent'}` }}
             >
               <div
-                onClick={() => setDailyChecked((p) => ({ ...p, [r.task]: !p[r.task] }))}
+                onClick={() => toggleDaily(r.task)}
                 style={{
                   width: 18, height: 18, borderRadius: '4px',
                   border: `2px solid ${dailyChecked[r.task] ? '#f59e0b' : 'var(--border)'}`,
@@ -226,10 +236,13 @@ export default function CareerPage() {
         </div>
 
         {applications.length === 0 ? (
-          <div className="empty-state">
+          <div className="empty-state" style={{ textAlign: 'center', padding: '2rem 1rem' }}>
             <Briefcase size={28} />
             <p style={{ marginTop: '0.5rem', fontWeight: 600 }}>No applications yet</p>
-            <p style={{ fontSize: '0.82rem' }}>Track your first internship application.</p>
+            <p style={{ fontSize: '0.82rem', marginBottom: '0.875rem' }}>Track your first internship application.</p>
+            <button className="btn btn-primary btn-sm" onClick={() => setShowAppForm(true)}>
+              <Plus size={14} /> Add Application
+            </button>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>

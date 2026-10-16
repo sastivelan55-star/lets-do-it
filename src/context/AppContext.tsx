@@ -1,6 +1,6 @@
 /* oxlint-disable react/only-export-components */
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import type { AppSettings, Task, RoadmapMilestone, Project, DailyRecord } from '../types';
+import type { AppSettings, Task, RoadmapMilestone, Project, DailyRecord, ScheduleEntry, Note } from '../types';
 import { useAuth } from './AuthContext';
 import {
   fetchUserTasks,
@@ -11,6 +11,18 @@ import {
   seedStarterTasks,
   STARTER_TASKS,
 } from '../services/taskService';
+import {
+  fetchUserSchedules,
+  createCloudSchedule,
+  updateCloudSchedule,
+  deleteCloudSchedule,
+} from '../services/scheduleService';
+import {
+  fetchUserNotes,
+  createCloudNote,
+  updateCloudNote,
+  deleteCloudNote,
+} from '../services/noteService';
 import { nanoid } from '../utils/nanoid';
 import {
   getSettings,
@@ -18,6 +30,12 @@ import {
   getAllTasks,
   saveTask,
   deleteTask,
+  getAllSchedules,
+  saveSchedule,
+  deleteSchedule,
+  getAllNotes,
+  saveNote,
+  deleteNote,
   getAllMilestones,
   saveMilestone,
   getAllProjects,
@@ -39,6 +57,8 @@ interface AppContextValue {
   // State
   settings: AppSettings;
   tasks: Task[];
+  schedules: ScheduleEntry[];
+  notes: Note[];
   milestones: RoadmapMilestone[];
   projects: Project[];
   dailyRecords: DailyRecord[];
@@ -58,6 +78,16 @@ interface AppContextValue {
   loadStarterPack: () => Promise<void>;
   todaysTasks: Task[];
   overdueTasks: Task[];
+
+  // Schedules CRUD
+  addSchedule: (data: Omit<ScheduleEntry, 'id' | 'createdAt' | 'updatedAt'>) => Promise<ScheduleEntry>;
+  updateSchedule: (schedule: ScheduleEntry) => Promise<void>;
+  removeSchedule: (id: string) => Promise<void>;
+
+  // Notes CRUD
+  addNote: (data: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Note>;
+  updateNote: (note: Note) => Promise<void>;
+  removeNote: (id: string) => Promise<void>;
 
   // Milestones
   updateMilestone: (milestone: RoadmapMilestone) => Promise<void>;
@@ -87,6 +117,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const [settings, setSettings] = useState<AppSettings>(getDefaultSettings());
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [schedules, setSchedules] = useState<ScheduleEntry[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
   const [milestones, setMilestones] = useState<RoadmapMilestone[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [dailyRecords, setDailyRecords] = useState<DailyRecord[]>([]);
@@ -97,6 +129,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Track previous user id so we can detect account switches
   const prevUserIdRef = useRef<string | null | undefined>(undefined);
+
 
   // ── Apply Theme ──────────────────────────────────────────────────────────
   function applyTheme(theme: AppSettings['theme']) {
@@ -149,10 +182,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
-  // ── Load & Synchronize Tasks based on Auth State ─────────────────────────
+  // ── Load & Synchronize User Data based on Auth State ─────────────────────
   // IMPORTANT: Do NOT run while auth is still resolving — user could be transiently null
   // during session restoration, which would incorrectly fall through to offline mode.
-  const loadTasks = useCallback(async () => {
+  const loadUserData = useCallback(async () => {
     if (authIsLoading) return;
 
     setIsLoading(true);
@@ -160,45 +193,77 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       if (user && isConfigured) {
         setSyncStatus('syncing');
-        // Clear tasks first so we never show a previous user's data while fetching
+        // Clear state first so we never show a previous user's data while fetching
         setTasks([]);
-        const cloudTasks = await fetchUserTasks(user.id);
+        setSchedules([]);
+        setNotes([]);
+
+        const [cloudTasks, cloudSchedules, cloudNotes] = await Promise.all([
+          fetchUserTasks(user.id),
+          fetchUserSchedules(user.id).catch((err: unknown) => {
+            const msg = err instanceof Error ? err.message : String(err);
+            if (msg.includes('public.schedules') || msg.includes('schema cache')) {
+              console.warn('[LifeMap] Schedules table not yet in Supabase schema cache.');
+            } else {
+              throw err;
+            }
+            return [];
+          }),
+          fetchUserNotes(user.id).catch((err: unknown) => {
+            const msg = err instanceof Error ? err.message : String(err);
+            if (msg.includes('public.notes') || msg.includes('schema cache')) {
+              console.warn('[LifeMap] Notes table not yet in Supabase schema cache.');
+            } else {
+              throw err;
+            }
+            return [];
+          }),
+        ]);
+
         setTasks(cloudTasks);
+        setSchedules(cloudSchedules);
+        setNotes(cloudNotes);
         setSyncStatus('synced');
       } else {
         // Fallback to local storage (Guest mode or Supabase not configured)
         setSyncStatus('offline');
         setTasks([]);
-        const localTasks = await getAllTasks();
+        setSchedules([]);
+        setNotes([]);
+        const [localTasks, localSchedules, localNotes] = await Promise.all([
+          getAllTasks(),
+          getAllSchedules(),
+          getAllNotes(),
+        ]);
         setTasks(localTasks);
+        setSchedules(localSchedules);
+        setNotes(localNotes);
       }
     } catch (err: unknown) {
-      let msg = err instanceof Error ? err.message : 'Failed to load tasks';
+      let msg = err instanceof Error ? err.message : 'Failed to load user data';
       if (msg.includes('public.tasks') || msg.includes('schema cache')) {
         msg =
           "Database table 'tasks' not found in Supabase. Please execute the migration in supabase/migrations/20261011000000_create_tasks_table.sql via Supabase SQL Editor.";
       } else if (msg.includes('401') || msg.includes('Invalid API key') || msg.includes('JWT')) {
         msg =
-          'Authentication failed when loading tasks from Supabase. Your VITE_SUPABASE_ANON_KEY may be incorrect or expired. Check your Supabase API keys in .env.local.';
+          'Authentication failed when loading data from Supabase. Your VITE_SUPABASE_ANON_KEY may be incorrect or expired. Check your Supabase API keys in .env.local.';
       }
       setError(msg);
       setSyncStatus('error');
-      // Do NOT fall back to local tasks here — local data belongs to guest/offline mode,
-      // not to an authenticated user. Showing it would be misleading and could cause
-      // data to be attributed to the wrong account.
     } finally {
       setIsLoading(false);
     }
   }, [user, isConfigured, authIsLoading]);
 
-  // Guard: clear tasks immediately when user identity changes to prevent cross-account flash
+  // Guard: clear tasks, schedules, notes immediately when user identity changes to prevent cross-account flash
   useEffect(() => {
     const prevId = prevUserIdRef.current;
     const currentId = user?.id ?? null;
 
-    // If we have seen a previous value (not the initial undefined) and the user changed
     if (prevId !== undefined && prevId !== currentId) {
       setTasks([]);
+      setSchedules([]);
+      setNotes([]);
       setSyncStatus('synced');
       setError(null);
     }
@@ -206,11 +271,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   useEffect(() => {
-    // Wait for auth to finish resolving before loading tasks
     if (!authIsLoading) {
-      loadTasks();
+      loadUserData();
     }
-  }, [loadTasks, authIsLoading]);
+  }, [loadUserData, authIsLoading]);
 
   // ── Realtime Subscription for Authenticated User ─────────────────────────
   useEffect(() => {
@@ -515,10 +579,224 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, [todaysTasks]);
 
+  // ── Schedules Operations (with Optimistic UI + Server Rollback) ─────────
+  const addSchedule = useCallback(
+    async (scheduleData: Omit<ScheduleEntry, 'id' | 'createdAt' | 'updatedAt'>): Promise<ScheduleEntry> => {
+      setSyncStatus('syncing');
+      setError(null);
+
+      if (user && isConfigured) {
+        try {
+          const savedSchedule = await createCloudSchedule(scheduleData, user.id);
+          setSchedules((prev) =>
+            [...prev, savedSchedule].sort(
+              (a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime)
+            )
+          );
+          setSyncStatus('synced');
+          return savedSchedule;
+        } catch (err: unknown) {
+          setSyncStatus('error');
+          let msg = err instanceof Error ? err.message : 'Failed to create cloud schedule';
+          if (msg.includes('public.schedules') || msg.includes('schema cache')) {
+            msg =
+              "Cannot save schedule: table 'schedules' does not exist in Supabase. Please run the SQL migration in supabase/migrations/20261016000000_create_schedules_and_notes_tables.sql.";
+          }
+          setError(msg);
+          throw err;
+        }
+      } else {
+        const schedule: ScheduleEntry = {
+          ...scheduleData,
+          id: nanoid(),
+          createdAt: nowISO(),
+          updatedAt: nowISO(),
+        };
+        await saveSchedule(schedule);
+        setSchedules((prev) =>
+          [...prev, schedule].sort(
+            (a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime)
+          )
+        );
+        setSyncStatus('offline');
+        return schedule;
+      }
+    },
+    [user, isConfigured]
+  );
+
+  const updateSchedule = useCallback(
+    async (schedule: ScheduleEntry) => {
+      const updated: ScheduleEntry = { ...schedule, updatedAt: nowISO() };
+      let previousSnapshot: ScheduleEntry[] = [];
+      setSchedules((prev) => {
+        previousSnapshot = prev;
+        return prev
+          .map((s) => (s.id === schedule.id ? updated : s))
+          .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
+      });
+      setSyncStatus('syncing');
+
+      if (user && isConfigured) {
+        try {
+          const saved = await updateCloudSchedule(updated, user.id);
+          setSchedules((prev) =>
+            prev
+              .map((s) => (s.id === schedule.id ? saved : s))
+              .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime))
+          );
+          setSyncStatus('synced');
+        } catch (err: unknown) {
+          setSchedules(previousSnapshot);
+          setSyncStatus('error');
+          let msg = err instanceof Error ? err.message : 'Failed to update cloud schedule';
+          if (msg.includes('public.schedules') || msg.includes('schema cache')) {
+            msg = "Cannot update schedule: table 'schedules' does not exist in Supabase. Please run the SQL migration.";
+          }
+          setError(msg);
+          throw err;
+        }
+      } else {
+        await saveSchedule(updated);
+        setSyncStatus('offline');
+      }
+    },
+    [user, isConfigured]
+  );
+
+  const removeSchedule = useCallback(
+    async (id: string) => {
+      let previousSnapshot: ScheduleEntry[] = [];
+      setSchedules((prev) => {
+        previousSnapshot = prev;
+        return prev.filter((s) => s.id !== id);
+      });
+      setSyncStatus('syncing');
+
+      if (user && isConfigured) {
+        try {
+          await deleteCloudSchedule(id, user.id);
+          setSyncStatus('synced');
+        } catch (err: unknown) {
+          setSchedules(previousSnapshot);
+          setSyncStatus('error');
+          const msg = err instanceof Error ? err.message : 'Failed to delete schedule from cloud';
+          setError(msg);
+          throw err;
+        }
+      } else {
+        await deleteSchedule(id);
+        setSyncStatus('offline');
+      }
+    },
+    [user, isConfigured]
+  );
+
+  // ── Notes Operations (with Optimistic UI + Server Rollback) ──────────────
+  const addNote = useCallback(
+    async (noteData: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>): Promise<Note> => {
+      setSyncStatus('syncing');
+      setError(null);
+
+      if (user && isConfigured) {
+        try {
+          const savedNote = await createCloudNote(noteData, user.id);
+          setNotes((prev) => [savedNote, ...prev]);
+          setSyncStatus('synced');
+          return savedNote;
+        } catch (err: unknown) {
+          setSyncStatus('error');
+          let msg = err instanceof Error ? err.message : 'Failed to create cloud note';
+          if (msg.includes('public.notes') || msg.includes('schema cache')) {
+            msg =
+              "Cannot save note: table 'notes' does not exist in Supabase. Please run the SQL migration in supabase/migrations/20261016000000_create_schedules_and_notes_tables.sql.";
+          }
+          setError(msg);
+          throw err;
+        }
+      } else {
+        const note: Note = {
+          ...noteData,
+          id: nanoid(),
+          createdAt: nowISO(),
+          updatedAt: nowISO(),
+        };
+        await saveNote(note);
+        setNotes((prev) => [note, ...prev]);
+        setSyncStatus('offline');
+        return note;
+      }
+    },
+    [user, isConfigured]
+  );
+
+  const updateNote = useCallback(
+    async (note: Note) => {
+      const updated: Note = { ...note, updatedAt: nowISO() };
+      let previousSnapshot: Note[] = [];
+      setNotes((prev) => {
+        previousSnapshot = prev;
+        return prev.map((n) => (n.id === note.id ? updated : n));
+      });
+      setSyncStatus('syncing');
+
+      if (user && isConfigured) {
+        try {
+          const saved = await updateCloudNote(updated, user.id);
+          setNotes((prev) => prev.map((n) => (n.id === note.id ? saved : n)));
+          setSyncStatus('synced');
+        } catch (err: unknown) {
+          setNotes(previousSnapshot);
+          setSyncStatus('error');
+          let msg = err instanceof Error ? err.message : 'Failed to update cloud note';
+          if (msg.includes('public.notes') || msg.includes('schema cache')) {
+            msg = "Cannot update note: table 'notes' does not exist in Supabase. Please run the SQL migration.";
+          }
+          setError(msg);
+          throw err;
+        }
+      } else {
+        await saveNote(updated);
+        setSyncStatus('offline');
+      }
+    },
+    [user, isConfigured]
+  );
+
+  const removeNote = useCallback(
+    async (id: string) => {
+      let previousSnapshot: Note[] = [];
+      setNotes((prev) => {
+        previousSnapshot = prev;
+        return prev.filter((n) => n.id !== id);
+      });
+      setSyncStatus('syncing');
+
+      if (user && isConfigured) {
+        try {
+          await deleteCloudNote(id, user.id);
+          setSyncStatus('synced');
+        } catch (err: unknown) {
+          setNotes(previousSnapshot);
+          setSyncStatus('error');
+          const msg = err instanceof Error ? err.message : 'Failed to delete note from cloud';
+          setError(msg);
+          throw err;
+        }
+      } else {
+        await deleteNote(id);
+        setSyncStatus('offline');
+      }
+    },
+    [user, isConfigured]
+  );
+
   // ── Backup / Export / Import / Reset ─────────────────────────────────────
   const exportData = useCallback(async () => {
     const data = await exportAllData();
     data.tasks = tasks; // Export live tasks
+    data.schedules = schedules; // Export live schedules
+    data.notes = notes; // Export live notes
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -526,7 +804,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     a.download = `lifemap-backup-${today()}.json`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [tasks]);
+  }, [tasks, schedules, notes]);
 
   const importData = useCallback(async (file: File) => {
     const text = await file.text();
@@ -538,14 +816,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     await importAllData(data as Parameters<typeof importAllData>[0]);
     // Reload state
-    const [t, ms, ps, dr, s] = await Promise.all([
+    const [t, sc, nt, ms, ps, dr, s] = await Promise.all([
       getAllTasks(),
+      getAllSchedules(),
+      getAllNotes(),
       getAllMilestones(),
       getAllProjects(),
       getAllDailyRecords(),
       getSettings(),
     ]);
     setTasks(t);
+    setSchedules(sc);
+    setNotes(nt);
     setMilestones(ms);
     setProjects(ps);
     setDailyRecords(dr);
@@ -558,6 +840,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await saveSettings(s);
     setSettings(s);
     setTasks([]);
+    setSchedules([]);
+    setNotes([]);
     setDailyRecords([]);
     for (const m of INITIAL_MILESTONES) await saveMilestone(m);
     for (const p of INITIAL_PROJECTS) await saveProject(p);
@@ -570,6 +854,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       value={{
         settings,
         tasks,
+        schedules,
+        notes,
         milestones,
         projects,
         dailyRecords,
@@ -585,6 +871,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         loadStarterPack,
         todaysTasks,
         overdueTasks,
+        addSchedule,
+        updateSchedule,
+        removeSchedule,
+        addNote,
+        updateNote,
+        removeNote,
         updateMilestone,
         updateProject,
         removeProject,
@@ -600,6 +892,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       {children}
     </AppContext.Provider>
   );
+
 }
 
 export function useApp(): AppContextValue {

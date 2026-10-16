@@ -2,14 +2,16 @@
 // This module is UI-framework-agnostic. All DB interactions go here.
 
 import { openDB, type IDBPDatabase } from 'idb';
-import type { AppData, AppSettings, Task, RoadmapMilestone, Project, DailyRecord } from '../types';
+import type { AppData, AppSettings, Task, RoadmapMilestone, Project, DailyRecord, ScheduleEntry, Note } from '../types';
 
 const DB_NAME = 'lifemap-db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 const STORES = {
   settings: 'settings',
   tasks: 'tasks',
+  schedules: 'schedules',
+  notes: 'notes',
   dailyRecords: 'dailyRecords',
   roadmapMilestones: 'roadmapMilestones',
   communicationEntries: 'communicationEntries',
@@ -38,6 +40,17 @@ function getDB(): Promise<IDBPDatabase> {
           tasksStore.createIndex('lifeArea', 'lifeArea');
           tasksStore.createIndex('status', 'status');
           tasksStore.createIndex('projectId', 'projectId');
+        }
+        // Schedules store
+        if (!db.objectStoreNames.contains(STORES.schedules)) {
+          const schedStore = db.createObjectStore(STORES.schedules, { keyPath: 'id' });
+          schedStore.createIndex('date', 'date');
+        }
+        // Notes store
+        if (!db.objectStoreNames.contains(STORES.notes)) {
+          const notesStore = db.createObjectStore(STORES.notes, { keyPath: 'id' });
+          notesStore.createIndex('updatedAt', 'updatedAt');
+          notesStore.createIndex('category', 'category');
         }
         // Daily records
         if (!db.objectStoreNames.contains(STORES.dailyRecords)) {
@@ -122,6 +135,41 @@ export async function deleteTask(id: string): Promise<void> {
   await db.delete(STORES.tasks, id);
 }
 
+// ─── Schedules ───────────────────────────────────────────────────────────────
+
+export async function getAllSchedules(): Promise<ScheduleEntry[]> {
+  const db = await getDB();
+  return db.getAll(STORES.schedules);
+}
+
+export async function saveSchedule(schedule: ScheduleEntry): Promise<void> {
+  const db = await getDB();
+  await db.put(STORES.schedules, schedule);
+}
+
+export async function deleteSchedule(id: string): Promise<void> {
+  const db = await getDB();
+  await db.delete(STORES.schedules, id);
+}
+
+// ─── Notes ───────────────────────────────────────────────────────────────────
+
+export async function getAllNotes(): Promise<Note[]> {
+  const db = await getDB();
+  const all = await db.getAll(STORES.notes);
+  return all.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+}
+
+export async function saveNote(note: Note): Promise<void> {
+  const db = await getDB();
+  await db.put(STORES.notes, note);
+}
+
+export async function deleteNote(id: string): Promise<void> {
+  const db = await getDB();
+  await db.delete(STORES.notes, id);
+}
+
 // ─── Daily Records ────────────────────────────────────────────────────────────
 
 export async function getAllDailyRecords(): Promise<DailyRecord[]> {
@@ -186,6 +234,25 @@ export async function deleteFromStore(storeName: string, id: string): Promise<vo
   await db.delete(storeName, id);
 }
 
+// ─── Daily / Weekly Checklist Persistence (Local storage with daily key) ─────
+
+export function getStoredChecklist(key: string): Record<string, boolean> {
+  try {
+    const raw = localStorage.getItem(`lifemap_chk_${key}`);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function saveStoredChecklist(key: string, checked: Record<string, boolean>): void {
+  try {
+    localStorage.setItem(`lifemap_chk_${key}`, JSON.stringify(checked));
+  } catch {
+    // ignore quota error
+  }
+}
+
 // ─── Export / Import ──────────────────────────────────────────────────────────
 
 export async function exportAllData(): Promise<AppData> {
@@ -193,6 +260,8 @@ export async function exportAllData(): Promise<AppData> {
   const [
     settings,
     tasks,
+    schedules,
+    notes,
     dailyRecords,
     roadmapMilestones,
     communicationEntries,
@@ -205,6 +274,8 @@ export async function exportAllData(): Promise<AppData> {
   ] = await Promise.all([
     db.get(STORES.settings, 'app'),
     db.getAll(STORES.tasks),
+    db.getAll(STORES.schedules),
+    db.getAll(STORES.notes),
     db.getAll(STORES.dailyRecords),
     db.getAll(STORES.roadmapMilestones),
     db.getAll(STORES.communicationEntries),
@@ -219,6 +290,8 @@ export async function exportAllData(): Promise<AppData> {
   return {
     settings: settings ?? getDefaultSettings(),
     tasks,
+    schedules,
+    notes,
     dailyRecords,
     roadmapMilestones,
     communicationEntries,
@@ -247,6 +320,12 @@ export async function importAllData(data: AppData): Promise<void> {
 
   await tx.objectStore(STORES.tasks).clear();
   for (const t of data.tasks ?? []) await tx.objectStore(STORES.tasks).put(t);
+
+  await tx.objectStore(STORES.schedules).clear();
+  for (const s of data.schedules ?? []) await tx.objectStore(STORES.schedules).put(s);
+
+  await tx.objectStore(STORES.notes).clear();
+  for (const n of data.notes ?? []) await tx.objectStore(STORES.notes).put(n);
 
   await tx.objectStore(STORES.dailyRecords).clear();
   for (const r of data.dailyRecords ?? []) await tx.objectStore(STORES.dailyRecords).put(r);
@@ -286,6 +365,7 @@ export async function clearAllData(): Promise<void> {
   }
   await tx.done;
 }
+
 
 // ─── Defaults ────────────────────────────────────────────────────────────────
 

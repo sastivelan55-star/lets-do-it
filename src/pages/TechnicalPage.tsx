@@ -1,9 +1,12 @@
+import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import ProgressRing from '../components/ui/ProgressRing';
-import { Code2 } from 'lucide-react';
+import { Code2, Plus, Check } from 'lucide-react';
+import { today } from '../utils/dates';
 
 export default function TechnicalPage() {
-  const { milestones, tasks } = useApp();
+  const { milestones, tasks, addTask } = useApp();
+  const [addedTasks, setAddedTasks] = useState<Record<string, boolean>>({});
 
   const techTasks = tasks.filter((t) => t.lifeArea === 'technical');
   const completedTech = techTasks.filter((t) => t.status === 'completed').length;
@@ -11,6 +14,33 @@ export default function TechnicalPage() {
   const totalSubtasks = milestones.reduce((s, m) => s + m.subtasks.length, 0);
   const completedSubtasks = milestones.reduce((s, m) => s + m.subtasks.filter((st) => st.completed).length, 0);
   const overallPct = totalSubtasks ? Math.round((completedSubtasks / totalSubtasks) * 100) : 0;
+
+  const handleAddDailyTask = async (title: string, defaultMinutes: number) => {
+    await addTask({
+      title,
+      lifeArea: 'technical',
+      dueDate: today(),
+      priority: 'high',
+      status: 'not-started',
+      estimatedMinutes: defaultMinutes,
+    });
+    setAddedTasks((prev) => ({ ...prev, [title]: true }));
+    setTimeout(() => {
+      setAddedTasks((prev) => ({ ...prev, [title]: false }));
+    }, 2500);
+  };
+
+  const ONGOING_TASKS = [
+    { icon: '🧩', title: 'LeetCode / DSA Practice', sub: '2+ hrs/day · solve problems, review patterns', mins: 120 },
+    { icon: '🐙', title: 'GitHub Commits & Push', sub: 'Push code daily · consistent commits', mins: 30 },
+    { icon: '☕', title: 'Java & Spring Revision', sub: 'Spaced repetition of earlier concepts', mins: 45 },
+    { icon: '⭐', title: 'STAR Behavioral Story', sub: 'Document bugs fixed, challenges & lessons', mins: 30 },
+    { icon: '🔢', title: 'Aptitude & Reasoning Practice', sub: 'Light practice 20–30 min/day', mins: 30 },
+    { icon: '🤖', title: 'AI Tools & Engineering Awareness', sub: 'AI workflows, prompting, awareness', mins: 45 },
+    { icon: '📖', title: 'System Design & Tech Reading', sub: 'Architecture blogs, documentation', mins: 45 },
+    { icon: '🧠', title: 'Mindset & Evening Reflection', sub: 'Consistency · motivation · daily reflection', mins: 15 },
+  ];
+
 
   return (
     <div className="page-container pb-safe">
@@ -82,35 +112,54 @@ export default function TechnicalPage() {
       {/* Daily reminders from the roadmap */}
       <div className="card">
         <h2 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '1rem' }}>⚡ Ongoing Daily Tasks</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: '0.75rem' }}>
-          {[
-            { icon: '🧩', title: 'LeetCode / DSA', sub: '2+ hrs/day · solve problems, review patterns' },
-            { icon: '🐙', title: 'GitHub', sub: 'Push code daily · consistent commits' },
-            { icon: '☕', title: 'Java Revision', sub: 'Spaced repetition of earlier concepts' },
-            { icon: '⭐', title: 'STAR Stories', sub: 'No deadlines hit, bugs fixed, lessons learned' },
-            { icon: '🔢', title: 'Aptitude', sub: 'Light practice 20–30 min/day' },
-            { icon: '🤖', title: 'AI Learning', sub: '2–4 hrs/week · AI tools, prompting, awareness' },
-            { icon: '📖', title: 'Read / Learn', sub: 'Tech blogs, documentation, system design' },
-            { icon: '🧠', title: 'Mindset', sub: 'Consistency · motivation · daily reflection' },
-          ].map((item) => (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', gap: '0.75rem' }}>
+          {ONGOING_TASKS.map((item) => (
             <div
               key={item.title}
               style={{
-                padding: '0.75rem',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                padding: '0.875rem',
                 background: 'var(--bg-surface-2)',
                 borderRadius: '10px',
                 border: '1px solid var(--border)',
               }}
             >
-              <p style={{ fontSize: '1.2rem', marginBottom: '0.25rem' }}>{item.icon}</p>
-              <p style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)' }}>{item.title}</p>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>{item.sub}</p>
+              <div>
+                <p style={{ fontSize: '1.25rem', marginBottom: '0.25rem' }}>{item.icon}</p>
+                <p style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)', marginBottom: '0.2rem' }}>{item.title}</p>
+                <p style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginBottom: '0.75rem', lineHeight: 1.35 }}>{item.sub}</p>
+              </div>
+
+              <button
+                className={`btn btn-sm ${addedTasks[item.title] ? 'btn-primary' : 'btn-secondary'}`}
+                style={{
+                  fontSize: '0.72rem',
+                  padding: '0.35rem 0.6rem',
+                  width: '100%',
+                  justifyContent: 'center',
+                }}
+                disabled={addedTasks[item.title]}
+                onClick={() => handleAddDailyTask(item.title, item.mins)}
+              >
+                {addedTasks[item.title] ? (
+                  <>
+                    <Check size={12} /> Added to Today!
+                  </>
+                ) : (
+                  <>
+                    <Plus size={12} /> Add to Today
+                  </>
+                )}
+              </button>
             </div>
           ))}
         </div>
       </div>
     </div>
   );
+
 }
 
 function Stat({ label, value, color }: { label: string; value: string; color: string }) {

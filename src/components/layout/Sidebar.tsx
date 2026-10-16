@@ -1,8 +1,9 @@
-import React from 'react';
 import {
   LayoutDashboard,
   Map,
   CalendarDays,
+  Clock,
+  FileText,
   Code2,
   MessageSquare,
   Briefcase,
@@ -36,6 +37,8 @@ const NAV_ITEMS: { id: NavSection; label: string; icon: React.ReactNode; color: 
   { id: 'today',        label: 'Today',              icon: <LayoutDashboard size={18} />, color: '#818cf8' },
   { id: 'roadmap',      label: 'My Roadmap',         icon: <Map size={18} />,             color: '#60a5fa' },
   { id: 'planner',      label: 'Daily Planner',      icon: <CalendarDays size={18} />,    color: '#a78bfa' },
+  { id: 'schedules',    label: 'Schedules',          icon: <Clock size={18} />,           color: '#38bdf8' },
+  { id: 'notes',        label: 'Notes & Insights',   icon: <FileText size={18} />,        color: '#c084fc' },
   { id: 'technical',    label: 'Technical Mastery',  icon: <Code2 size={18} />,           color: '#6366f1' },
   { id: 'communication',label: 'Communication',      icon: <MessageSquare size={18} />,   color: '#06b6d4' },
   { id: 'career',       label: 'Career Readiness',   icon: <Briefcase size={18} />,       color: '#f59e0b' },
@@ -45,6 +48,7 @@ const NAV_ITEMS: { id: NavSection; label: string; icon: React.ReactNode; color: 
   { id: 'review',       label: 'Weekly Review',      icon: <BarChart3 size={18} />,       color: '#8b5cf6' },
   { id: 'settings',     label: 'Settings & Data',    icon: <Settings size={18} />,        color: '#94a3b8' },
 ];
+
 
 export default function Sidebar({ active, onNavigate, collapsed, onToggle }: SidebarProps) {
   const { user, signOut, isGuest } = useAuth();

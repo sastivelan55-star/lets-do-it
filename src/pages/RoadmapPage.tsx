@@ -150,6 +150,13 @@ function MilestoneCard({
     onToggleSessionForm();
   };
 
+  const removeSession = (sessId: string) => {
+    onUpdate({
+      ...milestone,
+      learningSessions: milestone.learningSessions.filter((s) => s.id !== sessId),
+    });
+  };
+
   const saveNotes = () => {
     onUpdate({ ...milestone, notes: notesValue });
     setEditingNotes(false);
@@ -370,11 +377,19 @@ function MilestoneCard({
               </div>
             )}
 
-            {milestone.learningSessions.slice(-3).reverse().map((sess) => (
+            {milestone.learningSessions.slice(-5).reverse().map((sess) => (
               <div key={sess.id} style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid var(--border)', fontSize: '0.82rem', flexWrap: 'wrap' }}>
                 <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}>{sess.date}</span>
                 <span style={{ flex: 1, minWidth: 0, color: 'var(--text-primary)', overflowWrap: 'anywhere' }}>{sess.topic}</span>
                 <span style={{ color, fontWeight: 700, flexShrink: 0 }}>{sess.minutes}m</span>
+                <button
+                  className="btn btn-ghost btn-icon btn-sm"
+                  style={{ color: '#ef4444', padding: '0.2rem' }}
+                  onClick={() => removeSession(sess.id)}
+                  title="Delete session"
+                >
+                  <Trash2 size={12} />
+                </button>
               </div>
             ))}
           </div>

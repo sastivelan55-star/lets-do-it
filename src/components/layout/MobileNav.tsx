@@ -2,8 +2,9 @@ import { useState } from 'react';
 import {
   LayoutDashboard, CalendarDays, Map, FolderOpen,
   MoreHorizontal, Code2, MessageSquare, Briefcase, Palette, Heart,
-  BarChart3, Settings, X,
+  BarChart3, Settings, X, Clock, FileText,
 } from 'lucide-react';
+
 import type { NavSection } from '../../App';
 
 interface MobileNavProps {
@@ -21,6 +22,8 @@ const PRIMARY_NAV: { id: NavSection; label: string; icon: React.ReactNode }[] = 
 
 // All sections accessible from the "More" drawer
 const MORE_NAV: { id: NavSection; label: string; icon: React.ReactNode }[] = [
+  { id: 'schedules',    label: 'Schedules',     icon: <Clock size={20} /> },
+  { id: 'notes',        label: 'Notes',         icon: <FileText size={20} /> },
   { id: 'roadmap',      label: 'Roadmap',       icon: <Map size={20} /> },
   { id: 'communication',label: 'Communication', icon: <MessageSquare size={20} /> },
   { id: 'career',       label: 'Career',        icon: <Briefcase size={20} /> },
@@ -29,6 +32,7 @@ const MORE_NAV: { id: NavSection; label: string; icon: React.ReactNode }[] = [
   { id: 'review',       label: 'Review',        icon: <BarChart3 size={20} /> },
   { id: 'settings',     label: 'Settings',      icon: <Settings size={20} /> },
 ];
+
 
 // All sections not in the primary bar
 const MORE_SECTION_IDS = MORE_NAV.map(n => n.id) as NavSection[];

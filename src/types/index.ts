@@ -192,6 +192,30 @@ export interface WeeklyReview {
   createdAt: string;
 }
 
+export interface ScheduleEntry {
+  id: string;
+  userId?: string;
+  title: string;
+  date: string; // YYYY-MM-DD
+  startTime: string; // HH:mm
+  endTime: string; // HH:mm
+  description?: string;
+  linkedTaskId?: string;
+  createdAt: string; // ISO datetime
+  updatedAt: string; // ISO datetime
+}
+
+export interface Note {
+  id: string;
+  userId?: string;
+  title: string;
+  content: string;
+  category?: string;
+  isPinned?: boolean;
+  createdAt: string; // ISO datetime
+  updatedAt: string; // ISO datetime
+}
+
 export interface AppSettings {
   theme: 'dark' | 'light' | 'system';
   displayName: string;
@@ -205,6 +229,8 @@ export interface AppSettings {
 export interface AppData {
   settings: AppSettings;
   tasks: Task[];
+  schedules?: ScheduleEntry[];
+  notes?: Note[];
   dailyRecords: DailyRecord[];
   roadmapMilestones: RoadmapMilestone[];
   communicationEntries: CommunicationEntry[];
@@ -215,3 +241,4 @@ export interface AppData {
   healthEntries: HealthEntry[];
   weeklyReviews: WeeklyReview[];
 }
+

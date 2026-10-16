@@ -15,11 +15,15 @@ import HealthPage from './pages/HealthPage';
 import ProjectsPage from './pages/ProjectsPage';
 import WeeklyReviewPage from './pages/WeeklyReviewPage';
 import SettingsPage from './pages/SettingsPage';
+import SchedulesPage from './pages/SchedulesPage';
+import NotesPage from './pages/NotesPage';
 
 export type NavSection =
   | 'today'
   | 'roadmap'
   | 'planner'
+  | 'schedules'
+  | 'notes'
   | 'technical'
   | 'communication'
   | 'career'
@@ -28,6 +32,7 @@ export type NavSection =
   | 'projects'
   | 'review'
   | 'settings';
+
 
 function LoadingScreen() {
   return (
@@ -122,6 +127,8 @@ function AppContent() {
     today:         <TodayPage />,
     roadmap:       <RoadmapPage />,
     planner:       <PlannerPage />,
+    schedules:     <SchedulesPage />,
+    notes:         <NotesPage />,
     technical:     <TechnicalPage />,
     communication: <CommunicationPage />,
     career:        <CareerPage />,
@@ -131,6 +138,7 @@ function AppContent() {
     review:        <WeeklyReviewPage />,
     settings:      <SettingsPage />,
   };
+
 
   return (
     <div className="app-layout">

@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Plus, Heart, Lock, AlertTriangle } from 'lucide-react';
+import { Plus, Heart, Lock, AlertTriangle, Trash2 } from 'lucide-react';
 import ProgressRing from '../components/ui/ProgressRing';
 import Modal from '../components/ui/Modal';
 import type { HealthEntry } from '../types';
-import { getAllFromStore, saveToStore } from '../db/storage';
+import { getAllFromStore, saveToStore, deleteFromStore, getStoredChecklist, saveStoredChecklist } from '../db/storage';
 import { today } from '../utils/dates';
 import { nanoid } from '../utils/nanoid';
 
@@ -28,7 +28,9 @@ export default function HealthPage() {
     gratitude: '',
     isPrivate: true,
   });
-  const [dailyChecked, setDailyChecked] = useState<Record<string, boolean>>({});
+  const [dailyChecked, setDailyChecked] = useState<Record<string, boolean>>(() =>
+    getStoredChecklist('health_' + today())
+  );
 
   useEffect(() => {
     getAllFromStore<HealthEntry>('healthEntries').then(setEntries);
@@ -39,9 +41,36 @@ export default function HealthPage() {
   const withReflection = entries.filter((e) => e.reflection).length;
   const pct = totalDays ? Math.round((withReflection / totalDays) * 100) : 0;
 
+  const openLogModal = () => {
+    if (todayEntry) {
+      setForm({
+        sleepHours: todayEntry.sleepHours !== undefined ? String(todayEntry.sleepHours) : '',
+        energyNote: todayEntry.energyNote ?? '',
+        moodNote: todayEntry.moodNote ?? '',
+        movement: todayEntry.movement ?? '',
+        relationships: todayEntry.relationships ?? '',
+        reflection: todayEntry.reflection ?? '',
+        gratitude: todayEntry.gratitude ?? '',
+        isPrivate: todayEntry.isPrivate ?? true,
+      });
+    } else {
+      setForm({
+        sleepHours: '',
+        energyNote: '',
+        moodNote: '',
+        movement: '',
+        relationships: '',
+        reflection: '',
+        gratitude: '',
+        isPrivate: true,
+      });
+    }
+    setShowAdd(true);
+  };
+
   const saveEntry = async () => {
     const entry: HealthEntry = {
-      id: nanoid(),
+      id: todayEntry ? todayEntry.id : nanoid(),
       date: today(),
       sleepHours: form.sleepHours ? Number(form.sleepHours) : undefined,
       energyNote: form.energyNote.trim() || undefined,
@@ -51,7 +80,7 @@ export default function HealthPage() {
       reflection: form.reflection.trim() || undefined,
       gratitude: form.gratitude.trim() || undefined,
       isPrivate: form.isPrivate,
-      createdAt: new Date().toISOString(),
+      createdAt: todayEntry ? todayEntry.createdAt : new Date().toISOString(),
     };
     await saveToStore('healthEntries', entry);
     setEntries((prev) => {
@@ -59,6 +88,19 @@ export default function HealthPage() {
       return idx >= 0 ? prev.map((e, i) => (i === idx ? entry : e)) : [...prev, entry];
     });
     setShowAdd(false);
+  };
+
+  const deleteEntry = async (id: string) => {
+    await deleteFromStore('healthEntries', id);
+    setEntries((prev) => prev.filter((e) => e.id !== id));
+  };
+
+  const toggleDaily = (item: string) => {
+    setDailyChecked((prev) => {
+      const next = { ...prev, [item]: !prev[item] };
+      saveStoredChecklist('health_' + today(), next);
+      return next;
+    });
   };
 
   const DAILY_HEALTH = [
@@ -103,7 +145,7 @@ export default function HealthPage() {
             {todayEntry && <div><p style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Today</p><p style={{ fontWeight: 800, color: '#34d399' }}>✓ Logged</p></div>}
           </div>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowAdd(true)} style={{ background: 'linear-gradient(135deg,#10b981,#06b6d4)' }}>
+        <button className="btn btn-primary" onClick={openLogModal} style={{ background: 'linear-gradient(135deg,#10b981,#06b6d4)' }}>
           <Plus size={15} /> {todayEntry ? 'Update Today' : 'Log Today'}
         </button>
       </div>
@@ -126,7 +168,7 @@ export default function HealthPage() {
           <h2 style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.875rem' }}>🏥 Daily Health Routine</h2>
           {DAILY_HEALTH.map((item) => (
             <label key={item} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', marginBottom: '0.5rem', cursor: 'pointer' }}>
-              <div onClick={() => setDailyChecked((p) => ({ ...p, [item]: !p[item] }))} style={{ width: 18, height: 18, borderRadius: '4px', border: `2px solid ${dailyChecked[item] ? '#10b981' : 'var(--border)'}`, background: dailyChecked[item] ? '#10b981' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2, cursor: 'pointer' }}>
+              <div onClick={() => toggleDaily(item)} style={{ width: 18, height: 18, borderRadius: '4px', border: `2px solid ${dailyChecked[item] ? '#10b981' : 'var(--border)'}`, background: dailyChecked[item] ? '#10b981' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2, cursor: 'pointer' }}>
                 {dailyChecked[item] && <span style={{ fontSize: '10px', color: 'white' }}>✓</span>}
               </div>
               <span style={{ fontSize: '0.82rem', color: dailyChecked[item] ? 'var(--text-muted)' : 'var(--text-secondary)', textDecoration: dailyChecked[item] ? 'line-through' : 'none', lineHeight: 1.4 }}>
@@ -141,7 +183,7 @@ export default function HealthPage() {
           <h2 style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.875rem' }}>👥 Relationships & Social Wellbeing</h2>
           {RELATIONSHIPS.map((item) => (
             <label key={item} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', marginBottom: '0.5rem', cursor: 'pointer' }}>
-              <div onClick={() => setDailyChecked((p) => ({ ...p, [item]: !p[item] }))} style={{ width: 18, height: 18, borderRadius: '4px', border: `2px solid ${dailyChecked[item] ? '#ec4899' : 'var(--border)'}`, background: dailyChecked[item] ? '#ec4899' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2, cursor: 'pointer' }}>
+              <div onClick={() => toggleDaily(item)} style={{ width: 18, height: 18, borderRadius: '4px', border: `2px solid ${dailyChecked[item] ? '#ec4899' : 'var(--border)'}`, background: dailyChecked[item] ? '#ec4899' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2, cursor: 'pointer' }}>
                 {dailyChecked[item] && <span style={{ fontSize: '10px', color: 'white' }}>✓</span>}
               </div>
               <span style={{ fontSize: '0.82rem', color: dailyChecked[item] ? 'var(--text-muted)' : 'var(--text-secondary)', textDecoration: dailyChecked[item] ? 'line-through' : 'none', lineHeight: 1.4 }}>
@@ -192,7 +234,7 @@ export default function HealthPage() {
       </div>
 
       {/* Recent entries */}
-      {entries.length > 0 && (
+      {entries.length > 0 ? (
         <div className="card">
           <h2 style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.875rem' }}>📋 Recent Log Entries (Private)</h2>
           {entries.slice(-5).reverse().map((e) => (
@@ -201,8 +243,25 @@ export default function HealthPage() {
               {e.sleepHours && <span style={{ color: '#10b981' }}>😴 {e.sleepHours}h</span>}
               {e.energyNote && <span className="task-title" style={{ color: 'var(--text-secondary)', flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>{e.energyNote}</span>}
               <Lock size={12} color="var(--text-muted)" />
+              <button
+                className="btn btn-ghost btn-sm btn-icon"
+                style={{ color: '#ef4444', padding: '0.2rem', marginLeft: 'auto' }}
+                onClick={() => deleteEntry(e.id)}
+                title="Delete log entry"
+              >
+                <Trash2 size={13} />
+              </button>
             </div>
           ))}
+        </div>
+      ) : (
+        <div className="card" style={{ textAlign: 'center', padding: '2rem 1rem' }}>
+          <Heart size={28} color="#10b981" style={{ margin: '0 auto 0.5rem auto' }} />
+          <p style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '0.25rem' }}>No reflections logged yet</p>
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '0.875rem' }}>Take 3 minutes to reflect on how today went.</p>
+          <button className="btn btn-primary btn-sm" onClick={openLogModal} style={{ background: 'linear-gradient(135deg,#10b981,#06b6d4)' }}>
+            <Plus size={14} /> Log Today's Reflection
+          </button>
         </div>
       )}
 

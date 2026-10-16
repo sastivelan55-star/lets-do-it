@@ -8,6 +8,7 @@ import ProgressRing from '../components/ui/ProgressRing';
 import Modal from '../components/ui/Modal';
 import TaskForm from '../components/tasks/TaskForm';
 import TaskCard from '../components/tasks/TaskCard';
+import ScheduleForm from '../components/schedules/ScheduleForm';
 import { formatDateLong, getGreeting, today } from '../utils/dates';
 import type { Task, LifeArea } from '../types';
 
@@ -44,13 +45,20 @@ export default function TodayPage() {
     loadStarterPack,
     syncStatus,
     error,
+    schedules,
+    addSchedule,
   } = useApp();
 
   const [showAddTask, setShowAddTask] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [showAddSchedule, setShowAddSchedule] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const [startTask, setStartTask] = useState<Task | null>(null);
   const [seeding, setSeeding] = useState(false);
+
+  const todaySchedules = schedules
+    .filter((s) => s.date === today())
+    .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
   const completedToday = todaysTasks.filter((t) => t.status === 'completed').length;
   const totalToday = todaysTasks.length;
@@ -482,23 +490,69 @@ export default function TodayPage() {
 
           {/* Daily Schedule Card */}
           <div className="card">
-            <h3 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '0.75rem' }}>⏰ Balanced Routine</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', fontSize: '0.8rem' }}>
-              {[
-                { time: '6:00–6:20 AM', title: 'Wake up, water, reset' },
-                { time: '6:20–6:45 AM', title: 'English speaking + communication' },
-                { time: '6:45–7:15 AM', title: 'DSA: solve or review 1 problem' },
-                { time: 'College hrs',  title: 'Classes, labs & active participation' },
-                { time: '60–90 min',    title: 'Main deep work block (Coding/Spring)' },
-                { time: '30 min',       title: 'Java / SQL / roadmap revision' },
-                { time: '15 min',       title: 'Night reflection & tomorrow plan' },
-              ].map((item, idx) => (
-                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', color: 'var(--text-secondary)' }}>
-                  <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}>{item.time}</span>
-                  <span style={{ fontWeight: 500, flex: 1, minWidth: 0, textAlign: 'right', overflowWrap: 'anywhere' }}>{item.title}</span>
-                </div>
-              ))}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0 }}>
+                {todaySchedules.length > 0 ? "⏰ Today's Schedule" : "⏰ Balanced Routine"}
+              </h3>
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => setShowAddSchedule(true)}
+                style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', color: '#818cf8' }}
+              >
+                <Plus size={12} /> Add Block
+              </button>
             </div>
+
+            {todaySchedules.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', fontSize: '0.8rem' }}>
+                {todaySchedules.map((entry) => (
+                  <div
+                    key={entry.id}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      gap: '0.75rem',
+                      padding: '0.4rem 0.6rem',
+                      background: 'var(--bg-surface-2)',
+                      borderRadius: '6px',
+                      color: 'var(--text-secondary)',
+                    }}
+                  >
+                    <span style={{ color: '#818cf8', fontWeight: 600, flexShrink: 0, fontSize: '0.75rem' }}>
+                      {entry.startTime}–{entry.endTime}
+                    </span>
+                    <span style={{ fontWeight: 500, flex: 1, minWidth: 0, textAlign: 'right', overflowWrap: 'anywhere' }}>
+                      {entry.title}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', fontSize: '0.8rem' }}>
+                {[
+                  { time: '6:00–6:20 AM', title: 'Wake up, water, reset' },
+                  { time: '6:20–6:45 AM', title: 'English speaking + communication' },
+                  { time: '6:45–7:15 AM', title: 'DSA: solve or review 1 problem' },
+                  { time: 'College hrs',  title: 'Classes, labs & active participation' },
+                  { time: '60–90 min',    title: 'Main deep work block (Coding/Spring)' },
+                  { time: '30 min',       title: 'Java / SQL / roadmap revision' },
+                  { time: '15 min',       title: 'Night reflection & tomorrow plan' },
+                ].map((item, idx) => (
+                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', color: 'var(--text-secondary)' }}>
+                    <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}>{item.time}</span>
+                    <span style={{ fontWeight: 500, flex: 1, minWidth: 0, textAlign: 'right', overflowWrap: 'anywhere' }}>{item.title}</span>
+                  </div>
+                ))}
+                <button
+                  className="btn btn-secondary btn-sm"
+                  style={{ marginTop: '0.5rem', width: '100%', justifyContent: 'center', fontSize: '0.78rem' }}
+                  onClick={() => setShowAddSchedule(true)}
+                >
+                  <Plus size={13} /> Customize Today's Schedule
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -514,6 +568,19 @@ export default function TodayPage() {
       {editingTask && (
         <Modal title="Edit Task" onClose={() => setEditingTask(null)}>
           <TaskForm initial={editingTask} onSubmit={handleEditTask} onCancel={() => setEditingTask(null)} />
+        </Modal>
+      )}
+
+      {/* Add Schedule Modal */}
+      {showAddSchedule && (
+        <Modal title="Add Schedule Block" onClose={() => setShowAddSchedule(false)}>
+          <ScheduleForm
+            onSubmit={async (data) => {
+              await addSchedule(data);
+              setShowAddSchedule(false);
+            }}
+            onCancel={() => setShowAddSchedule(false)}
+          />
         </Modal>
       )}
     </div>

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Plus, CheckCircle2 } from 'lucide-react';
+import { Plus, CheckCircle2, Trash2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import type { WeeklyReview } from '../types';
-import { getAllFromStore, saveToStore } from '../db/storage';
+import { getAllFromStore, saveToStore, deleteFromStore, getStoredChecklist, saveStoredChecklist } from '../db/storage';
 import { getWeekDates, today } from '../utils/dates';
 import { nanoid } from '../utils/nanoid';
 import { format, parseISO } from 'date-fns';
@@ -21,11 +21,15 @@ export default function WeeklyReviewPage() {
     notes: '',
   });
 
+  const { start: weekStart, end: weekEnd } = getWeekDates();
+  const [weeklyChecked, setWeeklyChecked] = useState<Record<string, boolean>>(() =>
+    getStoredChecklist('review_' + weekStart)
+  );
+
   useEffect(() => {
     getAllFromStore<WeeklyReview>('weeklyReviews').then(setReviews);
   }, []);
 
-  const { start: weekStart, end: weekEnd } = getWeekDates();
   const weekTasks = tasks.filter((t) => t.dueDate >= weekStart && t.dueDate <= weekEnd);
   const completedThisWeek = weekTasks.filter((t) => t.status === 'completed').length;
   const overdueThisWeek = tasks.filter((t) => t.dueDate < today() && t.status !== 'completed' && t.status !== 'rescheduled').length;
@@ -61,6 +65,19 @@ export default function WeeklyReviewPage() {
     setForm({ wins: '', challenges: '', continueItems: '', reduceItems: '', postponeItems: '', nextWeekFocus: '', notes: '' });
   };
 
+  const deleteReview = async (id: string) => {
+    await deleteFromStore('weeklyReviews', id);
+    setReviews((prev) => prev.filter((r) => r.id !== id));
+  };
+
+  const toggleWeekly = (item: string) => {
+    setWeeklyChecked((prev) => {
+      const next = { ...prev, [item]: !prev[item] };
+      saveStoredChecklist('review_' + weekStart, next);
+      return next;
+    });
+  };
+
   const WEEKLY_CHECKLIST = [
     'Apply to suitable internships',
     'Tailor resume to a relevant role',
@@ -71,7 +88,6 @@ export default function WeeklyReviewPage() {
     'Connect with one professional, alumnus or mentor',
     'Review progress and plan next week',
   ];
-  const [weeklyChecked, setWeeklyChecked] = useState<Record<string, boolean>>({});
 
   return (
     <div className="page-container pb-safe">
@@ -136,7 +152,7 @@ export default function WeeklyReviewPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {WEEKLY_CHECKLIST.map((item) => (
             <label key={item} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', padding: '0.45rem 0.75rem', background: weeklyChecked[item] ? 'rgba(129,140,248,0.08)' : 'var(--bg-surface-2)', borderRadius: '8px' }}>
-              <div onClick={() => setWeeklyChecked((p) => ({ ...p, [item]: !p[item] }))} style={{ width: 18, height: 18, borderRadius: '4px', border: `2px solid ${weeklyChecked[item] ? '#818cf8' : 'var(--border)'}`, background: weeklyChecked[item] ? '#818cf8' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer' }}>
+              <div onClick={() => toggleWeekly(item)} style={{ width: 18, height: 18, borderRadius: '4px', border: `2px solid ${weeklyChecked[item] ? '#818cf8' : 'var(--border)'}`, background: weeklyChecked[item] ? '#818cf8' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer' }}>
                 {weeklyChecked[item] && <CheckCircle2 size={10} color="white" />}
               </div>
               <span style={{ fontSize: '0.85rem', color: weeklyChecked[item] ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: weeklyChecked[item] ? 'line-through' : 'none' }}>{item}</span>
@@ -151,7 +167,7 @@ export default function WeeklyReviewPage() {
         <div className="form-grid-2">
           {['Solved DSA Problems', 'Committed Code', 'Learned New Concepts', 'Built / Improved Projects', 'Revised & Practiced', 'Logged in STAR Doc'].map((item) => (
             <label key={item} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.83rem', color: 'var(--text-secondary)', width: '100%', minWidth: 0 }}>
-              <div onClick={() => setWeeklyChecked((p) => ({ ...p, [item]: !p[item] }))} style={{ width: '1rem', height: '1rem', borderRadius: '4px', border: `2px solid ${weeklyChecked[item] ? '#818cf8' : 'var(--border)'}`, background: weeklyChecked[item] ? '#818cf8' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer' }}>
+              <div onClick={() => toggleWeekly(item)} style={{ width: '1rem', height: '1rem', borderRadius: '4px', border: `2px solid ${weeklyChecked[item] ? '#818cf8' : 'var(--border)'}`, background: weeklyChecked[item] ? '#818cf8' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer' }}>
                 {weeklyChecked[item] && <span style={{ fontSize: '0.6rem', color: 'white' }}>✓</span>}
               </div>
               <span className="task-title" style={{ flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>{item}</span>
@@ -161,20 +177,38 @@ export default function WeeklyReviewPage() {
       </div>
 
       {/* Past reviews */}
-      {reviews.length > 0 && (
+      {reviews.length > 0 ? (
         <div className="card">
           <h2 style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '0.875rem' }}>📝 Past Reviews</h2>
           {reviews.slice(-3).reverse().map((r) => (
             <div key={r.id} style={{ padding: '0.875rem', background: 'var(--bg-surface-2)', borderRadius: '10px', marginBottom: '0.6rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                 <p style={{ fontWeight: 700, fontSize: '0.85rem' }}>Week of {r.weekStart}</p>
-                <span className="badge status-in-progress" style={{ fontSize: '0.72rem' }}>{r.completionRate}% completion</span>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <span className="badge status-in-progress" style={{ fontSize: '0.72rem' }}>{r.completionRate}% completion</span>
+                  <button
+                    className="btn btn-ghost btn-sm btn-icon"
+                    style={{ color: '#ef4444', padding: '0.2rem' }}
+                    onClick={() => deleteReview(r.id)}
+                    title="Delete review"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
               </div>
               {r.wins.length > 0 && <p style={{ fontSize: '0.8rem', color: '#10b981', marginBottom: '0.25rem' }}>✅ {r.wins.slice(0, 2).join(' · ')}</p>}
               {r.continueItems.length > 0 && <p style={{ fontSize: '0.8rem', color: '#818cf8', marginBottom: '0.25rem' }}>▶️ Continue: {r.continueItems.slice(0, 2).join(' · ')}</p>}
               {r.nextWeekFocus.length > 0 && <p style={{ fontSize: '0.8rem', color: '#f59e0b' }}>🎯 Next week: {r.nextWeekFocus.slice(0, 2).join(' · ')}</p>}
             </div>
           ))}
+        </div>
+      ) : (
+        <div className="card" style={{ textAlign: 'center', padding: '2rem 1rem' }}>
+          <p style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '0.25rem' }}>No weekly reviews logged yet</p>
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '0.875rem' }}>Take 5 minutes at the end of the week to capture wins, lessons, and next priorities.</p>
+          <button className="btn btn-primary btn-sm" onClick={() => setShowForm(true)}>
+            <Plus size={14} /> Write Your First Review
+          </button>
         </div>
       )}
 

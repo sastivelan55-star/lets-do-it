@@ -226,9 +226,26 @@ export default function ProjectsPage() {
       </div>
 
       {filtered.length === 0 && (
-        <div className="empty-state">
-          <FolderOpen size={36} />
-          <p style={{ fontWeight: 600, marginTop: '0.75rem' }}>No projects in this status</p>
+        <div className="empty-state" style={{ textAlign: 'center', padding: '2.5rem 1rem' }}>
+          <FolderOpen size={36} style={{ margin: '0 auto 0.75rem auto', color: 'var(--text-muted)' }} />
+          <p style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '0.25rem' }}>
+            {projects.length === 0 ? 'No projects yet' : `No projects in "${filterStatus}"`}
+          </p>
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+            {projects.length === 0
+              ? 'Plan and track your innovations, hackathon projects, and apps.'
+              : 'Try selecting a different status filter or create a new project.'}
+          </p>
+          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+            {filterStatus !== 'all' && (
+              <button className="btn btn-secondary btn-sm" onClick={() => setFilterStatus('all')}>
+                Show All Projects
+              </button>
+            )}
+            <button className="btn btn-primary btn-sm" onClick={() => setShowAdd(true)}>
+              <Plus size={14} /> New Project
+            </button>
+          </div>
         </div>
       )}
 
