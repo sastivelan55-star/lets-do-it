@@ -98,7 +98,7 @@ interface AppContextValue {
   removeNote: (id: string) => Promise<void>;
 
   // Uploads & Media Vault
-  uploadFile: (file: File, description?: string) => Promise<UserUpload>;
+  uploadFile: (file: File, description?: string, onProgress?: (percent: number) => void) => Promise<UserUpload>;
   removeUpload: (upload: UserUpload) => Promise<void>;
   updateUpload: (id: string, updates: { fileName?: string; description?: string }) => Promise<void>;
   getDownloadUrl: (filePath: string) => Promise<string>;
@@ -834,14 +834,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // ── Uploads & Media Vault Operations ─────────────────────────────────────
   const uploadFile = useCallback(
-    async (file: File, description?: string): Promise<UserUpload> => {
+    async (file: File, description?: string, onProgress?: (percent: number) => void): Promise<UserUpload> => {
       if (!user || !isConfigured) {
         throw new Error('Cloud Media Vault requires an authenticated account. Please Sign In to upload files.');
       }
       setSyncStatus('syncing');
       setError(null);
       try {
-        const saved = await uploadUserFile(file, user.id, description);
+        const saved = await uploadUserFile(file, user.id, description, onProgress);
         setUploads((prev) => [saved, ...prev]);
         setSyncStatus('synced');
         return saved;

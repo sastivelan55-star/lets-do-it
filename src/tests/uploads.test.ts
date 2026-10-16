@@ -5,9 +5,11 @@ import {
   sanitizeFileName,
   validateUploadFile,
   dbRowToUpload,
+  formatUploadErrorMessage,
   MAX_FILE_SIZE_BYTES,
   type DbUploadRow,
 } from '../services/uploadService';
+import { MEDIA_VAULT_SETUP_SQL } from '../services/uploadSetupSql';
 import type { UserUpload } from '../types';
 
 describe('Media Vault & Uploads Service', () => {
@@ -19,6 +21,7 @@ describe('Media Vault & Uploads Service', () => {
       expect(formatFileSize(1536)).toBe('1.5 KB');
       expect(formatFileSize(1048576)).toBe('1.0 MB');
       expect(formatFileSize(26214400)).toBe('25.0 MB');
+      expect(formatFileSize(52428800)).toBe('50.0 MB');
       expect(formatFileSize(1073741824)).toBe('1.0 GB');
     });
 
@@ -83,16 +86,15 @@ describe('Media Vault & Uploads Service', () => {
     });
   });
 
-  describe('validateUploadFile', () => {
-    it('accepts files within the 25 MB limit', () => {
+  describe('validateUploadFile (50 MB Plan Limit)', () => {
+    it('accepts files within the 50 MB limit', () => {
       const file = new File(['sample content'], 'notes.pdf', { type: 'application/pdf' });
       const result = validateUploadFile(file);
       expect(result.valid).toBe(true);
       expect(result.category).toBe('document');
     });
 
-    it('rejects files larger than 25 MB', () => {
-      // Mock File with large size
+    it('rejects files larger than 50 MB', () => {
       const largeFile = {
         name: 'huge_video.mp4',
         size: MAX_FILE_SIZE_BYTES + 1024,
@@ -101,7 +103,7 @@ describe('Media Vault & Uploads Service', () => {
 
       const result = validateUploadFile(largeFile);
       expect(result.valid).toBe(false);
-      expect(result.error).toContain('exceeds the 25 MB limit');
+      expect(result.error).toContain('50 MB');
     });
 
     it('rejects empty files (0 bytes)', () => {
@@ -120,6 +122,30 @@ describe('Media Vault & Uploads Service', () => {
       const batFile = new File(['echo hello'], 'run.bat', { type: 'text/plain' });
       const batResult = validateUploadFile(batFile);
       expect(batResult.valid).toBe(false);
+    });
+  });
+
+  describe('formatUploadErrorMessage', () => {
+    it('translates missing bucket error into helpful instructions', () => {
+      const msg = formatUploadErrorMessage(new Error("Bucket not found: 'media-vault'"));
+      expect(msg).toContain('media-vault');
+      expect(msg).toContain('SQL migration');
+    });
+
+    it('translates missing table error into schema migration advice', () => {
+      const msg = formatUploadErrorMessage(new Error("Could not find the table 'public.user_uploads' in the schema cache"));
+      expect(msg).toContain('user_uploads');
+      expect(msg).toContain('SQL migration');
+    });
+
+    it('translates 413 payload too large errors', () => {
+      const msg = formatUploadErrorMessage(new Error('413 Payload Too Large'));
+      expect(msg).toContain('50 MB');
+    });
+
+    it('translates RLS permission errors', () => {
+      const msg = formatUploadErrorMessage(new Error('new row violates row-level security policy'));
+      expect(msg).toContain('permission denied');
     });
   });
 
@@ -164,6 +190,16 @@ describe('Media Vault & Uploads Service', () => {
       const upload = dbRowToUpload(row);
       expect(upload.fileSize).toBe(5242880);
       expect(upload.description).toBeUndefined();
+    });
+  });
+
+  describe('Migration Script Integrity', () => {
+    it('contains all necessary SQL commands for storage and tables', () => {
+      expect(MEDIA_VAULT_SETUP_SQL).toContain('media-vault');
+      expect(MEDIA_VAULT_SETUP_SQL).toContain('52428800'); // 50 MB
+      expect(MEDIA_VAULT_SETUP_SQL).toContain('user_uploads');
+      expect(MEDIA_VAULT_SETUP_SQL).toContain('storage.objects');
+      expect(MEDIA_VAULT_SETUP_SQL).toContain('ROW LEVEL SECURITY');
     });
   });
 

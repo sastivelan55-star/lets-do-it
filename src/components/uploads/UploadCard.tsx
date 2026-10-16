@@ -157,15 +157,14 @@ export default function UploadCard({
               width: '48px',
               height: '48px',
               borderRadius: '12px',
-              background: `rgba(${
-                upload.category === 'video'
+              background: `rgba(${upload.category === 'video'
                   ? '244, 63, 94, 0.15'
                   : upload.category === 'audio'
-                  ? '168, 85, 247, 0.15'
-                  : upload.category === 'document'
-                  ? '16, 185, 129, 0.15'
-                  : '56, 189, 248, 0.15'
-              })`,
+                    ? '168, 85, 247, 0.15'
+                    : upload.category === 'document'
+                      ? '16, 185, 129, 0.15'
+                      : '56, 189, 248, 0.15'
+                })`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',

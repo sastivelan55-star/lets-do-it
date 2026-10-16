@@ -4,6 +4,15 @@
 -- Enable UUID extension if not already enabled
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
+-- Updated_at helper function (idempotent)
+CREATE OR REPLACE FUNCTION public.handle_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = timezone('utc'::text, now());
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 -- ============================================================================
 -- 1. STORAGE BUCKET CREATION (media-vault)
 -- ============================================================================
@@ -12,21 +21,13 @@ VALUES (
     'media-vault',
     'media-vault',
     false, -- Private bucket: access requires authenticated session or signed URL
-    26214400, -- 25 MB max file size limit
-    ARRAY[
-        'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
-        'video/mp4', 'video/webm', 'video/quicktime', 'video/ogg',
-        'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/aac', 'audio/webm',
-        'application/pdf', 'text/plain', 'text/markdown', 'text/csv',
-        'application/json', 'application/zip',
-        'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    ]
+    52428800, -- 50 MB max file size limit (Maximum supported on Supabase Free Plan; up to 5 GB on Pro)
+    NULL -- Allow all media/document MIME types (frontend blocks dangerous executables)
 )
 ON CONFLICT (id) DO UPDATE SET
     public = false,
-    file_size_limit = EXCLUDED.file_size_limit,
-    allowed_mime_types = EXCLUDED.allowed_mime_types;
+    file_size_limit = 52428800,
+    allowed_mime_types = NULL;
 
 -- ============================================================================
 -- 2. STORAGE RLS POLICIES (media-vault bucket)

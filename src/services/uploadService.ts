@@ -1,8 +1,12 @@
-// Cloud Upload & Media Vault Service (Supabase Storage + PostgreSQL with RLS)
+// Cloud Upload & Media Vault Service (Supabase Storage + PostgreSQL with RLS + TUS Resumable Uploads)
+import { Upload, isSupported as isTusSupported } from 'tus-js-client';
 import { getSupabase } from './supabaseClient';
+import { ENV } from '../config/env';
 import type { UserUpload, UploadCategory } from '../types';
 
-export const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024; // 25 MB limit
+// Supabase Free Tier global upload ceiling is 50 MB per file.
+// For Pro Tier (5 GB limit), this constant can be adjusted or set via environment variable.
+export const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB limit
 export const BUCKET_NAME = 'media-vault';
 
 export interface DbUploadRow {
@@ -32,6 +36,27 @@ export function dbRowToUpload(row: DbUploadRow, signedUrl?: string): UserUpload 
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+// ── Error Formatting ─────────────────────────────────────────────────────────
+
+export function formatUploadErrorMessage(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  const lower = msg.toLowerCase();
+
+  if (lower.includes('bucket not found') || lower.includes('nosuchbucket')) {
+    return "Storage bucket 'media-vault' does not exist in Supabase. Please execute the SQL migration in supabase/migrations/20261016100000_create_media_vault_and_uploads.sql or create the bucket 'media-vault' in Supabase Dashboard -> Storage.";
+  }
+  if (lower.includes('user_uploads') || lower.includes('schema cache')) {
+    return "Database table 'user_uploads' does not exist in Supabase. Please execute the SQL migration in supabase/migrations/20261016100000_create_media_vault_and_uploads.sql.";
+  }
+  if (lower.includes('payload too large') || lower.includes('entity too large') || lower.includes('413')) {
+    return "File exceeds the 50 MB Supabase plan limit. Supabase Free tier allows files up to 50 MB.";
+  }
+  if (lower.includes('row-level security') || lower.includes('violates row-level security')) {
+    return "Upload permission denied by Storage Row Level Security. Ensure you are signed in and have permission to upload.";
+  }
+  return msg;
 }
 
 // ── Validation and Categorization Utilities ──────────────────────────────────
@@ -113,7 +138,7 @@ export function validateUploadFile(file: File): { valid: boolean; error?: string
   if (file.size > MAX_FILE_SIZE_BYTES) {
     return {
       valid: false,
-      error: `File size (${formatFileSize(file.size)}) exceeds the 25 MB limit.`,
+      error: `File size (${formatFileSize(file.size)}) exceeds the 50 MB Supabase plan limit.`,
       category,
     };
   }
@@ -138,6 +163,57 @@ export function validateUploadFile(file: File): { valid: boolean; error?: string
   return { valid: true, category };
 }
 
+// ── TUS Resumable Upload ─────────────────────────────────────────────────────
+
+export async function uploadViaTus(
+  file: File,
+  storagePath: string,
+  onProgress?: (percent: number) => void
+): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error('Supabase is not configured');
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const token = session?.access_token || ENV.supabaseAnonKey;
+
+  return new Promise((resolve, reject) => {
+    const upload = new Upload(file, {
+      endpoint: `${ENV.supabaseUrl}/storage/v1/upload/resumable`,
+      retryDelays: [0, 1000, 3000, 5000, 10000],
+      headers: {
+        authorization: `Bearer ${token}`,
+        apikey: ENV.supabaseAnonKey,
+        'x-upsert': 'false',
+      },
+      uploadDataDuringCreation: true,
+      removeFingerprintOnSuccess: true,
+      metadata: {
+        bucketName: BUCKET_NAME,
+        objectName: storagePath,
+        contentType: file.type || 'application/octet-stream',
+        cacheControl: '3600',
+      },
+      chunkSize: 6 * 1024 * 1024, // 6MB chunks
+      onError: (err) => {
+        reject(new Error(formatUploadErrorMessage(err)));
+      },
+      onProgress: (bytesUploaded, bytesTotal) => {
+        if (onProgress && bytesTotal > 0) {
+          onProgress(Math.min(99, Math.round((bytesUploaded / bytesTotal) * 100)));
+        }
+      },
+      onSuccess: () => {
+        if (onProgress) onProgress(100);
+        resolve();
+      },
+    });
+
+    upload.start();
+  });
+}
+
 // ── CRUD Operations ──────────────────────────────────────────────────────────
 
 export async function fetchUserUploads(userId: string): Promise<UserUpload[]> {
@@ -151,7 +227,7 @@ export async function fetchUserUploads(userId: string): Promise<UserUpload[]> {
     .order('created_at', { ascending: false });
 
   if (error) {
-    throw new Error(`Failed to fetch uploads: ${error.message}`);
+    throw new Error(formatUploadErrorMessage(error));
   }
 
   return (data as DbUploadRow[]).map((row) => dbRowToUpload(row));
@@ -166,7 +242,7 @@ export async function getUploadSignedUrl(filePath: string, expiresIn: number = 3
     .createSignedUrl(filePath, expiresIn);
 
   if (error) {
-    throw new Error(`Failed to generate signed URL: ${error.message}`);
+    throw new Error(formatUploadErrorMessage(error));
   }
 
   return data.signedUrl;
@@ -175,7 +251,8 @@ export async function getUploadSignedUrl(filePath: string, expiresIn: number = 3
 export async function uploadUserFile(
   file: File,
   userId: string,
-  description?: string
+  description?: string,
+  onProgress?: (percent: number) => void
 ): Promise<UserUpload> {
   const supabase = getSupabase();
   if (!supabase) throw new Error('Supabase is not configured');
@@ -191,16 +268,32 @@ export async function uploadUserFile(
   const storagePath = `${userId}/${fileId}-${cleanName}`;
 
   // 1. Upload file object to Supabase Storage
-  const { error: uploadError } = await supabase.storage
-    .from(BUCKET_NAME)
-    .upload(storagePath, file, {
-      cacheControl: '3600',
-      upsert: false,
-      contentType: file.type || 'application/octet-stream',
-    });
+  // Use TUS resumable uploads for files > 6MB if supported, otherwise standard upload
+  let uploaded = false;
+  if (file.size > 6 * 1024 * 1024 && isTusSupported) {
+    try {
+      await uploadViaTus(file, storagePath, onProgress);
+      uploaded = true;
+    } catch (tusErr: unknown) {
+      console.warn('[LifeMap] TUS upload failed, falling back to standard upload:', tusErr);
+      // Fallback to standard upload
+    }
+  }
 
-  if (uploadError) {
-    throw new Error(`Storage upload failed: ${uploadError.message}`);
+  if (!uploaded) {
+    if (onProgress) onProgress(25);
+    const { error: uploadError } = await supabase.storage
+      .from(BUCKET_NAME)
+      .upload(storagePath, file, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: file.type || 'application/octet-stream',
+      });
+
+    if (uploadError) {
+      throw new Error(formatUploadErrorMessage(uploadError));
+    }
+    if (onProgress) onProgress(100);
   }
 
   // 2. Insert metadata into public.user_uploads
@@ -225,7 +318,7 @@ export async function uploadUserFile(
       await supabase.storage.from(BUCKET_NAME).remove([storagePath]).catch((cleanupErr) => {
         console.error('[LifeMap] Failed to cleanup orphan storage file after DB error:', cleanupErr);
       });
-      throw new Error(`Failed to save file metadata: ${dbError.message}`);
+      throw new Error(formatUploadErrorMessage(dbError));
     }
 
     // 3. Resolve initial signed URL for preview/download
@@ -265,7 +358,7 @@ export async function deleteUserUpload(upload: UserUpload, userId: string): Prom
     .eq('user_id', userId);
 
   if (dbError) {
-    throw new Error(`Failed to delete upload record: ${dbError.message}`);
+    throw new Error(formatUploadErrorMessage(dbError));
   }
 }
 
@@ -290,7 +383,7 @@ export async function updateUserUploadMetadata(
     .single();
 
   if (error) {
-    throw new Error(`Failed to update upload: ${error.message}`);
+    throw new Error(formatUploadErrorMessage(error));
   }
 
   return dbRowToUpload(data as DbUploadRow);
