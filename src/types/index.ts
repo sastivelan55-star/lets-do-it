@@ -216,6 +216,22 @@ export interface Note {
   updatedAt: string; // ISO datetime
 }
 
+export type UploadCategory = 'image' | 'video' | 'audio' | 'document' | 'other';
+
+export interface UserUpload {
+  id: string;
+  userId: string;
+  fileName: string;
+  filePath: string; // Storage path in bucket, e.g. user_id/file_id-name.png
+  fileSize: number; // in bytes
+  mimeType: string;
+  category: UploadCategory;
+  description?: string;
+  signedUrl?: string; // transient signed preview/download URL
+  createdAt: string; // ISO datetime
+  updatedAt: string; // ISO datetime
+}
+
 export interface AppSettings {
   theme: 'dark' | 'light' | 'system';
   displayName: string;
@@ -231,6 +247,7 @@ export interface AppData {
   tasks: Task[];
   schedules?: ScheduleEntry[];
   notes?: Note[];
+  uploads?: UserUpload[];
   dailyRecords: DailyRecord[];
   roadmapMilestones: RoadmapMilestone[];
   communicationEntries: CommunicationEntry[];

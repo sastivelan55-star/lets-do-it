@@ -1,6 +1,6 @@
 /* oxlint-disable react/only-export-components */
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import type { AppSettings, Task, RoadmapMilestone, Project, DailyRecord, ScheduleEntry, Note } from '../types';
+import type { AppSettings, Task, RoadmapMilestone, Project, DailyRecord, ScheduleEntry, Note, UserUpload } from '../types';
 import { useAuth } from './AuthContext';
 import {
   fetchUserTasks,
@@ -23,6 +23,13 @@ import {
   updateCloudNote,
   deleteCloudNote,
 } from '../services/noteService';
+import {
+  fetchUserUploads,
+  uploadUserFile,
+  deleteUserUpload,
+  updateUserUploadMetadata,
+  getUploadSignedUrl,
+} from '../services/uploadService';
 import { nanoid } from '../utils/nanoid';
 import {
   getSettings,
@@ -59,6 +66,7 @@ interface AppContextValue {
   tasks: Task[];
   schedules: ScheduleEntry[];
   notes: Note[];
+  uploads: UserUpload[];
   milestones: RoadmapMilestone[];
   projects: Project[];
   dailyRecords: DailyRecord[];
@@ -88,6 +96,12 @@ interface AppContextValue {
   addNote: (data: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Note>;
   updateNote: (note: Note) => Promise<void>;
   removeNote: (id: string) => Promise<void>;
+
+  // Uploads & Media Vault
+  uploadFile: (file: File, description?: string) => Promise<UserUpload>;
+  removeUpload: (upload: UserUpload) => Promise<void>;
+  updateUpload: (id: string, updates: { fileName?: string; description?: string }) => Promise<void>;
+  getDownloadUrl: (filePath: string) => Promise<string>;
 
   // Milestones
   updateMilestone: (milestone: RoadmapMilestone) => Promise<void>;
@@ -119,6 +133,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [schedules, setSchedules] = useState<ScheduleEntry[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
+  const [uploads, setUploads] = useState<UserUpload[]>([]);
   const [milestones, setMilestones] = useState<RoadmapMilestone[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [dailyRecords, setDailyRecords] = useState<DailyRecord[]>([]);
@@ -194,7 +209,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (user && isConfigured) {
         setSyncStatus('syncing');
 
-        const [cloudTasks, cloudSchedules, cloudNotes] = await Promise.all([
+        const [cloudTasks, cloudSchedules, cloudNotes, cloudUploads] = await Promise.all([
           fetchUserTasks(user.id),
           fetchUserSchedules(user.id).catch((err: unknown) => {
             const msg = err instanceof Error ? err.message : String(err);
@@ -214,11 +229,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             }
             return [];
           }),
+          fetchUserUploads(user.id).catch((err: unknown) => {
+            const msg = err instanceof Error ? err.message : String(err);
+            if (msg.includes('public.user_uploads') || msg.includes('schema cache')) {
+              console.warn('[LifeMap] user_uploads table not yet in Supabase schema cache.');
+            } else {
+              throw err;
+            }
+            return [];
+          }),
         ]);
 
         setTasks(cloudTasks);
         setSchedules(cloudSchedules);
         setNotes(cloudNotes);
+        setUploads(cloudUploads);
         setSyncStatus('synced');
       } else {
         // Fallback to local storage (Guest mode or Supabase not configured)
@@ -231,6 +256,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setTasks(localTasks);
         setSchedules(localSchedules);
         setNotes(localNotes);
+        setUploads([]);
       }
     } catch (err: unknown) {
       let msg = err instanceof Error ? err.message : 'Failed to load user data';
@@ -246,7 +272,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, isConfigured, authIsLoading]);
 
-  // Guard: clear tasks, schedules, notes immediately when user identity changes to prevent cross-account flash
+  // Guard: clear tasks, schedules, notes, uploads immediately when user identity changes to prevent cross-account flash
   useEffect(() => {
     const prevId = prevUserIdRef.current;
     const currentId = user?.id ?? null;
@@ -255,6 +281,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setTasks([]);
       setSchedules([]);
       setNotes([]);
+      setUploads([]);
       setSyncStatus('synced');
       setError(null);
     }
@@ -805,12 +832,101 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [user, isConfigured]
   );
 
+  // ── Uploads & Media Vault Operations ─────────────────────────────────────
+  const uploadFile = useCallback(
+    async (file: File, description?: string): Promise<UserUpload> => {
+      if (!user || !isConfigured) {
+        throw new Error('Cloud Media Vault requires an authenticated account. Please Sign In to upload files.');
+      }
+      setSyncStatus('syncing');
+      setError(null);
+      try {
+        const saved = await uploadUserFile(file, user.id, description);
+        setUploads((prev) => [saved, ...prev]);
+        setSyncStatus('synced');
+        return saved;
+      } catch (err: unknown) {
+        setSyncStatus('error');
+        let msg = err instanceof Error ? err.message : 'Upload failed';
+        if (msg.includes('public.user_uploads') || msg.includes('schema cache')) {
+          msg = "Cannot save upload: table 'user_uploads' does not exist in Supabase. Please run the SQL migration in supabase/migrations/20261016100000_create_media_vault_and_uploads.sql.";
+        }
+        setError(msg);
+        throw err;
+      }
+    },
+    [user, isConfigured]
+  );
+
+  const removeUpload = useCallback(
+    async (upload: UserUpload) => {
+      if (!user || !isConfigured) {
+        throw new Error('Cloud Media Vault requires an authenticated account.');
+      }
+      let originalUpload: UserUpload | undefined;
+      setUploads((prev) => {
+        originalUpload = prev.find((u) => u.id === upload.id);
+        return prev.filter((u) => u.id !== upload.id);
+      });
+      setSyncStatus('syncing');
+      try {
+        await deleteUserUpload(upload, user.id);
+        setSyncStatus('synced');
+      } catch (err: unknown) {
+        if (originalUpload) {
+          setUploads((prev) => (prev.some((u) => u.id === upload.id) ? prev : [originalUpload!, ...prev]));
+        }
+        setSyncStatus('error');
+        const msg = err instanceof Error ? err.message : 'Failed to delete upload';
+        setError(msg);
+        throw err;
+      }
+    },
+    [user, isConfigured]
+  );
+
+  const updateUpload = useCallback(
+    async (id: string, updates: { fileName?: string; description?: string }) => {
+      if (!user || !isConfigured) {
+        throw new Error('Cloud Media Vault requires an authenticated account.');
+      }
+      let originalUpload: UserUpload | undefined;
+      setUploads((prev) => {
+        originalUpload = prev.find((u) => u.id === id);
+        return prev.map((u) => (u.id === id ? { ...u, ...updates, updatedAt: nowISO() } : u));
+      });
+      setSyncStatus('syncing');
+      try {
+        const updated = await updateUserUploadMetadata(id, user.id, updates);
+        setUploads((prev) => prev.map((u) => (u.id === id ? updated : u)));
+        setSyncStatus('synced');
+      } catch (err: unknown) {
+        if (originalUpload) {
+          setUploads((prev) => prev.map((u) => (u.id === id ? originalUpload! : u)));
+        }
+        setSyncStatus('error');
+        const msg = err instanceof Error ? err.message : 'Failed to update upload';
+        setError(msg);
+        throw err;
+      }
+    },
+    [user, isConfigured]
+  );
+
+  const getDownloadUrl = useCallback(
+    async (filePath: string): Promise<string> => {
+      return getUploadSignedUrl(filePath, 3600);
+    },
+    []
+  );
+
   // ── Backup / Export / Import / Reset ─────────────────────────────────────
   const exportData = useCallback(async () => {
     const data = await exportAllData();
     data.tasks = tasks; // Export live tasks
     data.schedules = schedules; // Export live schedules
     data.notes = notes; // Export live notes
+    data.uploads = uploads; // Export live uploads
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -818,7 +934,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     a.download = `lifemap-backup-${today()}.json`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [tasks, schedules, notes]);
+  }, [tasks, schedules, notes, uploads]);
 
   const importData = useCallback(async (file: File) => {
     const text = await file.text();
@@ -856,6 +972,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setTasks([]);
     setSchedules([]);
     setNotes([]);
+    setUploads([]);
     setDailyRecords([]);
     for (const m of INITIAL_MILESTONES) await saveMilestone(m);
     for (const p of INITIAL_PROJECTS) await saveProject(p);
@@ -870,6 +987,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         tasks,
         schedules,
         notes,
+        uploads,
         milestones,
         projects,
         dailyRecords,
@@ -891,6 +1009,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         addNote,
         updateNote,
         removeNote,
+        uploadFile,
+        removeUpload,
+        updateUpload,
+        getDownloadUrl,
         updateMilestone,
         updateProject,
         removeProject,

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   LayoutDashboard, CalendarDays, Map, FolderOpen,
   MoreHorizontal, Code2, MessageSquare, Briefcase, Palette, Heart,
-  BarChart3, Settings, X, Clock, FileText, LogOut, User,
+  BarChart3, Settings, X, Clock, FileText, HardDrive, LogOut, User,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -25,6 +25,7 @@ const PRIMARY_NAV: { id: NavSection; label: string; icon: React.ReactNode }[] = 
 const MORE_NAV: { id: NavSection; label: string; icon: React.ReactNode }[] = [
   { id: 'schedules',    label: 'Schedules',     icon: <Clock size={20} /> },
   { id: 'notes',        label: 'Notes',         icon: <FileText size={20} /> },
+  { id: 'uploads',      label: 'Vault',         icon: <HardDrive size={20} /> },
   { id: 'roadmap',      label: 'Roadmap',       icon: <Map size={20} /> },
   { id: 'communication',label: 'Communication', icon: <MessageSquare size={20} /> },
   { id: 'career',       label: 'Career',        icon: <Briefcase size={20} /> },

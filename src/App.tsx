@@ -17,6 +17,7 @@ import WeeklyReviewPage from './pages/WeeklyReviewPage';
 import SettingsPage from './pages/SettingsPage';
 import SchedulesPage from './pages/SchedulesPage';
 import NotesPage from './pages/NotesPage';
+import UploadsPage from './pages/UploadsPage';
 
 export type NavSection =
   | 'today'
@@ -24,6 +25,7 @@ export type NavSection =
   | 'planner'
   | 'schedules'
   | 'notes'
+  | 'uploads'
   | 'technical'
   | 'communication'
   | 'career'
@@ -129,6 +131,7 @@ function AppContent() {
     planner:       <PlannerPage />,
     schedules:     <SchedulesPage />,
     notes:         <NotesPage />,
+    uploads:       <UploadsPage />,
     technical:     <TechnicalPage />,
     communication: <CommunicationPage />,
     career:        <CareerPage />,
