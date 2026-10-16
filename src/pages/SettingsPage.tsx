@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Download, Upload, Trash2, Moon, Sun, Monitor, AlertTriangle, Check, Cloud, ShieldCheck } from 'lucide-react';
+import { Download, Upload, Trash2, Moon, Sun, Monitor, AlertTriangle, Check, Cloud, ShieldCheck, LogOut, KeyRound } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import type { AppSettings, LifeAreaWeights } from '../types';
@@ -7,7 +7,7 @@ import SupabaseSetupNotice from '../components/auth/SupabaseSetupNotice';
 
 export default function SettingsPage() {
   const { settings, updateSettings, exportData, importData, resetData, syncStatus } = useApp();
-  const { user, isConfigured } = useAuth();
+  const { user, isConfigured, signOut, resetPassword, isGuest } = useAuth();
 
   const [showReset, setShowReset] = useState(false);
   const [importError, setImportError] = useState('');
@@ -15,7 +15,39 @@ export default function SettingsPage() {
   const [weightsEdit, setWeightsEdit] = useState<LifeAreaWeights>({ ...settings.lifeAreaWeights });
   const [nameEdit, setNameEdit] = useState(settings.displayName);
   const [saved, setSaved] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [resetError, setResetError] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    try {
+      await signOut();
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    if (!user?.email) return;
+    setIsResetting(true);
+    setResetError('');
+    setResetSent(false);
+    try {
+      const res = await resetPassword(user.email);
+      if (res.success) {
+        setResetSent(true);
+      } else {
+        setResetError(res.error || 'Failed to send password reset email.');
+      }
+    } catch (err: unknown) {
+      setResetError(err instanceof Error ? err.message : 'Failed to send reset email.');
+    } finally {
+      setIsResetting(false);
+    }
+  };
 
   const weightsTotal = Object.values(weightsEdit).reduce((s: number, v: number) => s + Number(v), 0);
   const weightsValid = weightsTotal === 100;
@@ -92,7 +124,7 @@ export default function SettingsPage() {
           <div className="setting-row">
             <span className="setting-row-label">Authenticated Account</span>
             <span className="setting-row-value">
-              {user?.email ?? 'Not signed in (Guest Mode)'}
+              {user?.email ?? (isGuest ? 'Guest User (Demo Mode)' : 'Not signed in')}
             </span>
           </div>
           <div className="setting-row">
@@ -107,6 +139,54 @@ export default function SettingsPage() {
               <ShieldCheck size={14} /> PostgreSQL RLS (auth.uid() Isolated)
             </span>
           </div>
+        </div>
+
+        {/* Account Controls */}
+        <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
+          {user ? (
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={handlePasswordReset}
+                disabled={isResetting}
+                id="settings-reset-pw-btn"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                <KeyRound size={14} />
+                {isResetting ? 'Sending…' : 'Reset Password'}
+              </button>
+              <button
+                className="btn btn-danger btn-sm"
+                onClick={handleSignOut}
+                disabled={isSigningOut}
+                id="settings-signout-btn"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                <LogOut size={14} />
+                {isSigningOut ? 'Signing out…' : 'Sign Out'}
+              </button>
+            </div>
+          ) : isGuest ? (
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={handleSignOut}
+              id="settings-exit-guest-btn"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              <LogOut size={14} /> Exit Demo & Sign In
+            </button>
+          ) : null}
+
+          {resetSent && (
+            <div style={{ marginTop: '0.75rem', padding: '0.6rem 0.85rem', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: '8px', color: '#34d399', fontSize: '0.83rem' }}>
+              ✅ Password reset email sent to {user?.email}. Follow the instructions in the email.
+            </div>
+          )}
+          {resetError && (
+            <div style={{ marginTop: '0.75rem', padding: '0.6rem 0.85rem', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '8px', color: '#f87171', fontSize: '0.83rem' }}>
+              ❌ {resetError}
+            </div>
+          )}
         </div>
 
         {!isConfigured && (
@@ -266,11 +346,10 @@ export default function SettingsPage() {
 
       {/* About */}
       <div className="card">
-        <h2 style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '0.75rem' }}>ℹ️ About LifeMap Stage 1B</h2>
+        <h2 style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '0.75rem' }}>ℹ️ About LifeMap OS</h2>
         <div style={{ fontSize: '0.83rem', color: 'var(--text-secondary)', lineHeight: 1.8 }}>
-          <p><strong style={{ color: 'var(--text-primary)' }}>Version:</strong> 1.1.0 (Stage 1B - Cloud Sync & Auth)</p>
-          <p><strong style={{ color: 'var(--text-primary)' }}>Database:</strong> PostgreSQL via Supabase with Row Level Security</p>
-          <p><strong style={{ color: 'var(--text-primary)' }}>Stack:</strong> React 19 · TypeScript · Vite · Tailwind CSS v4 · @supabase/supabase-js</p>
+          <p><strong style={{ color: 'var(--text-primary)' }}>Edition:</strong> LifeMap OS · Personal Progress & Cloud Execution</p>
+          <p><strong style={{ color: 'var(--text-primary)' }}>Data Isolation:</strong> Authenticated Account Isolated via Cloud PostgreSQL RLS</p>
           <p style={{ marginTop: '0.5rem', fontStyle: 'italic', color: 'var(--text-muted)' }}>
             "Focus. Execute. Improve. Repeat. 8 months of consistency = a lifetime of opportunities."
           </p>

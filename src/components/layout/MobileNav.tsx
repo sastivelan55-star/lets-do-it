@@ -2,8 +2,9 @@ import { useState } from 'react';
 import {
   LayoutDashboard, CalendarDays, Map, FolderOpen,
   MoreHorizontal, Code2, MessageSquare, Briefcase, Palette, Heart,
-  BarChart3, Settings, X, Clock, FileText,
+  BarChart3, Settings, X, Clock, FileText, LogOut, User,
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 import type { NavSection } from '../../App';
 
@@ -39,6 +40,7 @@ const MORE_SECTION_IDS = MORE_NAV.map(n => n.id) as NavSection[];
 
 export default function MobileNav({ active, onNavigate }: MobileNavProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const { user, isGuest, signOut } = useAuth();
   const moreIsActive = MORE_SECTION_IDS.includes(active);
 
   const handleNavigate = (id: NavSection) => {
@@ -104,6 +106,67 @@ export default function MobileNav({ active, onNavigate }: MobileNavProps) {
                   <span>{item.label}</span>
                 </button>
               ))}
+            </div>
+
+            {/* Account & Sign out bar */}
+            <div
+              style={{
+                marginTop: '1rem',
+                paddingTop: '0.75rem',
+                borderTop: '1px solid var(--border)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '0.75rem',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0, overflow: 'hidden' }}>
+                <div
+                  style={{
+                    width: '26px',
+                    height: '26px',
+                    borderRadius: '50%',
+                    background: 'rgba(99,102,241,0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#818cf8',
+                    flexShrink: 0,
+                  }}
+                >
+                  <User size={13} />
+                </div>
+                <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {user?.email ?? (isGuest ? 'Guest User' : 'Account')}
+                  </p>
+                  <p style={{ margin: 0, fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                    {user ? 'Cloud Active' : 'Offline'}
+                  </p>
+                </div>
+              </div>
+              <button
+                className="btn btn-danger btn-sm"
+                onClick={() => {
+                  setDrawerOpen(false);
+                  signOut();
+                }}
+                id="mobile-signout-btn"
+                style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}
+              >
+                <LogOut size={13} />
+                Sign Out
+              </button>
             </div>
           </div>
         </>

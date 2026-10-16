@@ -193,10 +193,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       if (user && isConfigured) {
         setSyncStatus('syncing');
-        // Clear state first so we never show a previous user's data while fetching
-        setTasks([]);
-        setSchedules([]);
-        setNotes([]);
 
         const [cloudTasks, cloudSchedules, cloudNotes] = await Promise.all([
           fetchUserTasks(user.id),
@@ -227,9 +223,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       } else {
         // Fallback to local storage (Guest mode or Supabase not configured)
         setSyncStatus('offline');
-        setTasks([]);
-        setSchedules([]);
-        setNotes([]);
         const [localTasks, localSchedules, localNotes] = await Promise.all([
           getAllTasks(),
           getAllSchedules(),
@@ -242,11 +235,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } catch (err: unknown) {
       let msg = err instanceof Error ? err.message : 'Failed to load user data';
       if (msg.includes('public.tasks') || msg.includes('schema cache')) {
-        msg =
-          "Database table 'tasks' not found in Supabase. Please execute the migration in supabase/migrations/20261011000000_create_tasks_table.sql via Supabase SQL Editor.";
+        msg = 'Database tasks table is not yet initialized in Supabase. Please execute the database migration via Supabase SQL Editor.';
       } else if (msg.includes('401') || msg.includes('Invalid API key') || msg.includes('JWT')) {
-        msg =
-          'Authentication failed when loading data from Supabase. Your VITE_SUPABASE_ANON_KEY may be incorrect or expired. Check your Supabase API keys in .env.local.';
+        msg = 'Authentication failed when connecting to Supabase. Check your Supabase API credentials.';
       }
       setError(msg);
       setSyncStatus('error');
@@ -272,7 +263,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!authIsLoading) {
-      loadUserData();
+      // Use queueMicrotask to avoid synchronous setState inside render effect warning
+      queueMicrotask(() => {
+        loadUserData();
+      });
     }
   }, [loadUserData, authIsLoading]);
 
@@ -352,10 +346,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     async (task: Task) => {
       const updated: Task = { ...task, updatedAt: nowISO() };
 
-      // Optimistic state update — capture previous via functional updater to avoid stale closure
-      let previousSnapshot: Task[] = [];
+      // Optimistic state update — capture original entity for targeted rollback
+      let originalTask: Task | undefined;
       setTasks((prev) => {
-        previousSnapshot = prev;
+        originalTask = prev.find((t) => t.id === task.id);
         return prev.map((t) => (t.id === task.id ? updated : t));
       });
       setSyncStatus('syncing');
@@ -366,8 +360,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           setTasks((prev) => prev.map((t) => (t.id === task.id ? saved : t)));
           setSyncStatus('synced');
         } catch (err: unknown) {
-          // Rollback using the snapshot captured atomically above
-          setTasks(previousSnapshot);
+          // Targeted rollback: revert only this task without wiping other concurrent changes
+          if (originalTask) {
+            setTasks((prev) => prev.map((t) => (t.id === task.id ? originalTask! : t)));
+          }
           setSyncStatus('error');
           let msg = err instanceof Error ? err.message : 'Failed to update cloud task';
           if (msg.includes('public.tasks') || msg.includes('schema cache')) {
@@ -434,10 +430,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const removeTask = useCallback(
     async (id: string) => {
-      // Optimistic delete — capture previous atomically to avoid stale closure
-      let previousSnapshot: Task[] = [];
+      // Optimistic delete — capture original entity for targeted rollback
+      let originalTask: Task | undefined;
       setTasks((prev) => {
-        previousSnapshot = prev;
+        originalTask = prev.find((t) => t.id === id);
         return prev.filter((t) => t.id !== id);
       });
       setSyncStatus('syncing');
@@ -447,8 +443,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           await deleteCloudTask(id, user.id);
           setSyncStatus('synced');
         } catch (err: unknown) {
-          // Rollback using atomically captured snapshot
-          setTasks(previousSnapshot);
+          // Targeted rollback: restore only the deleted task
+          if (originalTask) {
+            setTasks((prev) => (prev.some((t) => t.id === id) ? prev : [originalTask!, ...prev]));
+          }
           setSyncStatus('error');
           const msg = err instanceof Error ? err.message : 'Failed to delete task from cloud';
           setError(msg);
@@ -628,9 +626,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const updateSchedule = useCallback(
     async (schedule: ScheduleEntry) => {
       const updated: ScheduleEntry = { ...schedule, updatedAt: nowISO() };
-      let previousSnapshot: ScheduleEntry[] = [];
+      let originalSchedule: ScheduleEntry | undefined;
       setSchedules((prev) => {
-        previousSnapshot = prev;
+        originalSchedule = prev.find((s) => s.id === schedule.id);
         return prev
           .map((s) => (s.id === schedule.id ? updated : s))
           .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
@@ -647,7 +645,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           );
           setSyncStatus('synced');
         } catch (err: unknown) {
-          setSchedules(previousSnapshot);
+          if (originalSchedule) {
+            setSchedules((prev) =>
+              prev
+                .map((s) => (s.id === schedule.id ? originalSchedule! : s))
+                .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime))
+            );
+          }
           setSyncStatus('error');
           let msg = err instanceof Error ? err.message : 'Failed to update cloud schedule';
           if (msg.includes('public.schedules') || msg.includes('schema cache')) {
@@ -666,9 +670,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const removeSchedule = useCallback(
     async (id: string) => {
-      let previousSnapshot: ScheduleEntry[] = [];
+      let originalSchedule: ScheduleEntry | undefined;
       setSchedules((prev) => {
-        previousSnapshot = prev;
+        originalSchedule = prev.find((s) => s.id === id);
         return prev.filter((s) => s.id !== id);
       });
       setSyncStatus('syncing');
@@ -678,7 +682,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           await deleteCloudSchedule(id, user.id);
           setSyncStatus('synced');
         } catch (err: unknown) {
-          setSchedules(previousSnapshot);
+          if (originalSchedule) {
+            setSchedules((prev) =>
+              (prev.some((s) => s.id === id) ? prev : [...prev, originalSchedule!]).sort(
+                (a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime)
+              )
+            );
+          }
           setSyncStatus('error');
           const msg = err instanceof Error ? err.message : 'Failed to delete schedule from cloud';
           setError(msg);
@@ -733,9 +743,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const updateNote = useCallback(
     async (note: Note) => {
       const updated: Note = { ...note, updatedAt: nowISO() };
-      let previousSnapshot: Note[] = [];
+      let originalNote: Note | undefined;
       setNotes((prev) => {
-        previousSnapshot = prev;
+        originalNote = prev.find((n) => n.id === note.id);
         return prev.map((n) => (n.id === note.id ? updated : n));
       });
       setSyncStatus('syncing');
@@ -746,7 +756,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           setNotes((prev) => prev.map((n) => (n.id === note.id ? saved : n)));
           setSyncStatus('synced');
         } catch (err: unknown) {
-          setNotes(previousSnapshot);
+          if (originalNote) {
+            setNotes((prev) => prev.map((n) => (n.id === note.id ? originalNote! : n)));
+          }
           setSyncStatus('error');
           let msg = err instanceof Error ? err.message : 'Failed to update cloud note';
           if (msg.includes('public.notes') || msg.includes('schema cache')) {
@@ -765,9 +777,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const removeNote = useCallback(
     async (id: string) => {
-      let previousSnapshot: Note[] = [];
+      let originalNote: Note | undefined;
       setNotes((prev) => {
-        previousSnapshot = prev;
+        originalNote = prev.find((n) => n.id === id);
         return prev.filter((n) => n.id !== id);
       });
       setSyncStatus('syncing');
@@ -777,7 +789,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           await deleteCloudNote(id, user.id);
           setSyncStatus('synced');
         } catch (err: unknown) {
-          setNotes(previousSnapshot);
+          if (originalNote) {
+            setNotes((prev) => (prev.some((n) => n.id === id) ? prev : [originalNote!, ...prev]));
+          }
           setSyncStatus('error');
           const msg = err instanceof Error ? err.message : 'Failed to delete note from cloud';
           setError(msg);
