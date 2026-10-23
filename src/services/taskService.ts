@@ -1,6 +1,7 @@
 // Cloud Task Service (Supabase PostgreSQL with RLS)
 import { getSupabase } from './supabaseClient';
 import type { Task, LifeArea, TaskPriority, TaskStatus } from '../types';
+import { formatSafeErrorMessage, logSafeError } from '../utils/errorUtils';
 
 export interface DbTaskRow {
   id: string;
@@ -20,6 +21,8 @@ export interface DbTaskRow {
   completed_at: string | null;
   created_at: string;
   updated_at: string;
+  parent_id?: string | null;
+  order_index?: number | null;
 }
 
 export function dbRowToTask(row: DbTaskRow): Task {
@@ -41,6 +44,8 @@ export function dbRowToTask(row: DbTaskRow): Task {
     completedAt: row.completed_at ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    parentId: row.parent_id ?? undefined,
+    orderIndex: row.order_index ?? 0,
   };
 }
 
@@ -56,8 +61,16 @@ export function taskToDbRow(task: Partial<Task>, userId: string): Partial<DbTask
   if (task.projectId !== undefined) row.project_id = task.projectId || null;
   if (task.dueDate !== undefined) row.due_date = task.dueDate || null;
   if (task.plannedStartTime !== undefined) row.planned_start = task.plannedStartTime || null;
-  if (task.estimatedMinutes !== undefined) row.estimated_minutes = task.estimatedMinutes;
-  if (task.actualMinutes !== undefined) row.actual_minutes = task.actualMinutes;
+  if (task.estimatedMinutes !== undefined) {
+    row.estimated_minutes = typeof task.estimatedMinutes === 'number' && !isNaN(task.estimatedMinutes)
+      ? Math.max(0, Math.round(task.estimatedMinutes))
+      : null;
+  }
+  if (task.actualMinutes !== undefined) {
+    row.actual_minutes = typeof task.actualMinutes === 'number' && !isNaN(task.actualMinutes)
+      ? Math.max(0, Math.round(task.actualMinutes))
+      : null;
+  }
   if (task.priority !== undefined) row.priority = task.priority;
   if (task.status !== undefined) {
     row.status = task.status;
@@ -71,6 +84,8 @@ export function taskToDbRow(task: Partial<Task>, userId: string): Partial<DbTask
   }
   if (task.recurring !== undefined) row.recurring_rule = task.recurring || null;
   if (task.notes !== undefined) row.notes = task.notes || null;
+  if (task.parentId !== undefined) row.parent_id = task.parentId || null;
+  if (task.orderIndex !== undefined) row.order_index = task.orderIndex ?? 0;
 
   return row;
 }
@@ -88,7 +103,8 @@ export async function fetchUserTasks(userId: string): Promise<Task[]> {
     .order('created_at', { ascending: false });
 
   if (error) {
-    throw new Error(`Failed to fetch tasks: ${error.message}`);
+    logSafeError('Fetch tasks', error);
+    throw new Error(formatSafeErrorMessage(error, 'Failed to fetch tasks'));
   }
 
   return (data as DbTaskRow[]).map(dbRowToTask);
@@ -114,7 +130,13 @@ export async function createCloudTask(
     .single();
 
   if (error) {
-    throw new Error(`Failed to create task: ${error.message}`);
+    logSafeError('Create task', error);
+    if (error.message?.includes('parent_id') || error.message?.includes('order_index')) {
+      throw new Error(
+        "Database migration required: 'parent_id' or 'order_index' column is missing in Supabase. Run the SQL migration in supabase/migrations/20261023000000_add_task_hierarchy_and_order.sql."
+      );
+    }
+    throw new Error(formatSafeErrorMessage(error, 'Failed to create task'));
   }
 
   return dbRowToTask(data as DbTaskRow);
@@ -136,7 +158,13 @@ export async function updateCloudTask(task: Task, userId: string): Promise<Task>
     .single();
 
   if (error) {
-    throw new Error(`Failed to update task: ${error.message}`);
+    logSafeError('Update task', error);
+    if (error.message?.includes('parent_id') || error.message?.includes('order_index')) {
+      throw new Error(
+        "Database migration required: 'parent_id' or 'order_index' column is missing in Supabase. Run the SQL migration in supabase/migrations/20261023000000_add_task_hierarchy_and_order.sql."
+      );
+    }
+    throw new Error(formatSafeErrorMessage(error, 'Failed to update task'));
   }
 
   return dbRowToTask(data as DbTaskRow);
@@ -153,7 +181,33 @@ export async function deleteCloudTask(taskId: string, userId: string): Promise<v
     .eq('user_id', userId);
 
   if (error) {
-    throw new Error(`Failed to delete task: ${error.message}`);
+    logSafeError('Delete task', error);
+    throw new Error(formatSafeErrorMessage(error, 'Failed to delete task'));
+  }
+}
+
+export async function updateCloudTaskOrder(
+  updates: { id: string; orderIndex: number }[],
+  userId: string
+): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error('Supabase is not configured');
+  if (updates.length === 0) return;
+
+  const promises = updates.map((u) =>
+    supabase
+      .from('tasks')
+      .update({ order_index: u.orderIndex })
+      .eq('id', u.id)
+      .eq('user_id', userId)
+  );
+
+  const results = await Promise.allSettled(promises);
+  for (const res of results) {
+    if (res.status === 'rejected') {
+      logSafeError('Update task order', res.reason);
+      throw new Error('Failed to update task order in cloud');
+    }
   }
 }
 

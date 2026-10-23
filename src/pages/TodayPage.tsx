@@ -10,6 +10,7 @@ import TaskForm from '../components/tasks/TaskForm';
 import TaskCard from '../components/tasks/TaskCard';
 import ScheduleForm from '../components/schedules/ScheduleForm';
 import { formatDateLong, getGreeting, today } from '../utils/dates';
+import { formatSafeErrorMessage } from '../utils/errorUtils';
 import type { Task, LifeArea } from '../types';
 
 const MOTIVATIONAL_QUOTES = [
@@ -161,6 +162,7 @@ export default function TodayPage() {
       {/* Global Error Banner if any */}
       {error && (
         <div
+          role="alert"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -175,7 +177,7 @@ export default function TodayPage() {
           }}
         >
           <AlertCircle size={18} style={{ flexShrink: 0 }} />
-          <span>{error}</span>
+          <span>{typeof error === 'string' && error !== '[object Object]' ? error : formatSafeErrorMessage(error)}</span>
         </div>
       )}
 

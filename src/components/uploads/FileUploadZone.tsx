@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { validateUploadFile, formatFileSize } from '../../services/uploadService';
 import { copySetupSqlToClipboard } from '../../services/uploadSetupSql';
+import { formatSafeErrorMessage } from '../../utils/errorUtils';
 
 interface FileUploadZoneProps {
   onUpload: (file: File, description?: string, onProgress?: (percent: number) => void) => Promise<unknown>;
@@ -141,7 +142,7 @@ export default function FileUploadZone({ onUpload, disabled = false }: FileUploa
           prev.map((q) => (q.id === item.id ? { ...q, status: 'success', progress: 100 } : q))
         );
       } catch (err: unknown) {
-        const errorMsg = err instanceof Error ? err.message : 'Upload failed';
+        const errorMsg = formatSafeErrorMessage(err, 'Upload failed');
         setQueue((prev) =>
           prev.map((q) =>
             q.id === item.id

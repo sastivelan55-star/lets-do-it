@@ -5,7 +5,7 @@ import { openDB, type IDBPDatabase } from 'idb';
 import type { AppData, AppSettings, Task, RoadmapMilestone, Project, DailyRecord, ScheduleEntry, Note } from '../types';
 
 const DB_NAME = 'lifemap-db';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 const STORES = {
   settings: 'settings',
@@ -28,7 +28,7 @@ let dbPromise: Promise<IDBPDatabase> | null = null;
 function getDB(): Promise<IDBPDatabase> {
   if (!dbPromise) {
     dbPromise = openDB(DB_NAME, DB_VERSION, {
-      upgrade(db) {
+      upgrade(db, _oldVersion, _newVersion, transaction) {
         // Settings store (single object with key 'app')
         if (!db.objectStoreNames.contains(STORES.settings)) {
           db.createObjectStore(STORES.settings);
@@ -40,6 +40,12 @@ function getDB(): Promise<IDBPDatabase> {
           tasksStore.createIndex('lifeArea', 'lifeArea');
           tasksStore.createIndex('status', 'status');
           tasksStore.createIndex('projectId', 'projectId');
+          tasksStore.createIndex('parentId', 'parentId');
+        } else {
+          const tasksStore = transaction.objectStore(STORES.tasks);
+          if (!tasksStore.indexNames.contains('parentId')) {
+            tasksStore.createIndex('parentId', 'parentId');
+          }
         }
         // Schedules store
         if (!db.objectStoreNames.contains(STORES.schedules)) {

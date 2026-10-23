@@ -23,11 +23,18 @@ interface AuthContextValue {
   dismissPasswordRecovery: () => void;
 }
 
+import { extractErrorInfo, logSafeError } from '../utils/errorUtils';
+
 export function formatAuthErrorMessage(
-  rawMessage: string,
+  err: unknown,
   context: 'signup' | 'signin' | 'reset' | 'google' = 'signin'
 ): string {
-  if (!rawMessage) return 'An unexpected authentication error occurred.';
+  if (!err) return 'An unexpected authentication error occurred.';
+  const info = extractErrorInfo(err, 'Authentication');
+  const rawMessage = info.message;
+  if (!rawMessage || rawMessage === '[object Object]') {
+    return 'An unexpected authentication error occurred. Please try again.';
+  }
   const lower = rawMessage.toLowerCase();
 
   // Supabase provider email rate limit
@@ -136,7 +143,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
       .catch((err: unknown) => {
         if (!isMounted) return;
-        const message = err instanceof Error ? err.message : 'Failed to restore session';
+        logSafeError('Restore session', err);
+        const message = formatAuthErrorMessage(err, 'signin');
         setAuthError(message);
       })
       .finally(() => {
@@ -209,8 +217,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsGuest(false);
         return { success: true };
       } catch (err: unknown) {
-        const raw = err instanceof Error ? err.message : 'Unexpected sign in error';
-        const message = formatAuthErrorMessage(raw, 'signin');
+        logSafeError('Sign In', err);
+        const message = formatAuthErrorMessage(err, 'signin');
         setAuthError(message);
         return { success: false, error: message };
       } finally {
@@ -276,8 +284,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           };
         }
       } catch (err: unknown) {
-        const raw = err instanceof Error ? err.message : 'Unexpected sign up error';
-        const message = formatAuthErrorMessage(raw, 'signup');
+        logSafeError('Sign Up', err);
+        const message = formatAuthErrorMessage(err, 'signup');
         setAuthError(message);
         return { success: false, error: message };
       } finally {
@@ -307,7 +315,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error) {
-        const formatted = formatAuthErrorMessage(error.message, 'google');
+        const formatted = formatAuthErrorMessage(error, 'google');
         setAuthError(formatted);
         return { success: false, error: formatted };
       }
@@ -319,8 +327,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return { success: true };
     } catch (err: unknown) {
-      const raw = err instanceof Error ? err.message : 'Unexpected Google sign-in error';
-      const formatted = formatAuthErrorMessage(raw, 'google');
+      logSafeError('Google Sign In', err);
+      const formatted = formatAuthErrorMessage(err, 'google');
       setAuthError(formatted);
       return { success: false, error: formatted };
     } finally {
@@ -366,7 +374,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
 
         if (error) {
-          const formatted = formatAuthErrorMessage(error.message, 'reset');
+          const formatted = formatAuthErrorMessage(error, 'reset');
           setAuthError(formatted);
           return { success: false, error: formatted };
         }
@@ -376,8 +384,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           message: 'Password reset link sent to your email. Check your inbox and follow the link to set a new password.',
         };
       } catch (err: unknown) {
-        const raw = err instanceof Error ? err.message : 'Failed to request password reset';
-        const formatted = formatAuthErrorMessage(raw, 'reset');
+        logSafeError('Reset Password', err);
+        const formatted = formatAuthErrorMessage(err, 'reset');
         return { success: false, error: formatted };
       }
     },
@@ -402,7 +410,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const { error } = await supabase.auth.updateUser({ password: newPassword });
         if (error) {
-          const formatted = formatAuthErrorMessage(error.message, 'signin');
+          const formatted = formatAuthErrorMessage(error, 'signin');
           setAuthError(formatted);
           return { success: false, error: formatted };
         }
@@ -412,8 +420,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           message: 'Password updated successfully! You can now continue using your account.',
         };
       } catch (err: unknown) {
-        const raw = err instanceof Error ? err.message : 'Failed to update password';
-        const formatted = formatAuthErrorMessage(raw, 'signin');
+        logSafeError('Update Password', err);
+        const formatted = formatAuthErrorMessage(err, 'signin');
         setAuthError(formatted);
         return { success: false, error: formatted };
       } finally {

@@ -3,6 +3,8 @@ import { Loader2 } from 'lucide-react';
 import Modal from '../ui/Modal';
 import type { UserUpload } from '../../types';
 
+import { formatSafeErrorMessage } from '../../utils/errorUtils';
+
 interface EditUploadModalProps {
   upload: UserUpload | null;
   isOpen: boolean;
@@ -39,7 +41,7 @@ export default function EditUploadModal({
       });
       onClose();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to update file');
+      setError(formatSafeErrorMessage(err, 'Failed to update file'));
     } finally {
       setIsSubmitting(false);
     }

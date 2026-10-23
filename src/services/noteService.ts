@@ -1,6 +1,7 @@
 // Cloud Note Service (Supabase PostgreSQL with RLS)
 import { getSupabase } from './supabaseClient';
 import type { Note } from '../types';
+import { formatSafeErrorMessage, logSafeError } from '../utils/errorUtils';
 
 export interface DbNoteRow {
   id: string;
@@ -54,7 +55,8 @@ export async function fetchUserNotes(userId: string): Promise<Note[]> {
     .order('updated_at', { ascending: false });
 
   if (error) {
-    throw new Error(`Failed to fetch notes: ${error.message}`);
+    logSafeError('Fetch notes', error);
+    throw new Error(formatSafeErrorMessage(error, 'Failed to fetch notes'));
   }
 
   return (data as DbNoteRow[]).map(dbRowToNote);
@@ -83,7 +85,8 @@ export async function createCloudNote(
     .single();
 
   if (error) {
-    throw new Error(`Failed to create note: ${error.message}`);
+    logSafeError('Create note', error);
+    throw new Error(formatSafeErrorMessage(error, 'Failed to create note'));
   }
 
   return dbRowToNote(data as DbNoteRow);
@@ -105,7 +108,8 @@ export async function updateCloudNote(note: Note, userId: string): Promise<Note>
     .single();
 
   if (error) {
-    throw new Error(`Failed to update note: ${error.message}`);
+    logSafeError('Update note', error);
+    throw new Error(formatSafeErrorMessage(error, 'Failed to update note'));
   }
 
   return dbRowToNote(data as DbNoteRow);
@@ -122,6 +126,7 @@ export async function deleteCloudNote(noteId: string, userId: string): Promise<v
     .eq('user_id', userId);
 
   if (error) {
-    throw new Error(`Failed to delete note: ${error.message}`);
+    logSafeError('Delete note', error);
+    throw new Error(formatSafeErrorMessage(error, 'Failed to delete note'));
   }
 }

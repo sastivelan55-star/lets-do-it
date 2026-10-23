@@ -3,6 +3,7 @@ import {
   LayoutDashboard, CalendarDays, Map, FolderOpen,
   MoreHorizontal, Code2, MessageSquare, Briefcase, Palette, Heart,
   BarChart3, Settings, X, Clock, FileText, HardDrive, LogOut, User,
+  ListTree,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -15,14 +16,15 @@ interface MobileNavProps {
 
 // Primary 4 tabs always shown in the bottom bar alongside More
 const PRIMARY_NAV: { id: NavSection; label: string; icon: React.ReactNode }[] = [
-  { id: 'today',     label: 'Today',    icon: <LayoutDashboard size={20} /> },
-  { id: 'planner',   label: 'Planner',  icon: <CalendarDays size={20} /> },
-  { id: 'technical', label: 'Learn',    icon: <Code2 size={20} /> },
-  { id: 'projects',  label: 'Projects', icon: <FolderOpen size={20} /> },
+  { id: 'today',        label: 'Today',    icon: <LayoutDashboard size={20} /> },
+  { id: 'task-builder', label: 'Builder',  icon: <ListTree size={20} /> },
+  { id: 'planner',      label: 'Planner',  icon: <CalendarDays size={20} /> },
+  { id: 'projects',     label: 'Projects', icon: <FolderOpen size={20} /> },
 ];
 
 // All sections accessible from the "More" drawer
 const MORE_NAV: { id: NavSection; label: string; icon: React.ReactNode }[] = [
+  { id: 'technical',    label: 'Technical',     icon: <Code2 size={20} /> },
   { id: 'schedules',    label: 'Schedules',     icon: <Clock size={20} /> },
   { id: 'notes',        label: 'Notes',         icon: <FileText size={20} /> },
   { id: 'uploads',      label: 'Vault',         icon: <HardDrive size={20} /> },

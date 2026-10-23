@@ -1,6 +1,7 @@
 // Cloud Schedule Service (Supabase PostgreSQL with RLS)
 import { getSupabase } from './supabaseClient';
 import type { ScheduleEntry } from '../types';
+import { formatSafeErrorMessage, logSafeError } from '../utils/errorUtils';
 
 export interface DbScheduleRow {
   id: string;
@@ -63,7 +64,8 @@ export async function fetchUserSchedules(userId: string): Promise<ScheduleEntry[
     .order('start_time', { ascending: true });
 
   if (error) {
-    throw new Error(`Failed to fetch schedules: ${error.message}`);
+    logSafeError('Fetch schedules', error);
+    throw new Error(formatSafeErrorMessage(error, 'Failed to fetch schedules'));
   }
 
   return (data as DbScheduleRow[]).map(dbRowToSchedule);
@@ -84,6 +86,12 @@ export async function createCloudSchedule(
   ) {
     delete insertPayload.id;
   }
+  if (
+    insertPayload.linked_task_id &&
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(insertPayload.linked_task_id)
+  ) {
+    insertPayload.linked_task_id = null;
+  }
 
   const { data, error } = await supabase
     .from('schedules')
@@ -92,7 +100,8 @@ export async function createCloudSchedule(
     .single();
 
   if (error) {
-    throw new Error(`Failed to create schedule: ${error.message}`);
+    logSafeError('Create schedule', error);
+    throw new Error(formatSafeErrorMessage(error, 'Failed to create schedule'));
   }
 
   return dbRowToSchedule(data as DbScheduleRow);
@@ -107,6 +116,12 @@ export async function updateCloudSchedule(
 
   const updatePayload = scheduleToDbRow(schedule, userId);
   delete updatePayload.id; // Primary key should not be in update set
+  if (
+    updatePayload.linked_task_id &&
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(updatePayload.linked_task_id)
+  ) {
+    updatePayload.linked_task_id = null;
+  }
 
   const { data, error } = await supabase
     .from('schedules')
@@ -117,7 +132,8 @@ export async function updateCloudSchedule(
     .single();
 
   if (error) {
-    throw new Error(`Failed to update schedule: ${error.message}`);
+    logSafeError('Update schedule', error);
+    throw new Error(formatSafeErrorMessage(error, 'Failed to update schedule'));
   }
 
   return dbRowToSchedule(data as DbScheduleRow);
@@ -134,6 +150,7 @@ export async function deleteCloudSchedule(scheduleId: string, userId: string): P
     .eq('user_id', userId);
 
   if (error) {
-    throw new Error(`Failed to delete schedule: ${error.message}`);
+    logSafeError('Delete schedule', error);
+    throw new Error(formatSafeErrorMessage(error, 'Failed to delete schedule'));
   }
 }

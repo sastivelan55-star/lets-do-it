@@ -33,6 +33,16 @@ export interface Task {
   rescheduledTo?: string; // new dueDate
   parentRecurringId?: string;
   userId?: string;
+  parentId?: string | null; // ID of parent task or subtask (null/undefined for root task)
+  orderIndex?: number;      // Sort order among siblings at the same hierarchy level
+}
+
+export interface HierarchicalTask extends Task {
+  children: HierarchicalTask[];
+  depth: number;
+  subtaskCount: number;
+  completedSubtaskCount: number;
+  progressPercent: number;
 }
 
 export interface DailyRecord {

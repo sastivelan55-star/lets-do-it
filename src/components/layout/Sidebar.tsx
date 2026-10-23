@@ -21,6 +21,7 @@ import {
   CloudOff,
   RefreshCw,
   User,
+  ListTree,
 } from 'lucide-react';
 import type { NavSection } from '../../App';
 import { useAuth } from '../../context/AuthContext';
@@ -36,6 +37,7 @@ interface SidebarProps {
 
 const NAV_ITEMS: { id: NavSection; label: string; icon: React.ReactNode; color: string }[] = [
   { id: 'today',        label: 'Today',              icon: <LayoutDashboard size={18} />, color: '#818cf8' },
+  { id: 'task-builder', label: 'Task Builder',       icon: <ListTree size={18} />,        color: '#38bdf8' },
   { id: 'roadmap',      label: 'My Roadmap',         icon: <Map size={18} />,             color: '#60a5fa' },
   { id: 'planner',      label: 'Daily Planner',      icon: <CalendarDays size={18} />,    color: '#a78bfa' },
   { id: 'schedules',    label: 'Schedules',          icon: <Clock size={18} />,           color: '#38bdf8' },

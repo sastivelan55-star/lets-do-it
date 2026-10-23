@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Check, Clock, Edit3, Trash2, CalendarClock, ChevronDown, ChevronUp, Play } from 'lucide-react';
+import { Check, Clock, Edit3, Trash2, CalendarClock, ChevronDown, ChevronUp, Play, ListTree } from 'lucide-react';
 import type { Task } from '../../types';
 import { formatTime, today } from '../../utils/dates';
+import { useApp } from '../../context/AppContext';
 import clsx from 'clsx';
 
 interface TaskCardProps {
@@ -37,10 +38,17 @@ const PRIORITY_DOT: Record<string, string> = {
 };
 
 export default function TaskCard({ task, onComplete, onEdit, onDelete, onReschedule, onStart }: TaskCardProps) {
+  const { tasks } = useApp();
   const [expanded, setExpanded] = useState(false);
   const [showReschedule, setShowReschedule] = useState(false);
   const [rescheduleDate, setRescheduleDate] = useState(today());
   const [confirmDelete, setConfirmDelete] = useState(false);
+
+  // Subtask calculations
+  const directSubtasks = tasks.filter((t) => t.parentId === task.id);
+  const hasSubtasks = directSubtasks.length > 0;
+  const completedSubtasksCount = directSubtasks.filter((t) => t.status === 'completed').length;
+  const subtaskPercent = hasSubtasks ? Math.round((completedSubtasksCount / directSubtasks.length) * 100) : 0;
 
   const isCompleted = task.status === 'completed';
   const isOverdue = task.dueDate < today() && !isCompleted && task.status !== 'rescheduled';
@@ -129,6 +137,24 @@ export default function TaskCard({ task, onComplete, onEdit, onDelete, onResched
           {task.status === 'in-progress' && (
             <span className="badge status-in-progress" style={{ fontSize: '0.7rem' }}>
               ▶ In Progress
+            </span>
+          )}
+
+          {hasSubtasks && (
+            <span
+              className="badge"
+              style={{
+                background: 'rgba(56, 189, 248, 0.15)',
+                color: '#38bdf8',
+                fontSize: '0.7rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '3px',
+              }}
+              title={`${completedSubtasksCount} of ${directSubtasks.length} subtasks completed (${subtaskPercent}%)`}
+            >
+              <ListTree size={11} />
+              {completedSubtasksCount}/{directSubtasks.length} ({subtaskPercent}%)
             </span>
           )}
         </div>

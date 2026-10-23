@@ -21,12 +21,14 @@ import Modal from '../components/ui/Modal';
 import type { UserUpload } from '../types';
 import { formatFileSize } from '../services/uploadService';
 import { MEDIA_VAULT_SETUP_SQL, copySetupSqlToClipboard } from '../services/uploadSetupSql';
+import { formatSafeErrorMessage } from '../utils/errorUtils';
 
 type SortOption = 'newest' | 'oldest' | 'largest' | 'smallest' | 'name';
 
 export default function UploadsPage() {
   const { uploads, uploadFile, removeUpload, updateUpload, error } = useApp();
   const { user, isGuest } = useAuth();
+  const displayError = error ? (typeof error === 'string' && error !== '[object Object]' ? error : formatSafeErrorMessage(error)) : null;
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -197,8 +199,9 @@ export default function UploadsPage() {
       )}
 
       {/* System Error Banner */}
-      {error && (
+      {displayError && (
         <div
+          role="alert"
           style={{
             display: 'flex',
             alignItems: 'flex-start',
@@ -214,8 +217,8 @@ export default function UploadsPage() {
         >
           <AlertCircle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <span>{error}</span>
-            {(error.includes('media-vault') || error.includes('user_uploads') || error.includes('SQL migration')) && (
+            <span>{displayError}</span>
+            {(displayError.includes('media-vault') || displayError.includes('user_uploads') || displayError.includes('SQL migration')) && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
                 <button
                   type="button"

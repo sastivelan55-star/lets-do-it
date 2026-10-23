@@ -6,6 +6,7 @@ import TaskForm from '../components/tasks/TaskForm';
 import Modal from '../components/ui/Modal';
 import type { Task, LifeArea, TaskStatus } from '../types';
 import { formatDate, today } from '../utils/dates';
+import { formatSafeErrorMessage } from '../utils/errorUtils';
 import { addDays, format, parseISO, startOfWeek } from 'date-fns';
 
 const FILTER_AREAS: { value: LifeArea | 'all'; label: string }[] = [
@@ -77,6 +78,7 @@ export default function PlannerPage() {
 
       {error && (
         <div
+          role="alert"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -91,7 +93,7 @@ export default function PlannerPage() {
           }}
         >
           <AlertCircle size={18} style={{ flexShrink: 0 }} />
-          <span>{error}</span>
+          <span>{typeof error === 'string' && error !== '[object Object]' ? error : formatSafeErrorMessage(error)}</span>
         </div>
       )}
 

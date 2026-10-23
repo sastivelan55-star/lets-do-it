@@ -15,6 +15,7 @@ import ScheduleForm from '../components/schedules/ScheduleForm';
 import ScheduleCard from '../components/schedules/ScheduleCard';
 import type { ScheduleEntry } from '../types';
 import { formatDateLong, today } from '../utils/dates';
+import { formatSafeErrorMessage } from '../utils/errorUtils';
 import { addDays, format, parseISO } from 'date-fns';
 
 export default function SchedulesPage() {
@@ -91,6 +92,7 @@ export default function SchedulesPage() {
       {/* Error Banner */}
       {error && (
         <div
+          role="alert"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -105,7 +107,7 @@ export default function SchedulesPage() {
           }}
         >
           <AlertCircle size={18} style={{ flexShrink: 0 }} />
-          <span>{error}</span>
+          <span>{typeof error === 'string' && error !== '[object Object]' ? error : formatSafeErrorMessage(error)}</span>
         </div>
       )}
 

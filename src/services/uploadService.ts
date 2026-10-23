@@ -3,6 +3,7 @@ import { Upload, isSupported as isTusSupported } from 'tus-js-client';
 import { getSupabase } from './supabaseClient';
 import { ENV } from '../config/env';
 import type { UserUpload, UploadCategory } from '../types';
+import { extractErrorInfo } from '../utils/errorUtils';
 
 // Supabase Free Tier global upload ceiling is 50 MB per file.
 // For Pro Tier (5 GB limit), this constant can be adjusted or set via environment variable.
@@ -41,22 +42,26 @@ export function dbRowToUpload(row: DbUploadRow, signedUrl?: string): UserUpload 
 // ── Error Formatting ─────────────────────────────────────────────────────────
 
 export function formatUploadErrorMessage(err: unknown): string {
-  const msg = err instanceof Error ? err.message : String(err);
-  const lower = msg.toLowerCase();
+  const info = extractErrorInfo(err, 'Upload Service');
+  const msg = info.message;
+  const lower = (msg + ' ' + (info.code || '') + ' ' + (info.details || '')).toLowerCase();
 
   if (lower.includes('bucket not found') || lower.includes('nosuchbucket')) {
     return "Storage bucket 'media-vault' does not exist in Supabase. Please execute the SQL migration in supabase/migrations/20261016100000_create_media_vault_and_uploads.sql or create the bucket 'media-vault' in Supabase Dashboard -> Storage.";
   }
-  if (lower.includes('user_uploads') || lower.includes('schema cache')) {
+  if (lower.includes('user_uploads') || lower.includes('schema cache') || info.isSchemaMissing) {
     return "Database table 'user_uploads' does not exist in Supabase. Please execute the SQL migration in supabase/migrations/20261016100000_create_media_vault_and_uploads.sql.";
   }
-  if (lower.includes('payload too large') || lower.includes('entity too large') || lower.includes('413')) {
+  if (lower.includes('payload too large') || lower.includes('entity too large') || lower.includes('413') || info.status === 413) {
     return "File exceeds the 50 MB Supabase plan limit. Supabase Free tier allows files up to 50 MB.";
   }
-  if (lower.includes('row-level security') || lower.includes('violates row-level security')) {
+  if (lower.includes('row-level security') || lower.includes('violates row-level security') || info.isRlsError) {
     return "Upload permission denied by Storage Row Level Security. Ensure you are signed in and have permission to upload.";
   }
-  return msg;
+  if (info.isAuthError) {
+    return "Authentication failed connecting to Supabase storage. Check your login session.";
+  }
+  return msg || 'Upload operation failed.';
 }
 
 // ── Validation and Categorization Utilities ──────────────────────────────────

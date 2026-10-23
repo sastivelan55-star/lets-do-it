@@ -4,6 +4,7 @@ import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import type { AppSettings, LifeAreaWeights } from '../types';
 import SupabaseSetupNotice from '../components/auth/SupabaseSetupNotice';
+import { formatSafeErrorMessage } from '../utils/errorUtils';
 
 export default function SettingsPage() {
   const { settings, updateSettings, exportData, importData, resetData, syncStatus } = useApp();
@@ -43,7 +44,7 @@ export default function SettingsPage() {
         setResetError(res.error || 'Failed to send password reset email.');
       }
     } catch (err: unknown) {
-      setResetError(err instanceof Error ? err.message : 'Failed to send reset email.');
+      setResetError(formatSafeErrorMessage(err, 'Failed to send reset email.'));
     } finally {
       setIsResetting(false);
     }
@@ -78,7 +79,7 @@ export default function SettingsPage() {
       await importData(file);
       setImportSuccess('Data imported successfully! The app has been updated.');
     } catch (err: unknown) {
-      setImportError(`Import failed: ${err}`);
+      setImportError(`Import failed: ${formatSafeErrorMessage(err)}`);
     }
     if (fileRef.current) fileRef.current.value = '';
   };

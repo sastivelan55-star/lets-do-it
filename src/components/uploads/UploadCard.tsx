@@ -14,6 +14,7 @@ import {
 import type { UserUpload, UploadCategory } from '../../types';
 import { formatFileSize } from '../../services/uploadService';
 import { useApp } from '../../context/AppContext';
+import { formatSafeErrorMessage } from '../../utils/errorUtils';
 
 interface UploadCardProps {
   upload: UserUpload;
@@ -77,7 +78,7 @@ export default function UploadCard({
       setSignedUrl(url);
       onPreview(upload, url);
     } catch (err: unknown) {
-      alert(`Could not generate preview link: ${err instanceof Error ? err.message : String(err)}`);
+      alert(`Could not generate preview link: ${formatSafeErrorMessage(err)}`);
     } finally {
       setIsLoadingUrl(false);
     }
@@ -96,7 +97,7 @@ export default function UploadCard({
       a.click();
       document.body.removeChild(a);
     } catch (err: unknown) {
-      alert(`Download failed: ${err instanceof Error ? err.message : String(err)}`);
+      alert(`Download failed: ${formatSafeErrorMessage(err)}`);
     } finally {
       setIsDownloading(false);
     }

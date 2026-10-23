@@ -7,10 +7,12 @@ import {
   createCloudTask,
   updateCloudTask,
   deleteCloudTask,
+  updateCloudTaskOrder,
   subscribeToUserTasks,
   seedStarterTasks,
   STARTER_TASKS,
 } from '../services/taskService';
+import { getAllDescendantIds } from '../utils/taskTreeUtils';
 import {
   fetchUserSchedules,
   createCloudSchedule,
@@ -30,6 +32,7 @@ import {
   updateUserUploadMetadata,
   getUploadSignedUrl,
 } from '../services/uploadService';
+import { extractErrorInfo, formatSafeErrorMessage, logSafeError } from '../utils/errorUtils';
 import { nanoid } from '../utils/nanoid';
 import {
   getSettings,
@@ -83,6 +86,7 @@ interface AppContextValue {
   completeTask: (id: string) => Promise<void>;
   rescheduleTask: (id: string, newDate: string) => Promise<void>;
   removeTask: (id: string) => Promise<void>;
+  reorderTasks: (updates: { id: string; orderIndex: number }[]) => Promise<void>;
   loadStarterPack: () => Promise<void>;
   todaysTasks: Task[];
   overdueTasks: Task[];
@@ -192,7 +196,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const dr = await getAllDailyRecords();
         setDailyRecords(dr);
       } catch (e) {
-        setError(String(e));
+        logSafeError('Initial bootstrap', e);
+        setError(formatSafeErrorMessage(e, 'Failed to load settings'));
       }
     })();
   }, []);
@@ -209,42 +214,75 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (user && isConfigured) {
         setSyncStatus('syncing');
 
-        const [cloudTasks, cloudSchedules, cloudNotes, cloudUploads] = await Promise.all([
+        const [tasksRes, schedulesRes, notesRes, uploadsRes] = await Promise.allSettled([
           fetchUserTasks(user.id),
-          fetchUserSchedules(user.id).catch((err: unknown) => {
-            const msg = err instanceof Error ? err.message : String(err);
-            if (msg.includes('public.schedules') || msg.includes('schema cache')) {
-              console.warn('[LifeMap] Schedules table not yet in Supabase schema cache.');
-            } else {
-              throw err;
-            }
-            return [];
-          }),
-          fetchUserNotes(user.id).catch((err: unknown) => {
-            const msg = err instanceof Error ? err.message : String(err);
-            if (msg.includes('public.notes') || msg.includes('schema cache')) {
-              console.warn('[LifeMap] Notes table not yet in Supabase schema cache.');
-            } else {
-              throw err;
-            }
-            return [];
-          }),
-          fetchUserUploads(user.id).catch((err: unknown) => {
-            const msg = err instanceof Error ? err.message : String(err);
-            if (msg.includes('public.user_uploads') || msg.includes('schema cache')) {
-              console.warn('[LifeMap] user_uploads table not yet in Supabase schema cache.');
-            } else {
-              throw err;
-            }
-            return [];
-          }),
+          fetchUserSchedules(user.id),
+          fetchUserNotes(user.id),
+          fetchUserUploads(user.id),
         ]);
 
-        setTasks(cloudTasks);
-        setSchedules(cloudSchedules);
-        setNotes(cloudNotes);
-        setUploads(cloudUploads);
-        setSyncStatus('synced');
+        let hasCriticalTaskError = false;
+        let taskErrorMessage = '';
+
+        // 1. Process Tasks
+        if (tasksRes.status === 'fulfilled') {
+          setTasks(tasksRes.value);
+        } else {
+          hasCriticalTaskError = true;
+          logSafeError('Load User Tasks', tasksRes.reason);
+          const info = extractErrorInfo(tasksRes.reason, 'Load tasks');
+          if (info.isSchemaMissing) {
+            taskErrorMessage = "Database tasks table is not yet initialized in Supabase. Please execute the database migration in supabase/migrations/20261011000000_create_tasks_table.sql.";
+          } else if (info.isAuthError) {
+            taskErrorMessage = 'Authentication failed when connecting to Supabase. Check your Supabase API credentials.';
+          } else {
+            taskErrorMessage = formatSafeErrorMessage(tasksRes.reason, 'Failed to load tasks from Supabase');
+          }
+        }
+
+        // 2. Process Schedules
+        if (schedulesRes.status === 'fulfilled') {
+          setSchedules(schedulesRes.value);
+        } else {
+          logSafeError('Load User Schedules', schedulesRes.reason);
+          const info = extractErrorInfo(schedulesRes.reason, 'Load schedules');
+          if (info.isSchemaMissing) {
+            console.warn('[LifeMap] Schedules table not yet in Supabase schema cache. Run migration 20261016000000_create_schedules_and_notes_tables.sql.');
+          }
+          setSchedules([]);
+        }
+
+        // 3. Process Notes
+        if (notesRes.status === 'fulfilled') {
+          setNotes(notesRes.value);
+        } else {
+          logSafeError('Load User Notes', notesRes.reason);
+          const info = extractErrorInfo(notesRes.reason, 'Load notes');
+          if (info.isSchemaMissing) {
+            console.warn('[LifeMap] Notes table not yet in Supabase schema cache. Run migration 20261016000000_create_schedules_and_notes_tables.sql.');
+          }
+          setNotes([]);
+        }
+
+        // 4. Process Uploads
+        if (uploadsRes.status === 'fulfilled') {
+          setUploads(uploadsRes.value);
+        } else {
+          logSafeError('Load User Uploads', uploadsRes.reason);
+          const info = extractErrorInfo(uploadsRes.reason, 'Load uploads');
+          if (info.isSchemaMissing) {
+            console.warn('[LifeMap] user_uploads table or media-vault bucket not yet in Supabase. Run migration 20261016100000_create_media_vault_and_uploads.sql.');
+          }
+          setUploads([]);
+        }
+
+        if (hasCriticalTaskError) {
+          setError(taskErrorMessage);
+          setSyncStatus('error');
+        } else {
+          setSyncStatus('synced');
+          setError(null);
+        }
       } else {
         // Fallback to local storage (Guest mode or Supabase not configured)
         setSyncStatus('offline');
@@ -259,12 +297,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setUploads([]);
       }
     } catch (err: unknown) {
-      let msg = err instanceof Error ? err.message : 'Failed to load user data';
-      if (msg.includes('public.tasks') || msg.includes('schema cache')) {
-        msg = 'Database tasks table is not yet initialized in Supabase. Please execute the database migration via Supabase SQL Editor.';
-      } else if (msg.includes('401') || msg.includes('Invalid API key') || msg.includes('JWT')) {
-        msg = 'Authentication failed when connecting to Supabase. Check your Supabase API credentials.';
-      }
+      logSafeError('Bootstrap User Data', err);
+      const msg = formatSafeErrorMessage(err, 'Failed to load user data');
       setError(msg);
       setSyncStatus('error');
     } finally {
@@ -308,9 +342,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           setSyncStatus('synced');
         })
         .catch((err: unknown) => {
-          // Surface realtime refresh errors — do not silently swallow them
-          const msg = err instanceof Error ? err.message : 'Realtime sync failed';
-          console.error('[LifeMap] Realtime refresh error:', msg);
+          // Surface realtime refresh errors safely — do not silently swallow them
+          logSafeError('Realtime refresh', err);
+          const msg = formatSafeErrorMessage(err, 'Realtime sync failed');
           setSyncStatus('error');
           setError(`Live sync failed: ${msg}`);
         });
@@ -345,10 +379,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           return savedTask;
         } catch (err: unknown) {
           setSyncStatus('error');
-          let msg = err instanceof Error ? err.message : 'Failed to create cloud task';
-          if (msg.includes('public.tasks') || msg.includes('schema cache')) {
-            msg = "Cannot save task: table 'tasks' does not exist in Supabase. Please run the SQL migration.";
-          }
+          logSafeError('Create Task', err);
+          const msg = formatSafeErrorMessage(err, 'Failed to create cloud task');
           setError(msg);
           throw err;
         }
@@ -392,12 +424,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             setTasks((prev) => prev.map((t) => (t.id === task.id ? originalTask! : t)));
           }
           setSyncStatus('error');
-          let msg = err instanceof Error ? err.message : 'Failed to update cloud task';
-          if (msg.includes('public.tasks') || msg.includes('schema cache')) {
-            msg = "Cannot update task: table 'tasks' does not exist in Supabase. Please run the SQL migration.";
-          } else if (msg.includes('401') || msg.includes('Invalid API key') || msg.includes('JWT')) {
-            msg = 'Task update rejected: Supabase authentication failed. Check your VITE_SUPABASE_ANON_KEY.';
-          }
+          logSafeError('Update Task', err);
+          const msg = formatSafeErrorMessage(err, 'Failed to update cloud task');
           setError(msg);
           throw err;
         }
@@ -457,11 +485,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const removeTask = useCallback(
     async (id: string) => {
-      // Optimistic delete — capture original entity for targeted rollback
-      let originalTask: Task | undefined;
+      // Find all descendant IDs so deleting a parent task removes its subtasks too
+      const descendantIds = getAllDescendantIds(id, tasks);
+      const allIdsToDelete = new Set([id, ...descendantIds]);
+
+      // Optimistic delete — capture original entities for targeted rollback
+      let removedTasks: Task[] = [];
       setTasks((prev) => {
-        originalTask = prev.find((t) => t.id === id);
-        return prev.filter((t) => t.id !== id);
+        removedTasks = prev.filter((t) => allIdsToDelete.has(t.id));
+        return prev.filter((t) => !allIdsToDelete.has(t.id));
       });
       setSyncStatus('syncing');
 
@@ -470,21 +502,65 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           await deleteCloudTask(id, user.id);
           setSyncStatus('synced');
         } catch (err: unknown) {
-          // Targeted rollback: restore only the deleted task
-          if (originalTask) {
-            setTasks((prev) => (prev.some((t) => t.id === id) ? prev : [originalTask!, ...prev]));
-          }
+          // Targeted rollback: restore removed tasks
+          setTasks((prev) => [...removedTasks, ...prev]);
           setSyncStatus('error');
-          const msg = err instanceof Error ? err.message : 'Failed to delete task from cloud';
+          logSafeError('Delete Task', err);
+          const msg = formatSafeErrorMessage(err, 'Failed to delete task from cloud');
           setError(msg);
           throw err;
         }
       } else {
-        await deleteTask(id);
+        for (const taskId of allIdsToDelete) {
+          await deleteTask(taskId);
+        }
         setSyncStatus('offline');
       }
     },
-    [user, isConfigured]
+    [user, isConfigured, tasks]
+  );
+
+  const reorderTasks = useCallback(
+    async (updates: { id: string; orderIndex: number }[]) => {
+      if (updates.length === 0) return;
+      const orderMap = new Map(updates.map((u) => [u.id, u.orderIndex]));
+
+      // Optimistic update
+      let prevSnapshot: Task[] = [];
+      setTasks((prev) => {
+        prevSnapshot = prev;
+        return prev.map((t) => {
+          if (orderMap.has(t.id)) {
+            return { ...t, orderIndex: orderMap.get(t.id)!, updatedAt: nowISO() };
+          }
+          return t;
+        });
+      });
+      setSyncStatus('syncing');
+
+      if (user && isConfigured) {
+        try {
+          await updateCloudTaskOrder(updates, user.id);
+          setSyncStatus('synced');
+        } catch (err: unknown) {
+          setTasks(prevSnapshot);
+          setSyncStatus('error');
+          logSafeError('Reorder Tasks', err);
+          const msg = formatSafeErrorMessage(err, 'Failed to update task order');
+          setError(msg);
+          throw err;
+        }
+      } else {
+        for (const u of updates) {
+          const item = tasks.find((t) => t.id === u.id);
+          if (item) {
+            await saveTask({ ...item, orderIndex: u.orderIndex, updatedAt: nowISO() });
+          }
+        }
+        setSyncStatus('offline');
+      }
+    },
+    [user, isConfigured, tasks]
   );
 
   const loadStarterPack = useCallback(async () => {
@@ -496,7 +572,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setSyncStatus('synced');
       } catch (err: unknown) {
         setSyncStatus('error');
-        const msg = err instanceof Error ? err.message : 'Failed to load starter pack';
+        logSafeError('Load Starter Pack', err);
+        const msg = formatSafeErrorMessage(err, 'Failed to load starter pack');
         setError(msg);
       }
     } else {
@@ -622,11 +699,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           return savedSchedule;
         } catch (err: unknown) {
           setSyncStatus('error');
-          let msg = err instanceof Error ? err.message : 'Failed to create cloud schedule';
-          if (msg.includes('public.schedules') || msg.includes('schema cache')) {
-            msg =
-              "Cannot save schedule: table 'schedules' does not exist in Supabase. Please run the SQL migration in supabase/migrations/20261016000000_create_schedules_and_notes_tables.sql.";
-          }
+          logSafeError('Create Schedule', err);
+          const msg = formatSafeErrorMessage(err, 'Failed to create cloud schedule');
           setError(msg);
           throw err;
         }
@@ -680,10 +754,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             );
           }
           setSyncStatus('error');
-          let msg = err instanceof Error ? err.message : 'Failed to update cloud schedule';
-          if (msg.includes('public.schedules') || msg.includes('schema cache')) {
-            msg = "Cannot update schedule: table 'schedules' does not exist in Supabase. Please run the SQL migration.";
-          }
+          logSafeError('Update Schedule', err);
+          const msg = formatSafeErrorMessage(err, 'Failed to update cloud schedule');
           setError(msg);
           throw err;
         }
@@ -717,7 +789,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             );
           }
           setSyncStatus('error');
-          const msg = err instanceof Error ? err.message : 'Failed to delete schedule from cloud';
+          logSafeError('Delete Schedule', err);
+          const msg = formatSafeErrorMessage(err, 'Failed to delete schedule from cloud');
           setError(msg);
           throw err;
         }
@@ -743,11 +816,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           return savedNote;
         } catch (err: unknown) {
           setSyncStatus('error');
-          let msg = err instanceof Error ? err.message : 'Failed to create cloud note';
-          if (msg.includes('public.notes') || msg.includes('schema cache')) {
-            msg =
-              "Cannot save note: table 'notes' does not exist in Supabase. Please run the SQL migration in supabase/migrations/20261016000000_create_schedules_and_notes_tables.sql.";
-          }
+          logSafeError('Create Note', err);
+          const msg = formatSafeErrorMessage(err, 'Failed to create cloud note');
           setError(msg);
           throw err;
         }
@@ -787,10 +857,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             setNotes((prev) => prev.map((n) => (n.id === note.id ? originalNote! : n)));
           }
           setSyncStatus('error');
-          let msg = err instanceof Error ? err.message : 'Failed to update cloud note';
-          if (msg.includes('public.notes') || msg.includes('schema cache')) {
-            msg = "Cannot update note: table 'notes' does not exist in Supabase. Please run the SQL migration.";
-          }
+          logSafeError('Update Note', err);
+          const msg = formatSafeErrorMessage(err, 'Failed to update cloud note');
           setError(msg);
           throw err;
         }
@@ -820,7 +888,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             setNotes((prev) => (prev.some((n) => n.id === id) ? prev : [originalNote!, ...prev]));
           }
           setSyncStatus('error');
-          const msg = err instanceof Error ? err.message : 'Failed to delete note from cloud';
+          logSafeError('Delete Note', err);
+          const msg = formatSafeErrorMessage(err, 'Failed to delete note from cloud');
           setError(msg);
           throw err;
         }
@@ -847,10 +916,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return saved;
       } catch (err: unknown) {
         setSyncStatus('error');
-        let msg = err instanceof Error ? err.message : 'Upload failed';
-        if (msg.includes('public.user_uploads') || msg.includes('schema cache')) {
-          msg = "Cannot save upload: table 'user_uploads' does not exist in Supabase. Please run the SQL migration in supabase/migrations/20261016100000_create_media_vault_and_uploads.sql.";
-        }
+        logSafeError('Upload File', err);
+        const msg = formatSafeErrorMessage(err, 'Upload failed');
         setError(msg);
         throw err;
       }
@@ -877,7 +944,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           setUploads((prev) => (prev.some((u) => u.id === upload.id) ? prev : [originalUpload!, ...prev]));
         }
         setSyncStatus('error');
-        const msg = err instanceof Error ? err.message : 'Failed to delete upload';
+        logSafeError('Delete Upload', err);
+        const msg = formatSafeErrorMessage(err, 'Failed to delete upload');
         setError(msg);
         throw err;
       }
@@ -905,7 +973,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           setUploads((prev) => prev.map((u) => (u.id === id ? originalUpload! : u)));
         }
         setSyncStatus('error');
-        const msg = err instanceof Error ? err.message : 'Failed to update upload';
+        logSafeError('Update Upload', err);
+        const msg = formatSafeErrorMessage(err, 'Failed to update upload');
         setError(msg);
         throw err;
       }
@@ -1000,6 +1069,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         completeTask,
         rescheduleTask,
         removeTask,
+        reorderTasks,
         loadStarterPack,
         todaysTasks,
         overdueTasks,

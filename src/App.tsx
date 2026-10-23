@@ -18,9 +18,11 @@ import SettingsPage from './pages/SettingsPage';
 import SchedulesPage from './pages/SchedulesPage';
 import NotesPage from './pages/NotesPage';
 import UploadsPage from './pages/UploadsPage';
+import TaskBuilderPage from './pages/TaskBuilderPage';
 
 export type NavSection =
   | 'today'
+  | 'task-builder'
   | 'roadmap'
   | 'planner'
   | 'schedules'
@@ -126,8 +128,9 @@ function AppContent() {
   }, []);
 
   const PAGE_MAP: Record<NavSection, React.ReactNode> = {
-    today:         <TodayPage />,
-    roadmap:       <RoadmapPage />,
+    today:          <TodayPage />,
+    'task-builder': <TaskBuilderPage />,
+    roadmap:        <RoadmapPage />,
     planner:       <PlannerPage />,
     schedules:     <SchedulesPage />,
     notes:         <NotesPage />,

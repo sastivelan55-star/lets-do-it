@@ -12,6 +12,7 @@ import Modal from '../components/ui/Modal';
 import NoteForm from '../components/notes/NoteForm';
 import NoteCard from '../components/notes/NoteCard';
 import type { Note } from '../types';
+import { formatSafeErrorMessage } from '../utils/errorUtils';
 
 
 export default function NotesPage() {
@@ -97,6 +98,7 @@ export default function NotesPage() {
       {/* Error Banner */}
       {error && (
         <div
+          role="alert"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -111,7 +113,7 @@ export default function NotesPage() {
           }}
         >
           <AlertCircle size={18} style={{ flexShrink: 0 }} />
-          <span>{error}</span>
+          <span>{typeof error === 'string' && error !== '[object Object]' ? error : formatSafeErrorMessage(error)}</span>
         </div>
       )}
 
