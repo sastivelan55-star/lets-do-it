@@ -35,7 +35,7 @@ export default function DeleteTaskModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Confirm Deletion">
+    <Modal isOpen={isOpen} onClose={onClose} title="Move to Recycle Bin">
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
           <div
@@ -56,15 +56,15 @@ export default function DeleteTaskModal({
 
           <div>
             <h4 style={{ margin: '0 0 0.35rem', fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              Delete &ldquo;{task.title}&rdquo;?
+              Move &ldquo;{task.title}&rdquo; to Recycle Bin?
             </h4>
             {hasSubtasks ? (
               <p style={{ margin: 0, fontSize: '0.85rem', color: '#fca5a5', lineHeight: 1.45 }}>
-                <strong>Warning:</strong> This task contains <strong>{task.subtaskCount}</strong> nested {task.subtaskCount === 1 ? 'subtask' : 'subtasks'}. Deleting it will permanently remove the parent and all its nested subtasks across all levels.
+                This task contains <strong>{task.subtaskCount}</strong> nested {task.subtaskCount === 1 ? 'subtask' : 'subtasks'}. Moving it to the Recycle Bin will also move all nested subtasks. You can restore them anytime from the Recycle Bin.
               </p>
             ) : (
               <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                This action cannot be undone. Are you sure you want to delete this task?
+                This task will be moved to the Recycle Bin. You can restore it anytime or delete it permanently later.
               </p>
             )}
           </div>
@@ -85,7 +85,7 @@ export default function DeleteTaskModal({
             onClick={handleDelete}
             disabled={isDeleting}
           >
-            {isDeleting ? 'Deleting…' : hasSubtasks ? `Delete All (${task.subtaskCount + 1})` : 'Delete Task'}
+            {isDeleting ? 'Moving…' : hasSubtasks ? `Move All (${task.subtaskCount + 1}) to Bin` : 'Move to Recycle Bin'}
           </button>
         </div>
       </div>

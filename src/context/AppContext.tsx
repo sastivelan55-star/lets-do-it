@@ -6,7 +6,10 @@ import {
   fetchUserTasks,
   createCloudTask,
   updateCloudTask,
-  deleteCloudTask,
+  softDeleteCloudTasks,
+  restoreCloudTasks,
+  permanentDeleteCloudTasks,
+  emptyCloudRecycleBin,
   updateCloudTaskOrder,
   subscribeToUserTasks,
   seedStarterTasks,
@@ -86,10 +89,14 @@ interface AppContextValue {
   completeTask: (id: string) => Promise<void>;
   rescheduleTask: (id: string, newDate: string) => Promise<void>;
   removeTask: (id: string) => Promise<void>;
+  restoreTask: (id: string) => Promise<void>;
+  permanentDeleteTask: (id: string) => Promise<void>;
+  emptyRecycleBin: () => Promise<void>;
   reorderTasks: (updates: { id: string; orderIndex: number }[]) => Promise<void>;
   loadStarterPack: () => Promise<void>;
   todaysTasks: Task[];
   overdueTasks: Task[];
+  deletedTasks: Task[];
 
   // Schedules CRUD
   addSchedule: (data: Omit<ScheduleEntry, 'id' | 'createdAt' | 'updatedAt'>) => Promise<ScheduleEntry>;
@@ -134,7 +141,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const { user, isConfigured, isLoading: authIsLoading } = useAuth();
 
   const [settings, setSettings] = useState<AppSettings>(getDefaultSettings());
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [allTasks, setAllTasks] = useState<Task[]>([]);
+  const tasks = useMemo(() => allTasks.filter((t) => !t.isDeleted), [allTasks]);
+  const deletedTasks = useMemo(
+    () =>
+      allTasks
+        .filter((t) => Boolean(t.isDeleted))
+        .sort((a, b) => (b.deletedAt || '').localeCompare(a.deletedAt || '')),
+    [allTasks]
+  );
   const [schedules, setSchedules] = useState<ScheduleEntry[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [uploads, setUploads] = useState<UserUpload[]>([]);
@@ -226,7 +241,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
         // 1. Process Tasks
         if (tasksRes.status === 'fulfilled') {
-          setTasks(tasksRes.value);
+          setAllTasks(tasksRes.value);
         } else {
           hasCriticalTaskError = true;
           logSafeError('Load User Tasks', tasksRes.reason);
@@ -291,7 +306,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           getAllSchedules(),
           getAllNotes(),
         ]);
-        setTasks(localTasks);
+        setAllTasks(localTasks);
         setSchedules(localSchedules);
         setNotes(localNotes);
         setUploads([]);
@@ -312,7 +327,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const currentId = user?.id ?? null;
 
     if (prevId !== undefined && prevId !== currentId) {
-      setTasks([]);
+      setAllTasks([]);
       setSchedules([]);
       setNotes([]);
       setUploads([]);
@@ -338,7 +353,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = subscribeToUserTasks(user.id, () => {
       fetchUserTasks(user.id)
         .then((fresh) => {
-          setTasks(fresh);
+          setAllTasks(fresh);
           setSyncStatus('synced');
         })
         .catch((err: unknown) => {
@@ -374,7 +389,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (user && isConfigured) {
         try {
           const savedTask = await createCloudTask(taskData, user.id);
-          setTasks((prev) => [savedTask, ...prev]);
+          setAllTasks((prev) => [savedTask, ...prev]);
           setSyncStatus('synced');
           return savedTask;
         } catch (err: unknown) {
@@ -393,7 +408,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           updatedAt: nowISO(),
         };
         await saveTask(task);
-        setTasks((prev) => [task, ...prev]);
+        setAllTasks((prev) => [task, ...prev]);
         setSyncStatus('offline');
         return task;
       }
@@ -407,7 +422,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       // Optimistic state update — capture original entity for targeted rollback
       let originalTask: Task | undefined;
-      setTasks((prev) => {
+      setAllTasks((prev) => {
         originalTask = prev.find((t) => t.id === task.id);
         return prev.map((t) => (t.id === task.id ? updated : t));
       });
@@ -416,12 +431,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (user && isConfigured) {
         try {
           const saved = await updateCloudTask(updated, user.id);
-          setTasks((prev) => prev.map((t) => (t.id === task.id ? saved : t)));
+          setAllTasks((prev) => prev.map((t) => (t.id === task.id ? saved : t)));
           setSyncStatus('synced');
         } catch (err: unknown) {
           // Targeted rollback: revert only this task without wiping other concurrent changes
           if (originalTask) {
-            setTasks((prev) => prev.map((t) => (t.id === task.id ? originalTask! : t)));
+            setAllTasks((prev) => prev.map((t) => (t.id === task.id ? originalTask! : t)));
           }
           setSyncStatus('error');
           logSafeError('Update Task', err);
@@ -439,7 +454,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const completeTask = useCallback(
     async (id: string) => {
-      const current = tasks.find((t) => t.id === id);
+      const current = allTasks.find((t) => t.id === id);
       if (!current) return;
 
       const isCompleted = current.status === 'completed';
@@ -457,12 +472,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         // Rollback and error display are already handled inside updateTask
       }
     },
-    [tasks, updateTask]
+    [allTasks, updateTask]
   );
 
   const rescheduleTask = useCallback(
     async (id: string, newDate: string) => {
-      const current = tasks.find((t) => t.id === id);
+      const current = allTasks.find((t) => t.id === id);
       if (!current) return;
 
       const updated: Task = {
@@ -480,45 +495,199 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         // Rollback and error handled in updateTask
       }
     },
-    [tasks, updateTask]
+    [allTasks, updateTask]
   );
 
+  // Soft Delete: Move task and all its subtasks to Recycle Bin
   const removeTask = useCallback(
     async (id: string) => {
-      // Find all descendant IDs so deleting a parent task removes its subtasks too
-      const descendantIds = getAllDescendantIds(id, tasks);
+      const descendantIds = getAllDescendantIds(id, allTasks);
       const allIdsToDelete = new Set([id, ...descendantIds]);
+      const deletionTime = nowISO();
 
-      // Optimistic delete — capture original entities for targeted rollback
-      let removedTasks: Task[] = [];
-      setTasks((prev) => {
-        removedTasks = prev.filter((t) => allIdsToDelete.has(t.id));
+      // Optimistic update
+      let prevSnapshot: Task[] = [];
+      setAllTasks((prev) => {
+        prevSnapshot = prev;
+        return prev.map((t) =>
+          allIdsToDelete.has(t.id)
+            ? { ...t, isDeleted: true, deletedAt: deletionTime, updatedAt: deletionTime }
+            : t
+        );
+      });
+      setSyncStatus('syncing');
+
+      if (user && isConfigured) {
+        try {
+          await softDeleteCloudTasks(Array.from(allIdsToDelete), user.id, deletionTime);
+          setSyncStatus('synced');
+        } catch (err: unknown) {
+          setAllTasks(prevSnapshot);
+          setSyncStatus('error');
+          logSafeError('Delete Task', err);
+          const msg = formatSafeErrorMessage(err, 'Failed to move task to Recycle Bin');
+          setError(msg);
+          throw err;
+        }
+      } else {
+        for (const taskId of allIdsToDelete) {
+          const item = allTasks.find((t) => t.id === taskId);
+          if (item) {
+            await saveTask({
+              ...item,
+              isDeleted: true,
+              deletedAt: deletionTime,
+              updatedAt: deletionTime,
+            });
+          }
+        }
+        setSyncStatus('offline');
+      }
+    },
+    [user, isConfigured, allTasks]
+  );
+
+  // Restore: Move task and all its subtasks back to active tasks
+  const restoreTask = useCallback(
+    async (id: string) => {
+      const target = allTasks.find((t) => t.id === id);
+      if (!target) return;
+
+      const descendantIds = getAllDescendantIds(id, allTasks);
+      const allIdsToRestore = new Set([id, ...descendantIds]);
+
+      // Check if parent is active or still in recycle bin; if parent is deleted, re-parent to top level
+      const activeParent = target.parentId
+        ? allTasks.find((t) => t.id === target.parentId && !t.isDeleted)
+        : null;
+      const shouldReparentRoot = Boolean(target.parentId && !activeParent);
+
+      const restoreTime = nowISO();
+      const restorePayloads: { id: string; parentId?: string | null }[] = [];
+      allIdsToRestore.forEach((tId) => {
+        if (tId === id && shouldReparentRoot) {
+          restorePayloads.push({ id: tId, parentId: null });
+        } else {
+          restorePayloads.push({ id: tId });
+        }
+      });
+
+      let prevSnapshot: Task[] = [];
+      setAllTasks((prev) => {
+        prevSnapshot = prev;
+        return prev.map((t) => {
+          if (allIdsToRestore.has(t.id)) {
+            return {
+              ...t,
+              isDeleted: false,
+              deletedAt: undefined,
+              parentId: t.id === id && shouldReparentRoot ? null : t.parentId,
+              updatedAt: restoreTime,
+            };
+          }
+          return t;
+        });
+      });
+      setSyncStatus('syncing');
+
+      if (user && isConfigured) {
+        try {
+          await restoreCloudTasks(restorePayloads, user.id);
+          setSyncStatus('synced');
+        } catch (err: unknown) {
+          setAllTasks(prevSnapshot);
+          setSyncStatus('error');
+          logSafeError('Restore Task', err);
+          const msg = formatSafeErrorMessage(err, 'Failed to restore task');
+          setError(msg);
+          throw err;
+        }
+      } else {
+        for (const item of restorePayloads) {
+          const found = allTasks.find((t) => t.id === item.id);
+          if (found) {
+            await saveTask({
+              ...found,
+              isDeleted: false,
+              deletedAt: undefined,
+              parentId: item.parentId !== undefined ? item.parentId : found.parentId,
+              updatedAt: restoreTime,
+            });
+          }
+        }
+        setSyncStatus('offline');
+      }
+    },
+    [user, isConfigured, allTasks]
+  );
+
+  // Permanent Delete: Hard delete task and all its subtasks
+  const permanentDeleteTask = useCallback(
+    async (id: string) => {
+      const descendantIds = getAllDescendantIds(id, allTasks);
+      const allIdsToDelete = new Set([id, ...descendantIds]);
+      const idList = Array.from(allIdsToDelete);
+
+      let prevSnapshot: Task[] = [];
+      setAllTasks((prev) => {
+        prevSnapshot = prev;
         return prev.filter((t) => !allIdsToDelete.has(t.id));
       });
       setSyncStatus('syncing');
 
       if (user && isConfigured) {
         try {
-          await deleteCloudTask(id, user.id);
+          await permanentDeleteCloudTasks(idList, user.id);
           setSyncStatus('synced');
         } catch (err: unknown) {
-          // Targeted rollback: restore removed tasks
-          setTasks((prev) => [...removedTasks, ...prev]);
+          setAllTasks(prevSnapshot);
           setSyncStatus('error');
-          logSafeError('Delete Task', err);
-          const msg = formatSafeErrorMessage(err, 'Failed to delete task from cloud');
+          logSafeError('Permanent Delete Task', err);
+          const msg = formatSafeErrorMessage(err, 'Failed to permanently delete task');
           setError(msg);
           throw err;
         }
       } else {
-        for (const taskId of allIdsToDelete) {
-          await deleteTask(taskId);
+        for (const tId of idList) {
+          await deleteTask(tId);
         }
         setSyncStatus('offline');
       }
     },
-    [user, isConfigured, tasks]
+    [user, isConfigured, allTasks]
   );
+
+  // Empty Recycle Bin: Permanently delete all soft-deleted tasks for the authenticated user
+  const emptyRecycleBin = useCallback(async () => {
+    const deletedIds = allTasks.filter((t) => Boolean(t.isDeleted)).map((t) => t.id);
+    if (deletedIds.length === 0) return;
+
+    let prevSnapshot: Task[] = [];
+    setAllTasks((prev) => {
+      prevSnapshot = prev;
+      return prev.filter((t) => !t.isDeleted);
+    });
+    setSyncStatus('syncing');
+
+    if (user && isConfigured) {
+      try {
+        await emptyCloudRecycleBin(user.id);
+        setSyncStatus('synced');
+      } catch (err: unknown) {
+        setAllTasks(prevSnapshot);
+        setSyncStatus('error');
+        logSafeError('Empty Recycle Bin', err);
+        const msg = formatSafeErrorMessage(err, 'Failed to empty Recycle Bin');
+        setError(msg);
+        throw err;
+      }
+    } else {
+      for (const tId of deletedIds) {
+        await deleteTask(tId);
+      }
+      setSyncStatus('offline');
+    }
+  }, [user, isConfigured, allTasks]);
 
   const reorderTasks = useCallback(
     async (updates: { id: string; orderIndex: number }[]) => {
@@ -527,7 +696,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       // Optimistic update
       let prevSnapshot: Task[] = [];
-      setTasks((prev) => {
+      setAllTasks((prev) => {
         prevSnapshot = prev;
         return prev.map((t) => {
           if (orderMap.has(t.id)) {
@@ -543,7 +712,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           await updateCloudTaskOrder(updates, user.id);
           setSyncStatus('synced');
         } catch (err: unknown) {
-          setTasks(prevSnapshot);
+          setAllTasks(prevSnapshot);
           setSyncStatus('error');
           logSafeError('Reorder Tasks', err);
           const msg = formatSafeErrorMessage(err, 'Failed to update task order');
@@ -552,7 +721,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         for (const u of updates) {
-          const item = tasks.find((t) => t.id === u.id);
+          const item = allTasks.find((t) => t.id === u.id);
           if (item) {
             await saveTask({ ...item, orderIndex: u.orderIndex, updatedAt: nowISO() });
           }
@@ -560,7 +729,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setSyncStatus('offline');
       }
     },
-    [user, isConfigured, tasks]
+    [user, isConfigured, allTasks]
   );
 
   const loadStarterPack = useCallback(async () => {
@@ -568,7 +737,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setSyncStatus('syncing');
       try {
         const seeded = await seedStarterTasks(user.id);
-        setTasks((prev) => [...seeded, ...prev]);
+        setAllTasks((prev) => [...seeded, ...prev]);
         setSyncStatus('synced');
       } catch (err: unknown) {
         setSyncStatus('error');
@@ -589,7 +758,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         await saveTask(t);
         localSeeded.push(t);
       }
-      setTasks((prev) => [...localSeeded, ...prev]);
+      setAllTasks((prev) => [...localSeeded, ...prev]);
     }
   }, [user, isConfigured]);
 
@@ -1024,7 +1193,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       getAllDailyRecords(),
       getSettings(),
     ]);
-    setTasks(t);
+    setAllTasks(t);
     setSchedules(sc);
     setNotes(nt);
     setMilestones(ms);
@@ -1038,7 +1207,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const s = getDefaultSettings();
     await saveSettings(s);
     setSettings(s);
-    setTasks([]);
+    setAllTasks([]);
     setSchedules([]);
     setNotes([]);
     setUploads([]);
@@ -1069,10 +1238,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         completeTask,
         rescheduleTask,
         removeTask,
+        restoreTask,
+        permanentDeleteTask,
+        emptyRecycleBin,
         reorderTasks,
         loadStarterPack,
         todaysTasks,
         overdueTasks,
+        deletedTasks,
         addSchedule,
         updateSchedule,
         removeSchedule,

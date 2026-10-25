@@ -35,6 +35,8 @@ export interface Task {
   userId?: string;
   parentId?: string | null; // ID of parent task or subtask (null/undefined for root task)
   orderIndex?: number;      // Sort order among siblings at the same hierarchy level
+  isDeleted?: boolean;      // Soft delete flag for Recycle Bin
+  deletedAt?: string;       // ISO datetime of deletion
 }
 
 export interface HierarchicalTask extends Task {

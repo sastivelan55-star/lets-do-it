@@ -6,7 +6,8 @@ import {
   FolderTree,
   ArrowLeft,
   X,
-  BookOpen,
+  Trash2,
+  CheckCircle2,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import type { Task, HierarchicalTask, LifeArea } from '../types';
@@ -19,7 +20,7 @@ import {
 import TaskTreeNode from '../components/taskBuilder/TaskTreeNode';
 import TaskEditModal from '../components/taskBuilder/TaskEditModal';
 import DeleteTaskModal from '../components/taskBuilder/DeleteTaskModal';
-import MigrationGuideBanner from '../components/taskBuilder/MigrationGuideBanner';
+import TaskRecycleBinModal from '../components/taskBuilder/TaskRecycleBinModal';
 import { formatSafeErrorMessage } from '../utils/errorUtils';
 
 const FILTER_AREAS: { value: LifeArea | 'all'; label: string }[] = [
@@ -32,9 +33,21 @@ const FILTER_AREAS: { value: LifeArea | 'all'; label: string }[] = [
 ];
 
 export default function TaskBuilderPage() {
-  const { tasks, addTask, updateTask, completeTask, removeTask, reorderTasks, error } = useApp();
+  const {
+    tasks,
+    deletedTasks,
+    addTask,
+    updateTask,
+    completeTask,
+    removeTask,
+    restoreTask,
+    permanentDeleteTask,
+    emptyRecycleBin,
+    reorderTasks,
+    error,
+  } = useApp();
 
-  // State
+  // Filters & Search State
   const [searchQuery, setSearchQuery] = useState('');
   const [areaFilter, setAreaFilter] = useState<LifeArea | 'all'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed'>('all');
@@ -46,18 +59,16 @@ export default function TaskBuilderPage() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [parentForSubtask, setParentForSubtask] = useState<Task | null>(null);
   const [deletingTask, setDeletingTask] = useState<HierarchicalTask | null>(null);
-  const [showMigrationBanner, setShowMigrationBanner] = useState(true);
-  const [isTemplateLoading, setIsTemplateLoading] = useState(false);
+  const [isRecycleBinOpen, setIsRecycleBinOpen] = useState(false);
 
   // Build the full hierarchy tree
   const fullTree = useMemo(() => buildTaskTree(tasks), [tasks]);
 
-  // Overall metrics
+  // Meaningful progress metrics (only rendered when tasks exist)
   const metrics = useMemo(() => {
     let mainTasksCount = 0;
     let subtasksCount = 0;
     let completedCount = 0;
-    let maxDepth = 0;
 
     for (const t of tasks) {
       if (!t.parentId) {
@@ -70,17 +81,8 @@ export default function TaskBuilderPage() {
       }
     }
 
-    function calculateMaxDepth(nodes: HierarchicalTask[], currentDepth: number) {
-      for (const n of nodes) {
-        maxDepth = Math.max(maxDepth, currentDepth);
-        if (n.children.length > 0) {
-          calculateMaxDepth(n.children, currentDepth + 1);
-        }
-      }
-    }
-    calculateMaxDepth(fullTree, 0);
-
     const totalTasks = tasks.length;
+    const activeCount = totalTasks - completedCount;
     const completionRate = totalTasks ? Math.round((completedCount / totalTasks) * 100) : 0;
 
     return {
@@ -88,10 +90,10 @@ export default function TaskBuilderPage() {
       subtasksCount,
       totalTasks,
       completedCount,
-      maxDepth,
+      activeCount,
       completionRate,
     };
-  }, [tasks, fullTree]);
+  }, [tasks]);
 
   // Search calculation
   const searchResults = useMemo(() => {
@@ -111,7 +113,6 @@ export default function TaskBuilderPage() {
 
   // Filtered tree
   const displayedTree = useMemo(() => {
-    // If focused on a specific task
     let sourceTree = fullTree;
     if (focusTaskId) {
       function findNode(nodes: HierarchicalTask[]): HierarchicalTask | null {
@@ -126,7 +127,6 @@ export default function TaskBuilderPage() {
       sourceTree = focusedNode ? [focusedNode] : fullTree;
     }
 
-    // Apply Area & Status Filters
     function filterNode(node: HierarchicalTask): HierarchicalTask | null {
       const areaMatches = areaFilter === 'all' || node.lifeArea === areaFilter;
       const statusMatches =
@@ -246,7 +246,6 @@ export default function TaskBuilderPage() {
       });
     } else {
       await addTask(data);
-      // Auto-expand the parent if adding a subtask
       if (data.parentId) {
         setExpandedMap((prev) => ({ ...prev, [data.parentId!]: true }));
       }
@@ -261,116 +260,58 @@ export default function TaskBuilderPage() {
     }
   };
 
-  // Template loader: Python Learning Goal example from prompt
-  const handleLoadPythonTemplate = async () => {
-    setIsTemplateLoading(true);
-    try {
-      // 1. Root: Learn Python
-      const rootTask = await addTask({
-        title: 'Learn Python',
-        notes: 'My overall learning objective.',
-        lifeArea: 'technical',
-        priority: 'high',
-        dueDate: new Date().toISOString().slice(0, 10),
-        status: 'not-started',
-        parentId: null,
-        orderIndex: 0,
-      });
-
-      // 2. Subtask 1: Learn variables
-      const subtask1 = await addTask({
-        title: 'Learn variables',
-        notes: 'Practise strings, numbers, and booleans.',
-        lifeArea: 'technical',
-        priority: 'high',
-        dueDate: new Date().toISOString().slice(0, 10),
-        status: 'not-started',
-        parentId: rootTask.id,
-        orderIndex: 0,
-      });
-
-      // Nested subtask: Complete exercises
-      await addTask({
-        title: 'Complete exercises',
-        notes: 'Finish ten exercises.',
-        lifeArea: 'technical',
-        priority: 'medium',
-        dueDate: new Date().toISOString().slice(0, 10),
-        status: 'not-started',
-        parentId: subtask1.id,
-        orderIndex: 0,
-      });
-
-      // 3. Subtask 2: Learn loops
-      await addTask({
-        title: 'Learn loops',
-        notes: 'Practise loops.',
-        lifeArea: 'technical',
-        priority: 'medium',
-        dueDate: new Date().toISOString().slice(0, 10),
-        status: 'not-started',
-        parentId: rootTask.id,
-        orderIndex: 1,
-      });
-
-      // 4. Subtask 3: Build a project
-      await addTask({
-        title: 'Build a project',
-        notes: 'Apply the concepts.',
-        lifeArea: 'technical',
-        priority: 'critical',
-        dueDate: new Date().toISOString().slice(0, 10),
-        status: 'not-started',
-        parentId: rootTask.id,
-        orderIndex: 2,
-      });
-
-      // Expand all
-      setExpandedMap((prev) => ({
-        ...prev,
-        [rootTask.id]: true,
-        [subtask1.id]: true,
-      }));
-    } finally {
-      setIsTemplateLoading(false);
-    }
-  };
-
   return (
     <div className="page-container pb-safe">
-      {/* Header */}
+      {/* Clean Header */}
       <div style={{ marginBottom: '1.25rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '0.25rem' }}>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>
-            ⚡ <span className="gradient-text">Task Builder</span>
-          </h1>
-          <span
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '0.25rem' }}>
+              <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>
+                ⚡ <span className="gradient-text">Task Builder</span>
+              </h1>
+            </div>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', margin: 0 }}>
+              Create and manage your tasks, notes, and unlimited nested subtasks.
+            </p>
+          </div>
+
+          {/* Recycle Bin action entry */}
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => setIsRecycleBinOpen(true)}
             style={{
-              fontSize: '0.72rem',
-              fontWeight: 700,
-              padding: '3px 9px',
-              borderRadius: '999px',
-              background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.2))',
-              border: '1px solid rgba(99, 102, 241, 0.4)',
-              color: '#c7d2fe',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '0.82rem',
+              color: deletedTasks.length > 0 ? '#f87171' : 'var(--text-secondary)',
+              borderColor: deletedTasks.length > 0 ? 'rgba(239, 68, 68, 0.3)' : 'var(--border)',
             }}
+            title="View deleted tasks"
           >
-            Unlimited Hierarchy
-          </span>
+            <Trash2 size={14} />
+            <span>Recycle Bin</span>
+            {deletedTasks.length > 0 && (
+              <span
+                style={{
+                  background: 'rgba(239, 68, 68, 0.2)',
+                  color: '#f87171',
+                  borderRadius: '999px',
+                  padding: '1px 6px',
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                }}
+              >
+                {deletedTasks.length}
+              </span>
+            )}
+          </button>
         </div>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', margin: 0 }}>
-          Create unlimited main tasks and nest subtasks to any depth with independent notes, progress tracking, and reordering.
-        </p>
       </div>
 
-      {/* Migration Helper Banner */}
-      {showMigrationBanner && (
-        <MigrationGuideBanner onDismiss={() => setShowMigrationBanner(false)} />
-      )}
-
-      {/* Error Banner */}
+      {/* Genuine Error Banner */}
       {error && (
         <div
           role="alert"
@@ -392,43 +333,67 @@ export default function TaskBuilderPage() {
         </div>
       )}
 
-      {/* Metrics Summary Strip */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-          gap: '0.75rem',
-          marginBottom: '1.25rem',
-        }}
-      >
-        <div className="card" style={{ padding: '0.85rem 1rem' }}>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Main Tasks</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#818cf8', marginTop: '2px' }}>
-            {metrics.mainTasksCount}
-          </div>
-        </div>
+      {/* Meaningful Progress & Summary Bar (displayed only when tasks exist) */}
+      {metrics.totalTasks > 0 && (
+        <div
+          style={{
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border)',
+            borderRadius: '12px',
+            padding: '0.75rem 1rem',
+            marginBottom: '1.25rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.5rem',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.82rem', flexWrap: 'wrap' }}>
+              <span style={{ color: 'var(--text-secondary)' }}>
+                <strong style={{ color: 'var(--text-primary)' }}>{metrics.mainTasksCount}</strong> Main {metrics.mainTasksCount === 1 ? 'Task' : 'Tasks'}
+              </span>
+              {metrics.subtasksCount > 0 && (
+                <>
+                  <span style={{ color: 'var(--text-muted)' }}>•</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>
+                    <strong style={{ color: '#38bdf8' }}>{metrics.subtasksCount}</strong> {metrics.subtasksCount === 1 ? 'Subtask' : 'Subtasks'}
+                  </span>
+                </>
+              )}
+              <span style={{ color: 'var(--text-muted)' }}>•</span>
+              <span style={{ color: 'var(--text-secondary)' }}>
+                <strong style={{ color: '#10b981' }}>{metrics.completedCount}</strong> Completed
+              </span>
+              {metrics.activeCount > 0 && (
+                <>
+                  <span style={{ color: 'var(--text-muted)' }}>•</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>
+                    <strong style={{ color: '#818cf8' }}>{metrics.activeCount}</strong> Active
+                  </span>
+                </>
+              )}
+            </div>
 
-        <div className="card" style={{ padding: '0.85rem 1rem' }}>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Subtasks</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#38bdf8', marginTop: '2px' }}>
-            {metrics.subtasksCount}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', fontWeight: 700, color: '#10b981' }}>
+              <CheckCircle2 size={14} />
+              <span>{metrics.completionRate}% Done</span>
+            </div>
           </div>
-        </div>
 
-        <div className="card" style={{ padding: '0.85rem 1rem' }}>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Deepest Nesting</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fbbf24', marginTop: '2px' }}>
-            Level {metrics.maxDepth}
+          {/* Progress bar */}
+          <div style={{ height: '5px', background: 'var(--bg-surface-2)', borderRadius: '999px', overflow: 'hidden' }}>
+            <div
+              style={{
+                height: '100%',
+                width: `${metrics.completionRate}%`,
+                background: 'linear-gradient(90deg, #6366f1, #10b981)',
+                borderRadius: '999px',
+                transition: 'width 0.3s ease',
+              }}
+            />
           </div>
         </div>
-
-        <div className="card" style={{ padding: '0.85rem 1rem' }}>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Completion</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#10b981', marginTop: '2px' }}>
-            {metrics.completionRate}%
-          </div>
-        </div>
-      </div>
+      )}
 
       {/* Main Controls & Search */}
       <div
@@ -440,7 +405,7 @@ export default function TaskBuilderPage() {
         }}
       >
         <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          {/* Search Box */}
+          {/* Simple Search Box */}
           <div style={{ position: 'relative', flex: 1, minWidth: '220px' }}>
             <Search
               size={15}
@@ -455,7 +420,7 @@ export default function TaskBuilderPage() {
             <input
               type="text"
               className="input"
-              placeholder="Search tasks and notes across all levels…"
+              placeholder="Search tasks and notes…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{ paddingLeft: '34px', fontSize: '0.85rem' }}
@@ -480,7 +445,7 @@ export default function TaskBuilderPage() {
             )}
           </div>
 
-          {/* Add Main Task Button */}
+          {/* Prominent Add Main Task Button */}
           <button
             type="button"
             className="btn btn-primary"
@@ -489,19 +454,6 @@ export default function TaskBuilderPage() {
           >
             <Plus size={16} />
             <span>Add Main Task</span>
-          </button>
-
-          {/* Template loader */}
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={handleLoadPythonTemplate}
-            disabled={isTemplateLoading}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem' }}
-            title="Load Example: Learn Python hierarchy with nested subtasks"
-          >
-            <BookOpen size={14} color="#818cf8" />
-            <span>{isTemplateLoading ? 'Loading…' : 'Load Example'}</span>
           </button>
         </div>
 
@@ -617,43 +569,28 @@ export default function TaskBuilderPage() {
 
       {/* Task Tree Content */}
       {displayedTree.length === 0 ? (
-        <div className="empty-state" style={{ padding: '3rem 1.5rem', textAlign: 'center' }}>
+        <div className="empty-state" style={{ padding: '3.5rem 1.5rem', textAlign: 'center' }}>
           <FolderTree size={48} color="#818cf8" style={{ margin: '0 auto 1rem', opacity: 0.7 }} />
           <h3 style={{ fontSize: '1.15rem', fontWeight: 700, margin: '0 0 0.4rem', color: 'var(--text-primary)' }}>
             {searchQuery
               ? 'No matching tasks or notes found'
-              : 'Start your unlimited task hierarchy'}
+              : 'Your workspace is ready'}
           </h3>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', maxWidth: '420px', margin: '0 auto 1.5rem' }}>
             {searchQuery
               ? 'Try a different search term or clear the filter.'
-              : 'Create main tasks and break them down into unlimited nested subtasks with independent notes at every level.'}
+              : 'Create your first main task to start building your hierarchy with unlimited nested subtasks and notes.'}
           </p>
 
-          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={handleOpenAddMainTask}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-            >
-              <Plus size={16} />
-              <span>Create Main Task</span>
-            </button>
-
-            {!searchQuery && (
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={handleLoadPythonTemplate}
-                disabled={isTemplateLoading}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-              >
-                <BookOpen size={15} color="#818cf8" />
-                <span>Load Example: Learn Python</span>
-              </button>
-            )}
-          </div>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={handleOpenAddMainTask}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+          >
+            <Plus size={16} />
+            <span>Create Main Task</span>
+          </button>
         </div>
       ) : (
         <div className="task-tree-container" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
@@ -687,12 +624,22 @@ export default function TaskBuilderPage() {
         parentTask={parentForSubtask}
       />
 
-      {/* Delete Confirmation Modal */}
+      {/* Move to Recycle Bin Confirmation Modal */}
       <DeleteTaskModal
         isOpen={Boolean(deletingTask)}
         onClose={() => setDeletingTask(null)}
         onConfirm={handleDeleteConfirm}
         task={deletingTask}
+      />
+
+      {/* Task Recycle Bin Modal */}
+      <TaskRecycleBinModal
+        isOpen={isRecycleBinOpen}
+        onClose={() => setIsRecycleBinOpen(false)}
+        deletedTasks={deletedTasks}
+        onRestore={restoreTask}
+        onPermanentDelete={permanentDeleteTask}
+        onEmptyRecycleBin={emptyRecycleBin}
       />
     </div>
   );

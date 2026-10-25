@@ -23,6 +23,8 @@ export interface DbTaskRow {
   updated_at: string;
   parent_id?: string | null;
   order_index?: number | null;
+  is_deleted?: boolean | null;
+  deleted_at?: string | null;
 }
 
 export function dbRowToTask(row: DbTaskRow): Task {
@@ -46,6 +48,8 @@ export function dbRowToTask(row: DbTaskRow): Task {
     updatedAt: row.updated_at,
     parentId: row.parent_id ?? undefined,
     orderIndex: row.order_index ?? 0,
+    isDeleted: Boolean(row.is_deleted),
+    deletedAt: row.deleted_at ?? undefined,
   };
 }
 
@@ -86,6 +90,8 @@ export function taskToDbRow(task: Partial<Task>, userId: string): Partial<DbTask
   if (task.notes !== undefined) row.notes = task.notes || null;
   if (task.parentId !== undefined) row.parent_id = task.parentId || null;
   if (task.orderIndex !== undefined) row.order_index = task.orderIndex ?? 0;
+  if (task.isDeleted !== undefined) row.is_deleted = task.isDeleted;
+  if (task.deletedAt !== undefined) row.deleted_at = task.deletedAt || null;
 
   return row;
 }
@@ -183,6 +189,95 @@ export async function deleteCloudTask(taskId: string, userId: string): Promise<v
   if (error) {
     logSafeError('Delete task', error);
     throw new Error(formatSafeErrorMessage(error, 'Failed to delete task'));
+  }
+}
+
+export async function softDeleteCloudTasks(
+  taskIds: string[],
+  userId: string,
+  deletedAt: string
+): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error('Supabase is not configured');
+  if (taskIds.length === 0) return;
+
+  const { error } = await supabase
+    .from('tasks')
+    .update({ is_deleted: true, deleted_at: deletedAt })
+    .in('id', taskIds)
+    .eq('user_id', userId);
+
+  if (error) {
+    logSafeError('Soft delete tasks', error);
+    throw new Error(formatSafeErrorMessage(error, 'Failed to move tasks to Recycle Bin'));
+  }
+}
+
+export async function restoreCloudTasks(
+  restores: { id: string; parentId?: string | null }[],
+  userId: string
+): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error('Supabase is not configured');
+  if (restores.length === 0) return;
+
+  const promises = restores.map((item) => {
+    const patch: { is_deleted: boolean; deleted_at: null; parent_id?: string | null } = {
+      is_deleted: false,
+      deleted_at: null,
+    };
+    if (item.parentId !== undefined) {
+      patch.parent_id = item.parentId;
+    }
+    return supabase
+      .from('tasks')
+      .update(patch)
+      .eq('id', item.id)
+      .eq('user_id', userId);
+  });
+
+  const results = await Promise.allSettled(promises);
+  for (const res of results) {
+    if (res.status === 'rejected') {
+      logSafeError('Restore tasks', res.reason);
+      throw new Error('Failed to restore tasks from Recycle Bin');
+    }
+  }
+}
+
+export async function permanentDeleteCloudTasks(
+  taskIds: string[],
+  userId: string
+): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error('Supabase is not configured');
+  if (taskIds.length === 0) return;
+
+  const { error } = await supabase
+    .from('tasks')
+    .delete()
+    .in('id', taskIds)
+    .eq('user_id', userId);
+
+  if (error) {
+    logSafeError('Permanent delete tasks', error);
+    throw new Error(formatSafeErrorMessage(error, 'Failed to permanently delete tasks'));
+  }
+}
+
+export async function emptyCloudRecycleBin(userId: string): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error('Supabase is not configured');
+
+  const { error } = await supabase
+    .from('tasks')
+    .delete()
+    .eq('user_id', userId)
+    .eq('is_deleted', true);
+
+  if (error) {
+    logSafeError('Empty cloud recycle bin', error);
+    throw new Error(formatSafeErrorMessage(error, 'Failed to empty Recycle Bin'));
   }
 }
 
