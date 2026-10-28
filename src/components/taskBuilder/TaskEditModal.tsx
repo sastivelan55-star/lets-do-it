@@ -3,6 +3,7 @@ import type { Task, LifeArea, TaskPriority } from '../../types';
 import Modal from '../ui/Modal';
 import { today } from '../../utils/dates';
 import { AlertCircle } from 'lucide-react';
+import { useApp } from '../../context/AppContext';
 
 interface TaskEditModalProps {
   isOpen: boolean;
@@ -11,14 +12,6 @@ interface TaskEditModalProps {
   initialTask?: Task | null;
   parentTask?: Task | null;
 }
-
-const LIFE_AREAS: { value: LifeArea; label: string; color: string }[] = [
-  { value: 'technical', label: 'Technical', color: '#6366f1' },
-  { value: 'communication', label: 'Communication', color: '#06b6d4' },
-  { value: 'career', label: 'Career', color: '#f59e0b' },
-  { value: 'creativity', label: 'Creativity', color: '#ec4899' },
-  { value: 'health', label: 'Health', color: '#10b981' },
-];
 
 const PRIORITIES: { value: TaskPriority; label: string; color: string }[] = [
   { value: 'low', label: 'Low', color: '#64748b' },
@@ -35,9 +28,13 @@ interface FormProps {
 }
 
 function TaskEditForm({ onClose, onSave, initialTask, parentTask }: FormProps) {
+  const { customLifeAreas } = useApp();
+  const availableAreas = customLifeAreas.filter((a) => a.isEnabled !== false);
+  const defaultArea = availableAreas[0]?.id || 'technical';
+
   const [title, setTitle] = useState(() => initialTask?.title || '');
   const [notes, setNotes] = useState(() => initialTask?.notes || '');
-  const [lifeArea, setLifeArea] = useState<LifeArea>(() => initialTask?.lifeArea || parentTask?.lifeArea || 'technical');
+  const [lifeArea, setLifeArea] = useState<LifeArea>(() => initialTask?.lifeArea || parentTask?.lifeArea || defaultArea);
   const [priority, setPriority] = useState<TaskPriority>(() => initialTask?.priority || parentTask?.priority || 'medium');
   const [dueDate, setDueDate] = useState(() => initialTask?.dueDate || parentTask?.dueDate || today());
   const [estimatedMinutes, setEstimatedMinutes] = useState<string>(() =>
@@ -162,9 +159,9 @@ function TaskEditForm({ onClose, onSave, initialTask, parentTask }: FormProps) {
             value={lifeArea}
             onChange={(e) => setLifeArea(e.target.value as LifeArea)}
           >
-            {LIFE_AREAS.map((a) => (
-              <option key={a.value} value={a.value}>
-                {a.label}
+            {availableAreas.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.icon} {a.name}
               </option>
             ))}
           </select>

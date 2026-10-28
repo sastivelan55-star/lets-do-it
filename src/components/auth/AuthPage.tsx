@@ -245,10 +245,10 @@ export default function AuthPage() {
             WebkitTextFillColor: 'transparent',
           }}
         >
-          LifeMap OS
+          Life OS
         </h1>
         <p style={{ margin: '0.4rem 0 0 0', color: 'rgba(203, 213, 225, 0.75)', fontSize: '0.95rem' }}>
-          Personal Progress & Cloud Execution System
+          Personal Progress & AI Execution System
         </p>
       </div>
 

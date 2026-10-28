@@ -48,7 +48,7 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsIn...`;
             Cloud Database Setup Required
           </h3>
           <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-            LifeMap connects directly to your secure Supabase PostgreSQL database.
+            Life OS connects directly to your secure Supabase PostgreSQL database.
           </p>
         </div>
       </div>

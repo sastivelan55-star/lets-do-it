@@ -194,14 +194,11 @@ export default function NotesPage() {
         <div className="empty-state" style={{ padding: '3.5rem 1.5rem', textAlign: 'center' }}>
           <FileText size={44} color="#818cf8" style={{ margin: '0 auto 0.75rem auto' }} />
           <p style={{ fontWeight: 700, fontSize: '1.1rem', margin: '0 0 0.25rem 0' }}>
-            No notes yet
+            No notes recorded yet
           </p>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 1.25rem 0' }}>
-            Save DSA patterns, key interview takeaways, system design summaries, and study logs.
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
+            Use the <strong>+ Add Note</strong> button in the header above to record DSA patterns, interview concepts, and personal study insights.
           </p>
-          <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
-            <Plus size={16} /> Add First Note
-          </button>
         </div>
       ) : filteredNotes.length === 0 ? (
         /* Zero Filtered Results State */

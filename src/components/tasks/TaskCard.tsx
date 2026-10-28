@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Check, Clock, Edit3, Trash2, CalendarClock, ChevronDown, ChevronUp, Play, ListTree } from 'lucide-react';
+import { Check, Clock, Edit3, Trash2, CalendarClock, ChevronDown, ChevronUp, Play, ListTree, ArrowRightLeft } from 'lucide-react';
 import type { Task } from '../../types';
 import { formatTime, today } from '../../utils/dates';
 import { useApp } from '../../context/AppContext';
+import TaskAssignmentModal from './TaskAssignmentModal';
 import clsx from 'clsx';
 
 interface TaskCardProps {
@@ -38,11 +39,17 @@ const PRIORITY_DOT: Record<string, string> = {
 };
 
 export default function TaskCard({ task, onComplete, onEdit, onDelete, onReschedule, onStart }: TaskCardProps) {
-  const { tasks } = useApp();
+  const { tasks, customLifeAreas } = useApp();
   const [expanded, setExpanded] = useState(false);
   const [showReschedule, setShowReschedule] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
   const [rescheduleDate, setRescheduleDate] = useState(today());
   const [confirmDelete, setConfirmDelete] = useState(false);
+
+  // Dynamic life area lookups
+  const matchedArea = customLifeAreas.find((a) => a.id === task.lifeArea);
+  const areaColor = matchedArea?.color ?? AREA_COLOR[task.lifeArea] ?? '#818cf8';
+  const areaLabel = matchedArea?.name ?? AREA_LABEL[task.lifeArea] ?? task.lifeArea;
 
   // Subtask calculations
   const directSubtasks = tasks.filter((t) => t.parentId === task.id);
@@ -52,7 +59,6 @@ export default function TaskCard({ task, onComplete, onEdit, onDelete, onResched
 
   const isCompleted = task.status === 'completed';
   const isOverdue = task.dueDate < today() && !isCompleted && task.status !== 'rescheduled';
-  const areaColor = AREA_COLOR[task.lifeArea] ?? '#818cf8';
 
   const handleReschedule = () => {
     if (rescheduleDate && rescheduleDate > task.dueDate) {
@@ -112,13 +118,39 @@ export default function TaskCard({ task, onComplete, onEdit, onDelete, onResched
         </div>
 
         {/* Meta */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.35rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap', marginTop: '0.35rem' }}>
           <span
             className="badge"
             style={{ background: `${areaColor}20`, color: areaColor, fontSize: '0.7rem' }}
           >
-            {AREA_LABEL[task.lifeArea]}
+            {areaLabel}
           </span>
+
+          {/* Convenient small assignment / move button */}
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowAssignModal(true);
+            }}
+            title="Assign or move task to another life area, roadmap month, or project"
+            style={{
+              padding: '2px 6px',
+              fontSize: '0.7rem',
+              height: 'auto',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '3px',
+              color: 'var(--text-muted)',
+              borderRadius: '4px',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              background: 'rgba(255, 255, 255, 0.02)',
+            }}
+          >
+            <ArrowRightLeft size={10} color="#818cf8" />
+            <span>Move</span>
+          </button>
 
           {task.plannedStartTime && (
             <span style={{ display: 'flex', alignItems: 'center', gap: '3px', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
@@ -176,6 +208,9 @@ export default function TaskCard({ task, onComplete, onEdit, onDelete, onResched
                   <Play size={12} /> Start
                 </button>
               )}
+              <button className="btn btn-sm btn-secondary" onClick={() => setShowAssignModal(true)}>
+                <ArrowRightLeft size={12} /> Assign / Move
+              </button>
               <button className="btn btn-sm btn-secondary" onClick={() => onEdit(task)}>
                 <Edit3 size={12} /> Edit
               </button>
@@ -224,6 +259,15 @@ export default function TaskCard({ task, onComplete, onEdit, onDelete, onResched
       >
         {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
       </button>
+
+      {/* Task Assignment Modal */}
+      {showAssignModal && (
+        <TaskAssignmentModal
+          task={task}
+          isOpen={showAssignModal}
+          onClose={() => setShowAssignModal(false)}
+        />
+      )}
     </div>
   );
 }

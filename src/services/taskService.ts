@@ -10,6 +10,7 @@ export interface DbTaskRow {
   description: string | null;
   area: LifeArea;
   project_id: string | null;
+  roadmap_month?: number | null;
   due_date: string | null;
   planned_start: string | null;
   estimated_minutes: number | null;
@@ -35,6 +36,7 @@ export function dbRowToTask(row: DbTaskRow): Task {
     description: row.description ?? undefined,
     lifeArea: row.area,
     projectId: row.project_id ?? undefined,
+    roadmapMonth: typeof row.roadmap_month === 'number' ? row.roadmap_month : undefined,
     dueDate: row.due_date ?? new Date().toISOString().slice(0, 10),
     plannedStartTime: row.planned_start ?? undefined,
     priority: row.priority,
@@ -63,6 +65,7 @@ export function taskToDbRow(task: Partial<Task>, userId: string): Partial<DbTask
   if (task.description !== undefined) row.description = task.description || null;
   if (task.lifeArea !== undefined) row.area = task.lifeArea;
   if (task.projectId !== undefined) row.project_id = task.projectId || null;
+  if (task.roadmapMonth !== undefined) row.roadmap_month = typeof task.roadmapMonth === 'number' ? task.roadmapMonth : null;
   if (task.dueDate !== undefined) row.due_date = task.dueDate || null;
   if (task.plannedStartTime !== undefined) row.planned_start = task.plannedStartTime || null;
   if (task.estimatedMinutes !== undefined) {

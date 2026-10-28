@@ -13,9 +13,12 @@ import {
   Maximize2,
   Clock,
   Sparkles,
+  ArrowRightLeft,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { formatTime } from '../../utils/dates';
+import TaskAssignmentModal from '../tasks/TaskAssignmentModal';
+import { useApp } from '../../context/AppContext';
 
 interface TaskTreeNodeProps {
   task: HierarchicalTask;
@@ -65,16 +68,19 @@ export default function TaskTreeNode({
   isFirstSibling = false,
   isLastSibling = false,
 }: TaskTreeNodeProps) {
+  const { customLifeAreas } = useApp();
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesValue, setNotesValue] = useState(task.notes || '');
   const [isSavingNotes, setIsSavingNotes] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
 
   const isCompleted = task.status === 'completed';
   const hasChildren = task.children.length > 0;
   const isExpanded = expandedMap[task.id] ?? true;
   const depth = task.depth || 0;
   const depthColor = DEPTH_COLORS[Math.min(depth, DEPTH_COLORS.length - 1)];
-  const areaColor = AREA_COLOR[task.lifeArea] || '#818cf8';
+  const matchedArea = customLifeAreas.find((a) => a.id === task.lifeArea);
+  const areaColor = matchedArea?.color || AREA_COLOR[task.lifeArea] || '#818cf8';
 
   const matchesSearch = Boolean(
     searchQuery &&
@@ -444,6 +450,22 @@ export default function TaskTreeNode({
                 <ArrowDown size={13} />
               </button>
 
+              {/* Move / Assign */}
+              <button
+                type="button"
+                onClick={() => setShowAssignModal(true)}
+                className="btn btn-sm btn-ghost btn-icon"
+                style={{
+                  width: '26px',
+                  height: '26px',
+                  padding: 0,
+                  color: '#818cf8',
+                }}
+                title="Assign or move to another life area, roadmap month, or project"
+              >
+                <ArrowRightLeft size={13} />
+              </button>
+
               {/* Edit */}
               <button
                 type="button"
@@ -502,6 +524,15 @@ export default function TaskTreeNode({
             />
           ))}
         </div>
+      )}
+
+      {/* Task Assignment Modal */}
+      {showAssignModal && (
+        <TaskAssignmentModal
+          task={task}
+          isOpen={showAssignModal}
+          onClose={() => setShowAssignModal(false)}
+        />
       )}
     </div>
   );

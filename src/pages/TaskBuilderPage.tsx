@@ -23,15 +23,6 @@ import DeleteTaskModal from '../components/taskBuilder/DeleteTaskModal';
 import TaskRecycleBinModal from '../components/taskBuilder/TaskRecycleBinModal';
 import { formatSafeErrorMessage } from '../utils/errorUtils';
 
-const FILTER_AREAS: { value: LifeArea | 'all'; label: string }[] = [
-  { value: 'all', label: 'All Areas' },
-  { value: 'technical', label: 'Technical' },
-  { value: 'communication', label: 'Communication' },
-  { value: 'career', label: 'Career' },
-  { value: 'creativity', label: 'Creativity' },
-  { value: 'health', label: 'Health' },
-];
-
 export default function TaskBuilderPage() {
   const {
     tasks,
@@ -45,7 +36,16 @@ export default function TaskBuilderPage() {
     emptyRecycleBin,
     reorderTasks,
     error,
+    customLifeAreas,
   } = useApp();
+
+  const filterAreas = useMemo(() => [
+    { value: 'all' as const, label: 'All Areas' },
+    ...customLifeAreas.filter((a) => a.isEnabled !== false).map((a) => ({
+      value: a.id as LifeArea,
+      label: `${a.icon} ${a.name}`,
+    })),
+  ], [customLifeAreas]);
 
   // Filters & Search State
   const [searchQuery, setSearchQuery] = useState('');
@@ -469,7 +469,7 @@ export default function TaskBuilderPage() {
         >
           {/* Life Area Filters */}
           <div className="filter-scroll" style={{ margin: 0, paddingBottom: 0 }}>
-            {FILTER_AREAS.map((a) => (
+            {filterAreas.map((a) => (
               <button
                 key={a.value}
                 className={`btn btn-sm ${areaFilter === a.value ? 'btn-primary' : 'btn-ghost'}`}

@@ -3,6 +3,7 @@
 
 import { openDB, type IDBPDatabase } from 'idb';
 import type { AppData, AppSettings, Task, RoadmapMilestone, Project, DailyRecord, ScheduleEntry, Note } from '../types';
+import { DEFAULT_LIFE_AREAS, DEFAULT_APPEARANCE, DEFAULT_AI_SETTINGS } from '../types';
 
 const DB_NAME = 'lifemap-db';
 const DB_VERSION = 3;
@@ -110,7 +111,16 @@ function getDB(): Promise<IDBPDatabase> {
 
 export async function getSettings(): Promise<AppSettings | undefined> {
   const db = await getDB();
-  return db.get(STORES.settings, 'app');
+  const raw = await db.get(STORES.settings, 'app');
+  if (!raw) return undefined;
+  // Gracefully merge with defaults for newly added fields
+  return {
+    ...getDefaultSettings(),
+    ...raw,
+    lifeAreas: raw.lifeAreas && raw.lifeAreas.length > 0 ? raw.lifeAreas : DEFAULT_LIFE_AREAS,
+    appearance: { ...DEFAULT_APPEARANCE, ...(raw.appearance || {}) },
+    aiSettings: { ...DEFAULT_AI_SETTINGS, ...(raw.aiSettings || {}) },
+  };
 }
 
 export async function saveSettings(settings: AppSettings): Promise<void> {
@@ -386,9 +396,12 @@ export function getDefaultSettings(): AppSettings {
       creativity: 10,
       health: 10,
     },
+    lifeAreas: DEFAULT_LIFE_AREAS,
+    appearance: DEFAULT_APPEARANCE,
+    aiSettings: DEFAULT_AI_SETTINGS,
     workingHoursStart: '07:00',
     workingHoursEnd: '22:00',
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    dataVersion: 1,
+    dataVersion: 2,
   };
 }

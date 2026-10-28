@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import {
-  LayoutDashboard, CalendarDays, Map, FolderOpen,
+  LayoutDashboard, Map, FolderOpen,
   MoreHorizontal, Code2, MessageSquare, Briefcase, Palette, Heart,
-  BarChart3, Settings, X, Clock, FileText, HardDrive, LogOut, User,
-  ListTree,
+  BarChart3, Settings, X, FileText, LogOut, User,
+  ListTree, Newspaper,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -18,25 +18,22 @@ interface MobileNavProps {
 const PRIMARY_NAV: { id: NavSection; label: string; icon: React.ReactNode }[] = [
   { id: 'today',        label: 'Today',    icon: <LayoutDashboard size={20} /> },
   { id: 'task-builder', label: 'Builder',  icon: <ListTree size={20} /> },
-  { id: 'planner',      label: 'Planner',  icon: <CalendarDays size={20} /> },
   { id: 'projects',     label: 'Projects', icon: <FolderOpen size={20} /> },
+  { id: 'roadmap',      label: 'Roadmap',  icon: <Map size={20} /> },
 ];
 
 // All sections accessible from the "More" drawer
 const MORE_NAV: { id: NavSection; label: string; icon: React.ReactNode }[] = [
-  { id: 'technical',    label: 'Technical',     icon: <Code2 size={20} /> },
-  { id: 'schedules',    label: 'Schedules',     icon: <Clock size={20} /> },
-  { id: 'notes',        label: 'Notes',         icon: <FileText size={20} /> },
-  { id: 'uploads',      label: 'Vault',         icon: <HardDrive size={20} /> },
-  { id: 'roadmap',      label: 'Roadmap',       icon: <Map size={20} /> },
-  { id: 'communication',label: 'Communication', icon: <MessageSquare size={20} /> },
-  { id: 'career',       label: 'Career',        icon: <Briefcase size={20} /> },
-  { id: 'creativity',   label: 'Creativity',    icon: <Palette size={20} /> },
-  { id: 'health',       label: 'Health',        icon: <Heart size={20} /> },
-  { id: 'review',       label: 'Review',        icon: <BarChart3 size={20} /> },
-  { id: 'settings',     label: 'Settings',      icon: <Settings size={20} /> },
+  { id: 'notes',         label: 'Notes',         icon: <FileText size={20} /> },
+  { id: 'technical',     label: 'Technical',     icon: <Code2 size={20} /> },
+  { id: 'communication', label: 'Communication', icon: <MessageSquare size={20} /> },
+  { id: 'career',        label: 'Career',        icon: <Briefcase size={20} /> },
+  { id: 'creativity',    label: 'Creativity',    icon: <Palette size={20} /> },
+  { id: 'health',        label: 'Health',        icon: <Heart size={20} /> },
+  { id: 'review',        label: 'Review',        icon: <BarChart3 size={20} /> },
+  { id: 'news',          label: 'News',          icon: <Newspaper size={20} /> },
+  { id: 'settings',      label: 'Settings',      icon: <Settings size={20} /> },
 ];
-
 
 // All sections not in the primary bar
 const MORE_SECTION_IDS = MORE_NAV.map(n => n.id) as NavSection[];

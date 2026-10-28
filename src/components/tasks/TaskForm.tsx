@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { Task, LifeArea, TaskPriority } from '../../types';
 import { today } from '../../utils/dates';
+import { useApp } from '../../context/AppContext';
 
 interface TaskFormProps {
   initial?: Partial<Task>;
@@ -8,14 +9,6 @@ interface TaskFormProps {
   onSubmit?: (data: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => void;
   onCancel: () => void;
 }
-
-const LIFE_AREAS: { value: LifeArea; label: string }[] = [
-  { value: 'technical',      label: '💻 Technical Mastery (50%)' },
-  { value: 'communication',  label: '🗣️ Communication (15%)' },
-  { value: 'career',         label: '💼 Career Readiness (15%)' },
-  { value: 'creativity',     label: '🎨 Creativity & Identity (10%)' },
-  { value: 'health',         label: '💚 Health & Reflection (10%)' },
-];
 
 const PRIORITIES: { value: TaskPriority; label: string }[] = [
   { value: 'low',      label: '🔵 Low' },
@@ -25,9 +18,13 @@ const PRIORITIES: { value: TaskPriority; label: string }[] = [
 ];
 
 export default function TaskForm({ initial = {}, onSave, onSubmit, onCancel }: TaskFormProps) {
+  const { customLifeAreas } = useApp();
+  const availableAreas = customLifeAreas.filter((a) => a.isEnabled !== false);
+  const defaultArea = availableAreas[0]?.id || 'technical';
+
   const [title, setTitle]           = useState(initial.title ?? '');
   const [description, setDesc]      = useState(initial.description ?? '');
-  const [lifeArea, setLifeArea]     = useState<LifeArea>(initial.lifeArea ?? 'technical');
+  const [lifeArea, setLifeArea]     = useState<LifeArea>(initial.lifeArea ?? defaultArea);
   const [dueDate, setDueDate]       = useState(initial.dueDate ?? today());
   const [startTime, setStartTime]   = useState(initial.plannedStartTime ?? '');
   const [priority, setPriority]     = useState<TaskPriority>(initial.priority ?? 'medium');
@@ -106,8 +103,10 @@ export default function TaskForm({ initial = {}, onSave, onSubmit, onCancel }: T
             value={lifeArea}
             onChange={(e) => setLifeArea(e.target.value as LifeArea)}
           >
-            {LIFE_AREAS.map((a) => (
-              <option key={a.value} value={a.value}>{a.label}</option>
+            {availableAreas.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.icon} {a.name}
+              </option>
             ))}
           </select>
         </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Sparkles } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AppProvider } from './context/AppContext';
 import AuthPage from './components/auth/AuthPage';
@@ -6,7 +7,6 @@ import Sidebar from './components/layout/Sidebar';
 import MobileNav from './components/layout/MobileNav';
 import TodayPage from './pages/TodayPage';
 import RoadmapPage from './pages/RoadmapPage';
-import PlannerPage from './pages/PlannerPage';
 import TechnicalPage from './pages/TechnicalPage';
 import CommunicationPage from './pages/CommunicationPage';
 import CareerPage from './pages/CareerPage';
@@ -15,27 +15,29 @@ import HealthPage from './pages/HealthPage';
 import ProjectsPage from './pages/ProjectsPage';
 import WeeklyReviewPage from './pages/WeeklyReviewPage';
 import SettingsPage from './pages/SettingsPage';
-import SchedulesPage from './pages/SchedulesPage';
 import NotesPage from './pages/NotesPage';
 import UploadsPage from './pages/UploadsPage';
 import TaskBuilderPage from './pages/TaskBuilderPage';
+import NewsPage from './pages/NewsPage';
+import AiAssistantModal from './components/ai/AiAssistantModal';
 
 export type NavSection =
   | 'today'
   | 'task-builder'
+  | 'projects'
   | 'roadmap'
-  | 'planner'
-  | 'schedules'
   | 'notes'
-  | 'uploads'
   | 'technical'
   | 'communication'
   | 'career'
   | 'creativity'
   | 'health'
-  | 'projects'
   | 'review'
-  | 'settings';
+  | 'news'
+  | 'settings'
+  | 'planner'
+  | 'schedules'
+  | 'uploads';
 
 
 function LoadingScreen() {
@@ -81,10 +83,10 @@ function LoadingScreen() {
             backgroundClip: 'text',
           }}
         >
-          LifeMap
+          Life OS
         </h1>
-        <p style={{ color: 'rgba(148,163,184,0.6)', fontSize: '0.85rem', marginTop: '0.25rem' }}>
-          Loading your personal progress OS…
+        <p style={{ color: 'rgba(148,163,184,0.7)', fontSize: '0.85rem', marginTop: '0.25rem' }}>
+          Personal Progress & AI Execution System…
         </p>
       </div>
       <div
@@ -120,6 +122,7 @@ function AppContent() {
   const [section, setSection] = useState<NavSection>('today');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [showAiModal, setShowAiModal] = useState(false);
 
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < 768);
@@ -130,21 +133,21 @@ function AppContent() {
   const PAGE_MAP: Record<NavSection, React.ReactNode> = {
     today:          <TodayPage />,
     'task-builder': <TaskBuilderPage />,
+    projects:      <ProjectsPage />,
     roadmap:        <RoadmapPage />,
-    planner:       <PlannerPage />,
-    schedules:     <SchedulesPage />,
     notes:         <NotesPage />,
-    uploads:       <UploadsPage />,
     technical:     <TechnicalPage />,
     communication: <CommunicationPage />,
     career:        <CareerPage />,
     creativity:    <CreativityPage />,
     health:        <HealthPage />,
-    projects:      <ProjectsPage />,
     review:        <WeeklyReviewPage />,
+    news:          <NewsPage />,
     settings:      <SettingsPage />,
+    planner:       <TodayPage />, // Migrated into Today
+    schedules:     <TodayPage />, // Migrated into Today
+    uploads:       <UploadsPage />,
   };
-
 
   return (
     <div className="app-layout">
@@ -166,6 +169,38 @@ function AppContent() {
       >
         {PAGE_MAP[section]}
       </main>
+
+      {/* Floating AI Assistant Trigger */}
+      <button
+        onClick={() => setShowAiModal(true)}
+        className="btn"
+        aria-label="Open Life OS AI Assistant"
+        title="Open AI Assistant (Natural Language Tasks)"
+        style={{
+          position: 'fixed',
+          bottom: isMobile ? '74px' : '24px',
+          right: '24px',
+          zIndex: 40,
+          borderRadius: '999px',
+          background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+          color: 'white',
+          padding: '0.6rem 1.1rem',
+          boxShadow: '0 8px 24px rgba(99, 102, 241, 0.45)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          fontSize: '0.84rem',
+          fontWeight: 700,
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          cursor: 'pointer',
+        }}
+      >
+        <Sparkles size={16} />
+        <span>AI Assistant</span>
+      </button>
+
+      {/* AI Assistant Modal */}
+      <AiAssistantModal isOpen={showAiModal} onClose={() => setShowAiModal(false)} />
 
       {/* Mobile bottom nav */}
       {isMobile && (

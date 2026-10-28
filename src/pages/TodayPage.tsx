@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Plus, Zap, CalendarDays, Target, TrendingUp,
-  AlertCircle, CheckCircle2, Clock, Sparkles, Cloud, CloudOff, RefreshCw
+  AlertCircle, CheckCircle2, Clock, Sparkles, CloudOff, RefreshCw
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import ProgressRing from '../components/ui/ProgressRing';
@@ -9,9 +9,10 @@ import Modal from '../components/ui/Modal';
 import TaskForm from '../components/tasks/TaskForm';
 import TaskCard from '../components/tasks/TaskCard';
 import ScheduleForm from '../components/schedules/ScheduleForm';
-import { formatDateLong, getGreeting, today } from '../utils/dates';
+import OverdueManagerModal from '../components/tasks/OverdueManagerModal';
+import { getGreeting, today } from '../utils/dates';
 import { formatSafeErrorMessage } from '../utils/errorUtils';
-import type { Task, LifeArea } from '../types';
+import type { Task } from '../types';
 
 const MOTIVATIONAL_QUOTES = [
   "Focus, Execute, Improve, Repeat. 8 months of consistency = a lifetime of opportunities.",
@@ -21,22 +22,12 @@ const MOTIVATIONAL_QUOTES = [
   "Consistency beats intensity. Show up today.",
 ];
 
-const AREA_WEIGHT_INFO: { area: LifeArea; label: string; weight: number; color: string; desc: string }[] = [
-  { area: 'technical', label: 'Technical Mastery', weight: 50, color: '#6366f1', desc: 'Core coding, DSA, system projects' },
-  { area: 'communication', label: 'Communication', weight: 15, color: '#06b6d4', desc: 'English fluency, speaking, articulate thoughts' },
-  { area: 'career', label: 'Career Readiness', weight: 15, color: '#f59e0b', desc: 'Resume, GitHub, internships, LinkedIn' },
-  { area: 'creativity', label: 'Creativity & Identity', weight: 10, color: '#ec4899', desc: 'Writing, personal brand, content' },
-  { area: 'health', label: 'Health, Relationships & Reflection', weight: 10, color: '#10b981', desc: 'Sleep, exercise, connections, calm mindset' },
-];
-
 export default function TodayPage() {
   const {
     settings,
     todaysTasks,
     overdueTasks,
     todayCompletionRate,
-    weightedTodayRate,
-    weeklyCompletionRate,
     milestones,
     addTask,
     updateTask,
@@ -53,9 +44,24 @@ export default function TodayPage() {
   const [showAddTask, setShowAddTask] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [showAddSchedule, setShowAddSchedule] = useState(false);
+  const [showOverdueModal, setShowOverdueModal] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const [startTask, setStartTask] = useState<Task | null>(null);
   const [seeding, setSeeding] = useState(false);
+
+  // Live real-time clock updating every second
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const dayOfWeek = now.toLocaleDateString(undefined, { weekday: 'long' });
+  const formattedDate = now.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+  const formattedTime = now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
   const todaySchedules = schedules
     .filter((s) => s.date === today())
@@ -120,43 +126,48 @@ export default function TodayPage() {
 
   return (
     <div className="page-container pb-safe">
-      {/* Header & Sync Status Banner */}
-      <div className="today-header">
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: '0.2rem' }}>
-            {formatDateLong(today())}
-          </p>
+      {/* Header with Live Real-Time Date, Day & Clock */}
+      <div className="today-header" style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
+        <div style={{ flex: 1, minWidth: 260 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '0.35rem' }}>
+            <span style={{ color: '#818cf8', fontWeight: 700, fontSize: '0.88rem', letterSpacing: '0.02em', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+              <CalendarDays size={14} /> {dayOfWeek}, {formattedDate}
+            </span>
+            <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>•</span>
+            <span style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: '0.88rem', fontFamily: 'monospace', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+              <Clock size={13} color="#38bdf8" /> {formattedTime}
+            </span>
+          </div>
           <h1 className="today-greeting">
             <span className="gradient-text">{getGreeting()}</span>
             {settings.displayName && `, ${settings.displayName}`}! 👋
           </h1>
-          <p style={{ color: 'var(--text-secondary)', marginTop: '0.3rem', fontSize: '0.875rem' }}>
+          <p style={{ color: 'var(--text-secondary)', marginTop: '0.25rem', fontSize: '0.875rem' }}>
             {quote}
           </p>
         </div>
 
-        {/* Sync status indicator badge */}
-        <div className="sync-badge">
-          {syncStatus === 'synced' && <Cloud size={14} color="#10b981" />}
-          {syncStatus === 'syncing' && <RefreshCw size={14} color="#818cf8" className="animate-spin" />}
-          {syncStatus === 'offline' && <CloudOff size={14} color="#f59e0b" />}
-          {syncStatus === 'error' && <AlertCircle size={14} color="#ef4444" />}
-          <span
-            className="sync-badge-text"
-            style={{
-              color:
-                syncStatus === 'synced' ? '#10b981'
-                : syncStatus === 'syncing' ? '#818cf8'
-                : syncStatus === 'error' ? '#ef4444'
-                : '#f59e0b',
-            }}
-          >
-            {syncStatus === 'synced' ? 'Synced'
-              : syncStatus === 'syncing' ? 'Saving…'
-              : syncStatus === 'error' ? 'Sync Error'
-              : 'Offline'}
-          </span>
-        </div>
+        {/* Sync status indicator — only visible when syncing, offline, or error (removing clutter when synced) */}
+        {syncStatus !== 'synced' && (
+          <div className="sync-badge">
+            {syncStatus === 'syncing' && <RefreshCw size={14} color="#818cf8" className="animate-spin" />}
+            {syncStatus === 'offline' && <CloudOff size={14} color="#f59e0b" />}
+            {syncStatus === 'error' && <AlertCircle size={14} color="#ef4444" />}
+            <span
+              className="sync-badge-text"
+              style={{
+                color:
+                  syncStatus === 'syncing' ? '#818cf8'
+                  : syncStatus === 'error' ? '#ef4444'
+                  : '#f59e0b',
+              }}
+            >
+              {syncStatus === 'syncing' ? 'Saving…'
+                : syncStatus === 'error' ? 'Sync Error'
+                : 'Offline'}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Global Error Banner if any */}
@@ -181,7 +192,7 @@ export default function TodayPage() {
         </div>
       )}
 
-      {/* Stats Row */}
+      {/* Stats Row — Clean daily progress & overdue manager trigger */}
       <div className="stats-grid" style={{ marginBottom: '1.25rem' }}>
         <StatCard
           icon={<CheckCircle2 size={20} color="#10b981" />}
@@ -192,32 +203,34 @@ export default function TodayPage() {
         />
         <StatCard
           icon={<TrendingUp size={20} color="#6366f1" />}
-          label="Raw Progress"
+          label="Daily Progress"
           value={`${todayCompletionRate}%`}
-          sub="unweighted tasks"
+          sub="tasks completed"
           color="#6366f1"
         />
         <StatCard
-          icon={<Zap size={20} color="#8b5cf6" />}
-          label="Weighted Balance"
-          value={`${weightedTodayRate}%`}
-          sub="by life-area weights"
-          color="#8b5cf6"
+          icon={<Clock size={20} color="#38bdf8" />}
+          label="Scheduled Today"
+          value={`${todaySchedules.length} block${todaySchedules.length === 1 ? '' : 's'}`}
+          sub={todaySchedules.length > 0 ? 'time blocks planned' : 'no blocks scheduled'}
+          color="#38bdf8"
         />
-        <StatCard
-          icon={<CalendarDays size={20} color="#60a5fa" />}
-          label="Weekly Consistency"
-          value={`${weeklyCompletionRate}%`}
-          sub="last 7 days"
-          color="#60a5fa"
-        />
-        <StatCard
-          icon={<AlertCircle size={20} color="#f59e0b" />}
-          label="Overdue"
-          value={String(overdueTasks.length)}
-          sub={overdueTasks.length === 0 ? 'All caught up!' : 'need reschedule'}
-          color={overdueTasks.length > 0 ? '#f59e0b' : '#64748b'}
-        />
+        <div
+          onClick={() => setShowOverdueModal(true)}
+          role="button"
+          tabIndex={0}
+          style={{ cursor: 'pointer', outline: 'none' }}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setShowOverdueModal(true); }}
+          title="Click to view and reschedule overdue tasks"
+        >
+          <StatCard
+            icon={<AlertCircle size={20} color={overdueTasks.length > 0 ? '#f59e0b' : '#64748b'} />}
+            label="Overdue (Click to Manage)"
+            value={String(overdueTasks.length)}
+            sub={overdueTasks.length === 0 ? 'All caught up!' : 'click to review & reschedule'}
+            color={overdueTasks.length > 0 ? '#f59e0b' : '#64748b'}
+          />
+        </div>
       </div>
 
       {/* Main 2-column layout — single column on mobile, 2-col on desktop */}
@@ -233,14 +246,23 @@ export default function TodayPage() {
                 background: 'rgba(245, 158, 11, 0.05)',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                <AlertCircle size={16} color="#f59e0b" />
-                <span style={{ fontWeight: 700, color: '#f59e0b', fontSize: '0.9rem' }}>
-                  {overdueTasks.length} Overdue Task{overdueTasks.length > 1 ? 's' : ''}
-                </span>
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                  — No guilt. Just reschedule and continue.
-                </span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <AlertCircle size={16} color="#f59e0b" />
+                  <span style={{ fontWeight: 700, color: '#f59e0b', fontSize: '0.9rem' }}>
+                    {overdueTasks.length} Overdue Task{overdueTasks.length > 1 ? 's' : ''}
+                  </span>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                    — No guilt. Just reschedule and continue.
+                  </span>
+                </div>
+                <button
+                  className="btn btn-sm btn-secondary"
+                  onClick={() => setShowOverdueModal(true)}
+                  style={{ fontSize: '0.75rem', padding: '0.25rem 0.6rem' }}
+                >
+                  Review & Reschedule
+                </button>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {overdueTasks.slice(0, 3).map((t) => (
@@ -277,21 +299,18 @@ export default function TodayPage() {
             {todaysTasks.length === 0 ? (
               <div className="empty-state" style={{ padding: '2.5rem 1rem', textAlign: 'center' }}>
                 <Target size={40} color="#818cf8" style={{ margin: '0 auto 0.75rem auto' }} />
-                <p style={{ fontWeight: 700, fontSize: '1.05rem', margin: '0 0 0.25rem 0' }}>No tasks scheduled for today yet</p>
+                <p style={{ fontWeight: 700, fontSize: '1.05rem', margin: '0 0 0.25rem 0' }}>No tasks scheduled for today</p>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 1.25rem 0' }}>
-                  Add your custom task or load the student starter routine to begin.
+                  Use the <strong>+ Add Task</strong> button above to plan your day, or load the starter routine below.
                 </p>
                 <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                  <button className="btn btn-primary" onClick={() => setShowAddTask(true)}>
-                    <Plus size={16} /> Add First Task
-                  </button>
                   <button
-                    className="btn btn-secondary"
+                    className="btn btn-secondary btn-sm"
                     onClick={handleLoadStarter}
                     disabled={seeding}
                     style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                   >
-                    <Sparkles size={16} color="#f59e0b" />
+                    <Sparkles size={15} color="#f59e0b" />
                     {seeding ? 'Loading Starter Pack…' : 'Load Starter Routine'}
                   </button>
                 </div>
@@ -343,48 +362,6 @@ export default function TodayPage() {
                 )}
               </div>
             )}
-          </div>
-
-          {/* Planning Weights Clarification Box */}
-          <div
-            className="card"
-            style={{
-              background: 'rgba(99, 102, 241, 0.04)',
-              borderColor: 'rgba(99, 102, 241, 0.2)',
-              padding: '1.25rem',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-              <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Sparkles size={16} color="#818cf8" /> The 5 Life Planning Areas
-              </h3>
-              <span style={{ fontSize: '0.72rem', color: '#818cf8', fontWeight: 600 }}>100% Total Focus</span>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.85rem' }}>
-              {AREA_WEIGHT_INFO.map((item) => (
-                <div key={item.area} className="weight-row">
-                  <div className="weight-row-left">
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: item.color, flexShrink: 0 }} />
-                    <span className="weight-label">{item.label}</span>
-                    <span className="weight-desc">— {item.desc}</span>
-                  </div>
-                  <span style={{ fontWeight: 700, color: item.color, flexShrink: 0 }}>{item.weight}%</span>
-                </div>
-              ))}
-            </div>
-
-            <div
-              style={{
-                borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-                paddingTop: '0.65rem',
-                fontSize: '0.78rem',
-                color: 'var(--text-muted)',
-                fontStyle: 'italic',
-              }}
-            >
-              ℹ️ <strong>Design Principle:</strong> These percentages are <em>planning weights</em> to guide your focus distribution, <strong>not scores for your personal worth</strong>. A zero in one area today simply means you focused elsewhere.
-            </div>
           </div>
         </div>
 
@@ -494,7 +471,7 @@ export default function TodayPage() {
           <div className="card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
               <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0 }}>
-                {todaySchedules.length > 0 ? "⏰ Today's Schedule" : "⏰ Balanced Routine"}
+                ⏰ Today's Schedule
               </h3>
               <button
                 className="btn btn-ghost btn-sm"
@@ -531,27 +508,17 @@ export default function TodayPage() {
                 ))}
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', fontSize: '0.8rem' }}>
-                {[
-                  { time: '6:00–6:20 AM', title: 'Wake up, water, reset' },
-                  { time: '6:20–6:45 AM', title: 'English speaking + communication' },
-                  { time: '6:45–7:15 AM', title: 'DSA: solve or review 1 problem' },
-                  { time: 'College hrs',  title: 'Classes, labs & active participation' },
-                  { time: '60–90 min',    title: 'Main deep work block (Coding/Spring)' },
-                  { time: '30 min',       title: 'Java / SQL / roadmap revision' },
-                  { time: '15 min',       title: 'Night reflection & tomorrow plan' },
-                ].map((item, idx) => (
-                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', color: 'var(--text-secondary)' }}>
-                    <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}>{item.time}</span>
-                    <span style={{ fontWeight: 500, flex: 1, minWidth: 0, textAlign: 'right', overflowWrap: 'anywhere' }}>{item.title}</span>
-                  </div>
-                ))}
+              <div style={{ textAlign: 'center', padding: '1.5rem 1rem' }}>
+                <Clock size={28} color="var(--text-muted)" style={{ margin: '0 auto 0.5rem auto', opacity: 0.7 }} />
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: '0 0 0.75rem 0' }}>
+                  No schedule blocks scheduled for today yet.
+                </p>
                 <button
                   className="btn btn-secondary btn-sm"
-                  style={{ marginTop: '0.5rem', width: '100%', justifyContent: 'center', fontSize: '0.78rem' }}
                   onClick={() => setShowAddSchedule(true)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                 >
-                  <Plus size={13} /> Customize Today's Schedule
+                  <Plus size={13} /> Add Schedule Block
                 </button>
               </div>
             )}
@@ -585,6 +552,12 @@ export default function TodayPage() {
           />
         </Modal>
       )}
+
+      {/* Overdue Manager Modal */}
+      <OverdueManagerModal
+        isOpen={showOverdueModal}
+        onClose={() => setShowOverdueModal(false)}
+      />
     </div>
   );
 }

@@ -1,10 +1,7 @@
 import {
   LayoutDashboard,
   Map,
-  CalendarDays,
-  Clock,
   FileText,
-  HardDrive,
   Code2,
   MessageSquare,
   Briefcase,
@@ -15,13 +12,14 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Zap,
+  Sparkles,
   LogOut,
-  Cloud,
   CloudOff,
   RefreshCw,
   User,
   ListTree,
+  Newspaper,
+  AlertCircle,
 } from 'lucide-react';
 import type { NavSection } from '../../App';
 import { useAuth } from '../../context/AuthContext';
@@ -36,23 +34,20 @@ interface SidebarProps {
 }
 
 const NAV_ITEMS: { id: NavSection; label: string; icon: React.ReactNode; color: string }[] = [
-  { id: 'today',        label: 'Today',              icon: <LayoutDashboard size={18} />, color: '#818cf8' },
-  { id: 'task-builder', label: 'Task Builder',       icon: <ListTree size={18} />,        color: '#38bdf8' },
-  { id: 'roadmap',      label: 'My Roadmap',         icon: <Map size={18} />,             color: '#60a5fa' },
-  { id: 'planner',      label: 'Daily Planner',      icon: <CalendarDays size={18} />,    color: '#a78bfa' },
-  { id: 'schedules',    label: 'Schedules',          icon: <Clock size={18} />,           color: '#38bdf8' },
-  { id: 'notes',        label: 'Notes & Insights',   icon: <FileText size={18} />,        color: '#c084fc' },
-  { id: 'uploads',      label: 'Media Vault',        icon: <HardDrive size={18} />,       color: '#14b8a6' },
-  { id: 'technical',    label: 'Technical Mastery',  icon: <Code2 size={18} />,           color: '#6366f1' },
-  { id: 'communication',label: 'Communication',      icon: <MessageSquare size={18} />,   color: '#06b6d4' },
-  { id: 'career',       label: 'Career Readiness',   icon: <Briefcase size={18} />,       color: '#f59e0b' },
-  { id: 'creativity',   label: 'Creativity & Identity',icon: <Palette size={18} />,       color: '#ec4899' },
-  { id: 'health',       label: 'Health & Reflection',icon: <Heart size={18} />,           color: '#10b981' },
-  { id: 'projects',     label: 'My Projects',        icon: <FolderOpen size={18} />,      color: '#f97316' },
-  { id: 'review',       label: 'Weekly Review',      icon: <BarChart3 size={18} />,       color: '#8b5cf6' },
-  { id: 'settings',     label: 'Settings & Data',    icon: <Settings size={18} />,        color: '#94a3b8' },
+  { id: 'today',         label: 'Today',                 icon: <LayoutDashboard size={18} />, color: '#818cf8' },
+  { id: 'task-builder',  label: 'Task Builder',          icon: <ListTree size={18} />,        color: '#38bdf8' },
+  { id: 'projects',      label: 'My Projects',           icon: <FolderOpen size={18} />,      color: '#f97316' },
+  { id: 'roadmap',       label: 'My Roadmap',            icon: <Map size={18} />,             color: '#60a5fa' },
+  { id: 'notes',         label: 'Notes & Insights',      icon: <FileText size={18} />,        color: '#c084fc' },
+  { id: 'technical',     label: 'Technical Mastery',     icon: <Code2 size={18} />,           color: '#6366f1' },
+  { id: 'communication', label: 'Communication',         icon: <MessageSquare size={18} />,   color: '#06b6d4' },
+  { id: 'career',        label: 'Career Readiness',      icon: <Briefcase size={18} />,       color: '#f59e0b' },
+  { id: 'creativity',    label: 'Creativity & Identity', icon: <Palette size={18} />,         color: '#ec4899' },
+  { id: 'health',        label: 'Health & Reflection',   icon: <Heart size={18} />,           color: '#10b981' },
+  { id: 'review',        label: 'Weekly Review',         icon: <BarChart3 size={18} />,       color: '#8b5cf6' },
+  { id: 'news',          label: 'News',                  icon: <Newspaper size={18} />,       color: '#14b8a6' },
+  { id: 'settings',      label: 'Settings & Data',       icon: <Settings size={18} />,        color: '#94a3b8' },
 ];
-
 
 export default function Sidebar({ active, onNavigate, collapsed, onToggle }: SidebarProps) {
   const { user, signOut, isGuest } = useAuth();
@@ -93,26 +88,26 @@ export default function Sidebar({ active, onNavigate, collapsed, onToggle }: Sid
             boxShadow: '0 4px 12px rgba(99,102,241,0.4)',
           }}
         >
-          <Zap size={18} color="white" />
+          <Sparkles size={18} color="white" />
         </div>
         {!collapsed && (
           <div>
             <div style={{ color: '#e2e8f0', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.05rem', lineHeight: 1 }}>
-              LifeMap
+              Life OS
             </div>
             <div style={{ color: 'rgba(148,163,184,0.7)', fontSize: '0.65rem', fontWeight: 500, marginTop: '2px' }}>
-              Personal Progress OS
+              Personal Progress System
             </div>
           </div>
         )}
       </div>
 
-      {/* Sync Status Badge */}
-      {!collapsed && (
+      {/* Sync Status Badge — Clean: Only visible if syncing, error or offline */}
+      {!collapsed && syncStatus !== 'synced' && (
         <div
           style={{
-            padding: '0.5rem 1rem',
-            background: 'rgba(255, 255, 255, 0.02)',
+            padding: '0.45rem 1rem',
+            background: syncStatus === 'error' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(255, 255, 255, 0.03)',
             borderBottom: '1px solid var(--border)',
             display: 'flex',
             alignItems: 'center',
@@ -121,16 +116,13 @@ export default function Sidebar({ active, onNavigate, collapsed, onToggle }: Sid
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            {syncStatus === 'synced' && <Cloud size={13} color="#10b981" />}
             {syncStatus === 'syncing' && <RefreshCw size={13} color="#818cf8" className="animate-spin" />}
             {syncStatus === 'offline' && <CloudOff size={13} color="#f59e0b" />}
-            {syncStatus === 'error' && <CloudOff size={13} color="#ef4444" />}
+            {syncStatus === 'error' && <AlertCircle size={13} color="#ef4444" />}
             <span
               style={{
                 color:
-                  syncStatus === 'synced'
-                    ? '#10b981'
-                    : syncStatus === 'syncing'
+                  syncStatus === 'syncing'
                     ? '#818cf8'
                     : syncStatus === 'error'
                     ? '#ef4444'
@@ -138,13 +130,11 @@ export default function Sidebar({ active, onNavigate, collapsed, onToggle }: Sid
                 fontWeight: 600,
               }}
             >
-              {syncStatus === 'synced'
-                ? 'Cloud Synced'
-                : syncStatus === 'syncing'
-                ? 'Syncing…'
+              {syncStatus === 'syncing'
+                ? 'Syncing changes…'
                 : syncStatus === 'error'
-                ? 'Sync Error'
-                : 'Local / Offline'}
+                ? 'Sync Error — check connection'
+                : 'Offline mode'}
             </span>
           </div>
           {isGuest && (

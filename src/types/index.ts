@@ -1,12 +1,26 @@
 // LifeMap Data Types
 // Keep this file pure — no React imports, no side effects.
 
-export type LifeArea =
+export type DefaultLifeArea =
   | 'technical'
   | 'communication'
   | 'career'
   | 'creativity'
   | 'health';
+
+export type LifeArea = DefaultLifeArea | string;
+
+export interface CustomLifeArea {
+  id: string; // Stable identifier: 'technical', 'communication', etc., or custom slug
+  name: string; // Display name: "Technical Mastery"
+  description?: string;
+  icon: string; // Icon identifier or emoji
+  color: string; // Hex color code
+  weight: number; // Planning weight percentage (0-100)
+  isEnabled: boolean; // Visible in filters and menus
+  orderIndex: number;
+  isCustom?: boolean;
+}
 
 export type TaskStatus = 'not-started' | 'in-progress' | 'completed' | 'rescheduled';
 export type TaskPriority = 'low' | 'medium' | 'high' | 'critical';
@@ -17,6 +31,7 @@ export interface Task {
   description?: string;
   lifeArea: LifeArea;
   projectId?: string;
+  roadmapMonth?: number;    // 1-8 or any assigned roadmap month
   dueDate: string; // ISO date string YYYY-MM-DD
   plannedStartTime?: string; // HH:mm
   duration?: number; // minutes
@@ -106,7 +121,7 @@ export interface CommunicationEntry {
 
 export interface CareerItem {
   id: string;
-  type: 'resume' | 'github' | 'linkedin' | 'dsa' | 'cs-fundamentals' | 'mock-interview' | 'internship';
+  type: 'resume' | 'github' | 'linkedin' | 'dsa' | 'cs-fundamentals' | 'mock-interview' | 'internship' | 'other';
   title: string;
   description?: string;
   status: 'todo' | 'in-progress' | 'done';
@@ -142,6 +157,9 @@ export interface Project {
   technologies: string[];
   repoUrl?: string;
   nextAction?: string;
+  startDate?: string;
+  targetDate?: string;
+  priority?: TaskPriority;
   createdAt: string;
   updatedAt: string;
 }
@@ -162,7 +180,19 @@ export interface ProjectMilestone {
 
 export interface ContentItem {
   id: string;
-  type: 'tamil-book' | 'youtube' | 'video-editing' | 'instagram' | 'linkedin' | 'personal-photos';
+  type:
+    | 'tamil-book'
+    | 'youtube'
+    | 'video-editing'
+    | 'instagram'
+    | 'linkedin'
+    | 'personal-photos'
+    | 'writing'
+    | 'media'
+    | 'tech-writing'
+    | 'design'
+    | 'identity'
+    | 'other';
   title: string;
   idea?: string;
   draft?: string;
@@ -244,10 +274,127 @@ export interface UserUpload {
   updatedAt: string; // ISO datetime
 }
 
+export type ThemePreset = 'navy-purple' | 'dark-slate' | 'midnight-oled' | 'cyberpunk' | 'clean-light';
+
+export interface AppearanceSettings {
+  theme: 'dark' | 'light' | 'system';
+  themePreset: ThemePreset;
+  accentColor: string; // e.g. '#6366f1'
+  backgroundImageUrl?: string;
+  backgroundOverlayOpacity: number; // 0.1 to 0.95
+}
+
+export type AiProvider = 'openai' | 'gemini';
+
+export interface AiSettings {
+  provider: AiProvider;
+  model: string;
+  isConfigured?: boolean;
+}
+
+export interface CommunicationSession {
+  id: string;
+  userId?: string;
+  date: string; // YYYY-MM-DD
+  startTime?: string; // HH:mm
+  endTime?: string; // HH:mm
+  durationMinutes: number;
+  activityType: 'speaking' | 'presentation' | 'discussion' | 'interview' | 'vocabulary' | 'listening' | 'writing' | 'other';
+  topic: string;
+  description?: string;
+  notes?: string;
+  attendanceStatus: 'present' | 'attended' | 'missed' | 'excused';
+  completionStatus: 'completed' | 'partial' | 'in-progress';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NewsArticle {
+  id: string;
+  title: string;
+  source: string;
+  url: string;
+  publishedAt: string;
+  category: 'tech' | 'career' | 'ai' | 'general';
+  summary?: string;
+  author?: string;
+  score?: number;
+}
+
+export const DEFAULT_LIFE_AREAS: CustomLifeArea[] = [
+  {
+    id: 'technical',
+    name: 'Technical Mastery',
+    description: 'Core coding, DSA, system projects & architecture',
+    icon: 'Code2',
+    color: '#6366f1',
+    weight: 50,
+    isEnabled: true,
+    orderIndex: 0,
+  },
+  {
+    id: 'communication',
+    name: 'Communication',
+    description: 'English fluency, speaking, articulate thoughts & discussions',
+    icon: 'MessageSquare',
+    color: '#06b6d4',
+    weight: 15,
+    isEnabled: true,
+    orderIndex: 1,
+  },
+  {
+    id: 'career',
+    name: 'Career Readiness',
+    description: 'Resume, GitHub, internships, interview prep & LinkedIn',
+    icon: 'Briefcase',
+    color: '#f59e0b',
+    weight: 15,
+    isEnabled: true,
+    orderIndex: 2,
+  },
+  {
+    id: 'creativity',
+    name: 'Creativity & Identity',
+    description: 'Creative projects, ideas, writing, content & identity',
+    icon: 'Palette',
+    color: '#ec4899',
+    weight: 10,
+    isEnabled: true,
+    orderIndex: 3,
+  },
+  {
+    id: 'health',
+    name: 'Health & Reflection',
+    description: 'Sleep, exercise, connections, habits & calm mindset',
+    icon: 'Heart',
+    color: '#10b981',
+    weight: 10,
+    isEnabled: true,
+    orderIndex: 4,
+  },
+];
+
+export const DEFAULT_APPEARANCE: AppearanceSettings = {
+  theme: 'dark',
+  themePreset: 'navy-purple',
+  accentColor: '#6366f1',
+  backgroundImageUrl: '',
+  backgroundOverlayOpacity: 0.85,
+};
+
+export const DEFAULT_AI_SETTINGS: AiSettings = {
+  provider: 'gemini',
+  model: 'gemini-2.0-flash',
+  isConfigured: false,
+};
+
 export interface AppSettings {
   theme: 'dark' | 'light' | 'system';
   displayName: string;
   lifeAreaWeights: LifeAreaWeights;
+  lifeAreas: CustomLifeArea[];
+  appearance: AppearanceSettings;
+  aiSettings: AiSettings;
   workingHoursStart: string;
   workingHoursEnd: string;
   timezone: string;
@@ -263,6 +410,7 @@ export interface AppData {
   dailyRecords: DailyRecord[];
   roadmapMilestones: RoadmapMilestone[];
   communicationEntries: CommunicationEntry[];
+  communicationSessions?: CommunicationSession[];
   careerItems: CareerItem[];
   internshipApplications: InternshipApplication[];
   projects: Project[];
@@ -270,4 +418,5 @@ export interface AppData {
   healthEntries: HealthEntry[];
   weeklyReviews: WeeklyReview[];
 }
+
 

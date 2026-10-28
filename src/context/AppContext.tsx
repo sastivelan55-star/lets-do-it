@@ -1,6 +1,21 @@
 /* oxlint-disable react/only-export-components */
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import type { AppSettings, Task, RoadmapMilestone, Project, DailyRecord, ScheduleEntry, Note, UserUpload } from '../types';
+import type {
+  AppSettings,
+  Task,
+  RoadmapMilestone,
+  Project,
+  DailyRecord,
+  ScheduleEntry,
+  Note,
+  UserUpload,
+  CustomLifeArea,
+  AppearanceSettings,
+  CommunicationSession,
+  LifeArea,
+  TaskPriority,
+} from '../types';
+import { DEFAULT_LIFE_AREAS, DEFAULT_APPEARANCE } from '../types';
 import { useAuth } from './AuthContext';
 import {
   fetchUserTasks,
@@ -35,6 +50,12 @@ import {
   updateUserUploadMetadata,
   getUploadSignedUrl,
 } from '../services/uploadService';
+import {
+  fetchUserCommunicationSessions,
+  createCommunicationSession,
+  updateCommunicationSession as updateCloudCommSession,
+  deleteCommunicationSession as deleteCloudCommSession,
+} from '../services/communicationService';
 import { extractErrorInfo, formatSafeErrorMessage, logSafeError } from '../utils/errorUtils';
 import { nanoid } from '../utils/nanoid';
 import {
@@ -76,12 +97,17 @@ interface AppContextValue {
   milestones: RoadmapMilestone[];
   projects: Project[];
   dailyRecords: DailyRecord[];
+  communicationSessions: CommunicationSession[];
   isLoading: boolean;
   error: string | null;
   syncStatus: SyncStatus;
 
-  // Settings
+  // Settings & Customization
   updateSettings: (partial: Partial<AppSettings>) => Promise<void>;
+  customLifeAreas: CustomLifeArea[];
+  updateLifeAreas: (areas: CustomLifeArea[]) => Promise<void>;
+  restoreDefaultLifeAreas: () => Promise<void>;
+  updateAppearance: (appearance: Partial<AppearanceSettings>) => Promise<void>;
 
   // Tasks CRUD
   addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Task>;
@@ -94,6 +120,18 @@ interface AppContextValue {
   emptyRecycleBin: () => Promise<void>;
   reorderTasks: (updates: { id: string; orderIndex: number }[]) => Promise<void>;
   loadStarterPack: () => Promise<void>;
+  moveTaskArea: (taskId: string, targetArea: LifeArea) => Promise<void>;
+  assignTask: (
+    taskId: string,
+    updates: {
+      lifeArea?: LifeArea;
+      roadmapMonth?: number | null;
+      projectId?: string | null;
+      dueDate?: string;
+      priority?: TaskPriority;
+    }
+  ) => Promise<void>;
+  rescheduleAllOverdueTasks: (newDate: string) => Promise<{ count: number }>;
   todaysTasks: Task[];
   overdueTasks: Task[];
   deletedTasks: Task[];
@@ -107,6 +145,11 @@ interface AppContextValue {
   addNote: (data: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Note>;
   updateNote: (note: Note) => Promise<void>;
   removeNote: (id: string) => Promise<void>;
+
+  // Communication Practice & Attendance Tracking
+  addCommunicationSession: (session: Omit<CommunicationSession, 'id' | 'createdAt' | 'updatedAt'>) => Promise<CommunicationSession>;
+  updateCommunicationSession: (session: CommunicationSession) => Promise<void>;
+  removeCommunicationSession: (id: string) => Promise<void>;
 
   // Uploads & Media Vault
   uploadFile: (file: File, description?: string, onProgress?: (percent: number) => void) => Promise<UserUpload>;
@@ -156,6 +199,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [milestones, setMilestones] = useState<RoadmapMilestone[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [dailyRecords, setDailyRecords] = useState<DailyRecord[]>([]);
+  const [communicationSessions, setCommunicationSessions] = useState<CommunicationSession[]>([]);
   // Start loading=true until auth resolves, so we never flash stale/offline data
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -164,9 +208,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Track previous user id so we can detect account switches
   const prevUserIdRef = useRef<string | null | undefined>(undefined);
 
-
-  // ── Apply Theme ──────────────────────────────────────────────────────────
-  function applyTheme(theme: AppSettings['theme']) {
+  // ── Apply Theme & Appearance ──────────────────────────────────────────────
+  function applyTheme(theme: AppSettings['theme'], appearance?: AppearanceSettings) {
     const root = document.documentElement;
     if (theme === 'dark') {
       root.classList.add('dark');
@@ -178,6 +221,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         root.classList.add('dark');
       } else {
         root.classList.remove('dark');
+      }
+    }
+
+    if (appearance) {
+      if (appearance.themePreset) {
+        root.setAttribute('data-theme-preset', appearance.themePreset);
+      }
+      if (appearance.accentColor) {
+        root.style.setProperty('--accent', appearance.accentColor);
+        root.style.setProperty('--accent-glow', `${appearance.accentColor}33`);
+      }
+      if (appearance.backgroundImageUrl) {
+        root.style.setProperty('--user-bg-image', `url("${appearance.backgroundImageUrl}")`);
+      } else {
+        root.style.removeProperty('--user-bg-image');
+      }
+      if (typeof appearance.backgroundOverlayOpacity === 'number') {
+        root.style.setProperty('--user-bg-overlay-opacity', String(appearance.backgroundOverlayOpacity));
       }
     }
   }
@@ -192,7 +253,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           await saveSettings(s);
         }
         setSettings(s);
-        applyTheme(s.theme);
+        applyTheme(s.theme, s.appearance);
 
         let ms = await getAllMilestones();
         if (ms.length === 0) {
@@ -229,11 +290,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (user && isConfigured) {
         setSyncStatus('syncing');
 
-        const [tasksRes, schedulesRes, notesRes, uploadsRes] = await Promise.allSettled([
+        const [tasksRes, schedulesRes, notesRes, uploadsRes, commRes] = await Promise.allSettled([
           fetchUserTasks(user.id),
           fetchUserSchedules(user.id),
           fetchUserNotes(user.id),
           fetchUserUploads(user.id),
+          fetchUserCommunicationSessions(user.id),
         ]);
 
         let hasCriticalTaskError = false;
@@ -262,7 +324,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           logSafeError('Load User Schedules', schedulesRes.reason);
           const info = extractErrorInfo(schedulesRes.reason, 'Load schedules');
           if (info.isSchemaMissing) {
-            console.warn('[LifeMap] Schedules table not yet in Supabase schema cache. Run migration 20261016000000_create_schedules_and_notes_tables.sql.');
+            console.warn('[Life OS] Schedules table not yet in Supabase schema cache. Run migration 20261016000000_create_schedules_and_notes_tables.sql.');
           }
           setSchedules([]);
         }
@@ -274,7 +336,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           logSafeError('Load User Notes', notesRes.reason);
           const info = extractErrorInfo(notesRes.reason, 'Load notes');
           if (info.isSchemaMissing) {
-            console.warn('[LifeMap] Notes table not yet in Supabase schema cache. Run migration 20261016000000_create_schedules_and_notes_tables.sql.');
+            console.warn('[Life OS] Notes table not yet in Supabase schema cache. Run migration 20261016000000_create_schedules_and_notes_tables.sql.');
           }
           setNotes([]);
         }
@@ -286,9 +348,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           logSafeError('Load User Uploads', uploadsRes.reason);
           const info = extractErrorInfo(uploadsRes.reason, 'Load uploads');
           if (info.isSchemaMissing) {
-            console.warn('[LifeMap] user_uploads table or media-vault bucket not yet in Supabase. Run migration 20261016100000_create_media_vault_and_uploads.sql.');
+            console.warn('[Life OS] user_uploads table or media-vault bucket not yet in Supabase. Run migration 20261016100000_create_media_vault_and_uploads.sql.');
           }
           setUploads([]);
+        }
+
+        // 5. Process Communication Sessions
+        if (commRes.status === 'fulfilled') {
+          setCommunicationSessions(commRes.value);
+        } else {
+          logSafeError('Load User Communication Sessions', commRes.reason);
+          setCommunicationSessions([]);
         }
 
         if (hasCriticalTaskError) {
@@ -301,15 +371,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       } else {
         // Fallback to local storage (Guest mode or Supabase not configured)
         setSyncStatus('offline');
-        const [localTasks, localSchedules, localNotes] = await Promise.all([
+        const [localTasks, localSchedules, localNotes, localComm] = await Promise.all([
           getAllTasks(),
           getAllSchedules(),
           getAllNotes(),
+          fetchUserCommunicationSessions(''),
         ]);
         setAllTasks(localTasks);
         setSchedules(localSchedules);
         setNotes(localNotes);
         setUploads([]);
+        setCommunicationSessions(localComm);
       }
     } catch (err: unknown) {
       logSafeError('Bootstrap User Data', err);
@@ -331,6 +403,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setSchedules([]);
       setNotes([]);
       setUploads([]);
+      setCommunicationSessions([]);
       setSyncStatus('synced');
       setError(null);
     }
@@ -370,15 +443,54 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user, isConfigured, authIsLoading]);
 
-  // ── Settings ─────────────────────────────────────────────────────────────
+  // ── Settings & Customization ─────────────────────────────────────────────
   const updateSettings = useCallback(async (partial: Partial<AppSettings>) => {
     setSettings((prev) => {
       const next = { ...prev, ...partial };
       saveSettings(next);
-      if (partial.theme) applyTheme(partial.theme);
+      applyTheme(next.theme, next.appearance);
       return next;
     });
   }, []);
+
+  const customLifeAreas = useMemo(() => {
+    return settings.lifeAreas && settings.lifeAreas.length > 0
+      ? settings.lifeAreas
+      : DEFAULT_LIFE_AREAS;
+  }, [settings.lifeAreas]);
+
+  const updateLifeAreas = useCallback(
+    async (areas: CustomLifeArea[]) => {
+      const weights: Record<string, number> = {};
+      for (const a of areas) {
+        weights[a.id] = a.weight;
+      }
+      await updateSettings({ lifeAreas: areas, lifeAreaWeights: weights as any });
+    },
+    [updateSettings]
+  );
+
+  const restoreDefaultLifeAreas = useCallback(async () => {
+    const defaultWeights = {
+      technical: 50,
+      communication: 15,
+      career: 15,
+      creativity: 10,
+      health: 10,
+    };
+    await updateSettings({ lifeAreas: DEFAULT_LIFE_AREAS, lifeAreaWeights: defaultWeights });
+  }, [updateSettings]);
+
+  const updateAppearance = useCallback(
+    async (partial: Partial<AppearanceSettings>) => {
+      const nextAppearance: AppearanceSettings = {
+        ...(settings.appearance || DEFAULT_APPEARANCE),
+        ...partial,
+      };
+      await updateSettings({ appearance: nextAppearance, theme: nextAppearance.theme });
+    },
+    [settings.appearance, updateSettings]
+  );
 
   // ── Tasks Operations (with Optimistic UI + Server Rollback) ──────────────
   const addTask = useCallback(
@@ -762,6 +874,75 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, isConfigured]);
 
+  const moveTaskArea = useCallback(
+    async (taskId: string, targetArea: LifeArea) => {
+      const task = allTasks.find((t) => t.id === taskId);
+      if (!task) return;
+      const updated: Task = {
+        ...task,
+        lifeArea: targetArea,
+        updatedAt: nowISO(),
+      };
+      await updateTask(updated);
+    },
+    [allTasks, updateTask]
+  );
+
+  const assignTask = useCallback(
+    async (
+      taskId: string,
+      updates: {
+        lifeArea?: LifeArea;
+        roadmapMonth?: number | null;
+        projectId?: string | null;
+        dueDate?: string;
+        priority?: TaskPriority;
+      }
+    ) => {
+      const task = allTasks.find((t) => t.id === taskId);
+      if (!task) return;
+      const updated: Task = {
+        ...task,
+        ...(updates.lifeArea !== undefined ? { lifeArea: updates.lifeArea } : {}),
+        ...(updates.roadmapMonth !== undefined ? { roadmapMonth: updates.roadmapMonth ?? undefined } : {}),
+        ...(updates.projectId !== undefined ? { projectId: updates.projectId ?? undefined } : {}),
+        ...(updates.dueDate !== undefined ? { dueDate: updates.dueDate } : {}),
+        ...(updates.priority !== undefined ? { priority: updates.priority } : {}),
+        updatedAt: nowISO(),
+      };
+      await updateTask(updated);
+    },
+    [allTasks, updateTask]
+  );
+
+  const rescheduleAllOverdueTasks = useCallback(
+    async (newDate: string): Promise<{ count: number }> => {
+      const todayStr = today();
+      const toReschedule = allTasks.filter(
+        (t) => !t.isDeleted && t.dueDate < todayStr && t.status !== 'completed' && t.status !== 'rescheduled'
+      );
+
+      if (toReschedule.length === 0) return { count: 0 };
+
+      setSyncStatus('syncing');
+      const updateTime = nowISO();
+      for (const task of toReschedule) {
+        const updated: Task = {
+          ...task,
+          dueDate: newDate,
+          status: 'rescheduled',
+          rescheduledFrom: task.dueDate,
+          rescheduledTo: newDate,
+          updatedAt: updateTime,
+        };
+        await updateTask(updated);
+      }
+      setSyncStatus('synced');
+      return { count: toReschedule.length };
+    },
+    [allTasks, updateTask]
+  );
+
   // ── Computed Lists & Metrics ─────────────────────────────────────────────
   const currentDate = today();
 
@@ -1070,6 +1251,64 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [user, isConfigured]
   );
 
+  // ── Communication Practice & Attendance Tracking Operations ────────────
+  const addCommunicationSession = useCallback(
+    async (
+      sessionData: Omit<CommunicationSession, 'id' | 'createdAt' | 'updatedAt'>
+    ): Promise<CommunicationSession> => {
+      setSyncStatus('syncing');
+      try {
+        const created = await createCommunicationSession(sessionData, user?.id);
+        setCommunicationSessions((prev) => [created, ...prev.filter((s) => s.id !== created.id)]);
+        setSyncStatus(user && isConfigured ? 'synced' : 'offline');
+        return created;
+      } catch (err: unknown) {
+        setSyncStatus('error');
+        logSafeError('Create Communication Session', err);
+        const msg = formatSafeErrorMessage(err, 'Failed to save communication session');
+        setError(msg);
+        throw err;
+      }
+    },
+    [user, isConfigured]
+  );
+
+  const updateCommunicationSession = useCallback(
+    async (session: CommunicationSession): Promise<void> => {
+      setSyncStatus('syncing');
+      try {
+        const updated = await updateCloudCommSession(session, user?.id);
+        setCommunicationSessions((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+        setSyncStatus(user && isConfigured ? 'synced' : 'offline');
+      } catch (err: unknown) {
+        setSyncStatus('error');
+        logSafeError('Update Communication Session', err);
+        const msg = formatSafeErrorMessage(err, 'Failed to update communication session');
+        setError(msg);
+        throw err;
+      }
+    },
+    [user, isConfigured]
+  );
+
+  const removeCommunicationSession = useCallback(
+    async (id: string): Promise<void> => {
+      setSyncStatus('syncing');
+      try {
+        await deleteCloudCommSession(id, user?.id);
+        setCommunicationSessions((prev) => prev.filter((s) => s.id !== id));
+        setSyncStatus(user && isConfigured ? 'synced' : 'offline');
+      } catch (err: unknown) {
+        setSyncStatus('error');
+        logSafeError('Delete Communication Session', err);
+        const msg = formatSafeErrorMessage(err, 'Failed to delete communication session');
+        setError(msg);
+        throw err;
+      }
+    },
+    [user, isConfigured]
+  );
+
   // ── Uploads & Media Vault Operations ─────────────────────────────────────
   const uploadFile = useCallback(
     async (file: File, description?: string, onProgress?: (percent: number) => void): Promise<UserUpload> => {
@@ -1169,7 +1408,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `lifemap-backup-${today()}.json`;
+    a.download = `life-os-backup-${today()}.json`;
     a.click();
     URL.revokeObjectURL(url);
   }, [tasks, schedules, notes, uploads]);
@@ -1184,7 +1423,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     await importAllData(data as Parameters<typeof importAllData>[0]);
     // Reload state
-    const [t, sc, nt, ms, ps, dr, s] = await Promise.all([
+    const [t, sc, nt, ms, ps, dr, s, comm] = await Promise.all([
       getAllTasks(),
       getAllSchedules(),
       getAllNotes(),
@@ -1192,6 +1431,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       getAllProjects(),
       getAllDailyRecords(),
       getSettings(),
+      fetchUserCommunicationSessions(''),
     ]);
     setAllTasks(t);
     setSchedules(sc);
@@ -1199,7 +1439,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setMilestones(ms);
     setProjects(ps);
     setDailyRecords(dr);
-    if (s) setSettings(s);
+    setCommunicationSessions(comm);
+    if (s) {
+      setSettings(s);
+      applyTheme(s.theme, s.appearance);
+    }
   }, []);
 
   const resetData = useCallback(async () => {
@@ -1207,11 +1451,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const s = getDefaultSettings();
     await saveSettings(s);
     setSettings(s);
+    applyTheme(s.theme, s.appearance);
     setAllTasks([]);
     setSchedules([]);
     setNotes([]);
     setUploads([]);
     setDailyRecords([]);
+    setCommunicationSessions([]);
     for (const m of INITIAL_MILESTONES) await saveMilestone(m);
     for (const p of INITIAL_PROJECTS) await saveProject(p);
     setMilestones(INITIAL_MILESTONES);
@@ -1229,10 +1475,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         milestones,
         projects,
         dailyRecords,
+        communicationSessions,
         isLoading,
         error,
         syncStatus,
         updateSettings,
+        customLifeAreas,
+        updateLifeAreas,
+        restoreDefaultLifeAreas,
+        updateAppearance,
         addTask,
         updateTask,
         completeTask,
@@ -1243,6 +1494,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         emptyRecycleBin,
         reorderTasks,
         loadStarterPack,
+        moveTaskArea,
+        assignTask,
+        rescheduleAllOverdueTasks,
         todaysTasks,
         overdueTasks,
         deletedTasks,
@@ -1252,6 +1506,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         addNote,
         updateNote,
         removeNote,
+        addCommunicationSession,
+        updateCommunicationSession,
+        removeCommunicationSession,
         uploadFile,
         removeUpload,
         updateUpload,
