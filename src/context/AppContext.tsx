@@ -232,14 +232,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         root.style.setProperty('--accent', appearance.accentColor);
         root.style.setProperty('--accent-glow', `${appearance.accentColor}33`);
       }
-      if (appearance.backgroundImageUrl) {
-        root.style.setProperty('--user-bg-image', `url("${appearance.backgroundImageUrl}")`);
+      if (appearance.backgroundImageUrl && appearance.backgroundImageUrl.trim().length > 0) {
+        root.style.setProperty('--user-bg-image', `url("${appearance.backgroundImageUrl.trim()}")`);
+        root.style.setProperty('--user-bg-overlay-display', 'block');
+        const raw = typeof appearance.backgroundOverlayOpacity === 'number'
+          ? appearance.backgroundOverlayOpacity
+          : 0.25;
+        const normalized = raw > 1 ? raw / 100 : raw;
+        const clamped = Math.min(0.65, Math.max(0.05, normalized));
+        root.style.setProperty('--user-bg-overlay-opacity', String(clamped));
       } else {
         root.style.removeProperty('--user-bg-image');
+        root.style.setProperty('--user-bg-overlay-display', 'none');
+        root.style.setProperty('--user-bg-overlay-opacity', '0');
       }
-      if (typeof appearance.backgroundOverlayOpacity === 'number') {
-        root.style.setProperty('--user-bg-overlay-opacity', String(appearance.backgroundOverlayOpacity));
-      }
+    } else {
+      root.style.removeProperty('--user-bg-image');
+      root.style.setProperty('--user-bg-overlay-display', 'none');
+      root.style.setProperty('--user-bg-overlay-opacity', '0');
     }
   }
 

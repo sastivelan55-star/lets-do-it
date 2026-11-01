@@ -11,6 +11,7 @@ import {
   AlertCircle,
   Sliders,
   Sparkles,
+  CalendarCheck,
 } from 'lucide-react';
 import Modal from '../components/ui/Modal';
 import ProgressRing from '../components/ui/ProgressRing';
@@ -68,7 +69,11 @@ const DEFAULT_FORM: SessionFormData = {
   completionStatus: 'completed',
 };
 
-export default function CommunicationPage() {
+export interface CommunicationPageProps {
+  initialView?: 'communication' | 'attendance';
+}
+
+export default function CommunicationPage({ initialView = 'communication' }: CommunicationPageProps = {}) {
   const { communicationSessions, addCommunicationSession, updateCommunicationSession, removeCommunicationSession } =
     useApp();
 
@@ -250,11 +255,24 @@ export default function CommunicationPage() {
 
         <div style={{ flex: 1, minWidth: 260 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
-            <MessageSquare size={22} color="#06b6d4" />
-            <h1 style={{ fontSize: '1.4rem', fontWeight: 800 }}>Communication & Attendance Tracker</h1>
+            {initialView === 'attendance' ? (
+              <>
+                <CalendarCheck size={22} color="#38bdf8" />
+                <h1 style={{ fontSize: '1.4rem', fontWeight: 800 }}>Attendance & Scheduled Sessions</h1>
+              </>
+            ) : (
+              <>
+                <MessageSquare size={22} color="#06b6d4" />
+                <h1 style={{ fontSize: '1.4rem', fontWeight: 800 }}>Communication & Speech Fluency</h1>
+              </>
+            )}
           </div>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
-            Focus: <strong style={{ color: '#06b6d4' }}>{focusAreaTitle}</strong>
+            {initialView === 'attendance' ? (
+              <>Session consistency, presence rates, and punctuality records.</>
+            ) : (
+              <>Focus: <strong style={{ color: '#06b6d4' }}>{focusAreaTitle}</strong></>
+            )}
           </p>
           <div style={{ display: 'flex', gap: '1.25rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
             <div>

@@ -1,12 +1,18 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import {
-  LayoutDashboard, Map, FolderOpen,
-  MoreHorizontal, Code2, MessageSquare, Briefcase, Palette, Heart,
-  BarChart3, Settings, X, FileText, LogOut, User,
-  ListTree, Newspaper,
+  LayoutDashboard,
+  ListTree,
+  Map,
+  Heart,
+  FileText,
+  Newspaper,
+  Settings,
+  MoreHorizontal,
+  X,
+  LogOut,
+  User,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-
 import type { NavSection } from '../../App';
 
 interface MobileNavProps {
@@ -14,29 +20,22 @@ interface MobileNavProps {
   onNavigate: (section: NavSection) => void;
 }
 
-// Primary 4 tabs always shown in the bottom bar alongside More
+// 4 primary tabs always shown in the mobile bottom bar alongside 'More'
 const PRIMARY_NAV: { id: NavSection; label: string; icon: React.ReactNode }[] = [
-  { id: 'today',        label: 'Today',    icon: <LayoutDashboard size={20} /> },
-  { id: 'task-builder', label: 'Builder',  icon: <ListTree size={20} /> },
-  { id: 'projects',     label: 'Projects', icon: <FolderOpen size={20} /> },
-  { id: 'roadmap',      label: 'Roadmap',  icon: <Map size={20} /> },
+  { id: 'home',     label: 'Home',     icon: <LayoutDashboard size={20} /> },
+  { id: 'tasks',    label: 'Tasks',    icon: <ListTree size={20} /> },
+  { id: 'journey',  label: 'Journey',  icon: <Map size={20} /> },
+  { id: 'personal', label: 'Personal', icon: <Heart size={20} /> },
 ];
 
-// All sections accessible from the "More" drawer
-const MORE_NAV: { id: NavSection; label: string; icon: React.ReactNode }[] = [
-  { id: 'notes',         label: 'Notes',         icon: <FileText size={20} /> },
-  { id: 'technical',     label: 'Technical',     icon: <Code2 size={20} /> },
-  { id: 'communication', label: 'Communication', icon: <MessageSquare size={20} /> },
-  { id: 'career',        label: 'Career',        icon: <Briefcase size={20} /> },
-  { id: 'creativity',    label: 'Creativity',    icon: <Palette size={20} /> },
-  { id: 'health',        label: 'Health',        icon: <Heart size={20} /> },
-  { id: 'review',        label: 'Review',        icon: <BarChart3 size={20} /> },
-  { id: 'news',          label: 'News',          icon: <Newspaper size={20} /> },
-  { id: 'settings',      label: 'Settings',      icon: <Settings size={20} /> },
+// Sections accessible from the "More" drawer
+const MORE_NAV: { id: NavSection; label: string; icon: React.ReactNode; color: string }[] = [
+  { id: 'knowledge', label: 'Notes & Knowledge', icon: <FileText size={20} />,  color: '#c084fc' },
+  { id: 'explore',   label: 'Explore',           icon: <Newspaper size={20} />, color: '#14b8a6' },
+  { id: 'review',    label: 'Review & Settings', icon: <Settings size={20} />,  color: '#94a3b8' },
 ];
 
-// All sections not in the primary bar
-const MORE_SECTION_IDS = MORE_NAV.map(n => n.id) as NavSection[];
+const MORE_SECTION_IDS: NavSection[] = ['knowledge', 'explore', 'review'];
 
 export default function MobileNav({ active, onNavigate }: MobileNavProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -50,7 +49,7 @@ export default function MobileNav({ active, onNavigate }: MobileNavProps) {
 
   return (
     <>
-      {/* Bottom Nav Bar */}
+      {/* Bottom Navigation Bar */}
       <nav className="mobile-nav" aria-label="Mobile navigation">
         {PRIMARY_NAV.map((item) => (
           <button
@@ -70,8 +69,8 @@ export default function MobileNav({ active, onNavigate }: MobileNavProps) {
         {/* More button */}
         <button
           className={`mobile-nav-btn${moreIsActive || drawerOpen ? ' active' : ''}`}
-          onClick={() => setDrawerOpen(v => !v)}
-          aria-label="More sections"
+          onClick={() => setDrawerOpen((v) => !v)}
+          aria-label="More destinations"
           aria-expanded={drawerOpen}
           style={{ position: 'relative' }}
         >
@@ -81,7 +80,7 @@ export default function MobileNav({ active, onNavigate }: MobileNavProps) {
         </button>
       </nav>
 
-      {/* More drawer */}
+      {/* Drawer for remaining destinations */}
       {drawerOpen && (
         <>
           <div
@@ -90,8 +89,18 @@ export default function MobileNav({ active, onNavigate }: MobileNavProps) {
             aria-hidden="true"
           />
           <div className="mobile-drawer" role="dialog" aria-label="More navigation">
-            <p style={{ fontSize: '0.72rem', color: 'rgba(148,163,184,0.5)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.75rem', textAlign: 'center' }}>
-              Life Areas & More
+            <p
+              style={{
+                fontSize: '0.72rem',
+                color: 'rgba(148,163,184,0.5)',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                marginBottom: '0.75rem',
+                textAlign: 'center',
+              }}
+            >
+              Destinations & Account
             </p>
             <div className="mobile-drawer-grid">
               {MORE_NAV.map((item) => (
@@ -102,7 +111,9 @@ export default function MobileNav({ active, onNavigate }: MobileNavProps) {
                   aria-label={item.label}
                   aria-current={active === item.id ? 'page' : undefined}
                 >
-                  {item.icon}
+                  <span style={{ color: active === item.id ? item.color : undefined }}>
+                    {item.icon}
+                  </span>
                   <span>{item.label}</span>
                 </button>
               ))}
@@ -148,10 +159,10 @@ export default function MobileNav({ active, onNavigate }: MobileNavProps) {
                       textOverflow: 'ellipsis',
                     }}
                   >
-                    {user?.email ?? (isGuest ? 'Guest User' : 'Account')}
+                    {user?.email ?? (isGuest ? 'Guest Demo' : 'Account')}
                   </p>
                   <p style={{ margin: 0, fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-                    {user ? 'Cloud Active' : 'Offline'}
+                    {user ? 'Cloud Active' : 'Offline Mode'}
                   </p>
                 </div>
               </div>
@@ -162,7 +173,14 @@ export default function MobileNav({ active, onNavigate }: MobileNavProps) {
                   signOut();
                 }}
                 id="mobile-signout-btn"
-                style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}
+                style={{
+                  padding: '0.35rem 0.65rem',
+                  fontSize: '0.75rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  flexShrink: 0,
+                }}
               >
                 <LogOut size={13} />
                 Sign Out

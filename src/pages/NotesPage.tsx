@@ -14,8 +14,36 @@ import NoteCard from '../components/notes/NoteCard';
 import type { Note } from '../types';
 import { formatSafeErrorMessage } from '../utils/errorUtils';
 
+export type NotePageMode = 'all' | 'notes' | 'knowledge';
 
-export default function NotesPage() {
+interface NotesPageProps {
+  mode?: NotePageMode;
+  hideHeader?: boolean;
+}
+
+const KNOWLEDGE_KEYWORDS = [
+  'tech', 'dsa', 'system design', 'placement', 'interview',
+  'algorithm', 'data structure', 'leetcode', 'backend', 'frontend',
+  'database', 'sql', 'python', 'javascript', 'typescript', 'react',
+  'code', 'study', 'architecture', 'api', 'dev', 'engineering'
+];
+
+export function isKnowledgeNote(note: Note): boolean {
+  const cat = (note.category || '').toLowerCase();
+  const title = (note.title || '').toLowerCase();
+  if (
+    cat.includes('technical') ||
+    cat.includes('dsa') ||
+    cat.includes('system design') ||
+    cat.includes('placement') ||
+    cat.includes('interview')
+  ) {
+    return true;
+  }
+  return KNOWLEDGE_KEYWORDS.some((kw) => cat.includes(kw) || title.includes(kw));
+}
+
+export default function NotesPage({ mode = 'all', hideHeader = false }: NotesPageProps = {}) {
   const { notes, addNote, updateNote, removeNote, error } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -24,19 +52,30 @@ export default function NotesPage() {
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [viewingNote, setViewingNote] = useState<Note | null>(null);
 
-  // Extract unique categories from existing notes
+  // Filter notes based on mode (notes vs knowledge vs all)
+  const scopedNotes = useMemo(() => {
+    if (mode === 'knowledge') {
+      return notes.filter((n) => isKnowledgeNote(n));
+    }
+    if (mode === 'notes') {
+      return notes.filter((n) => !isKnowledgeNote(n));
+    }
+    return notes;
+  }, [notes, mode]);
+
+  // Extract unique categories from scoped notes
   const categories = useMemo(() => {
     const set = new Set<string>();
-    notes.forEach((n) => {
+    scopedNotes.forEach((n) => {
       if (n.category) set.add(n.category);
     });
     return ['All', ...Array.from(set)];
-  }, [notes]);
+  }, [scopedNotes]);
 
   // Filter notes based on search query and selected category
   const filteredNotes = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    return notes
+    return scopedNotes
       .filter((note) => {
         const matchesCategory =
           selectedCategory === 'All' || note.category === selectedCategory;
@@ -55,7 +94,7 @@ export default function NotesPage() {
         // Then by updated_at descending
         return (b.updatedAt || '').localeCompare(a.updatedAt || '');
       });
-  }, [notes, searchQuery, selectedCategory]);
+  }, [scopedNotes, searchQuery, selectedCategory]);
 
   const handleAddSubmit = async (data: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) => {
     await addNote(data);
@@ -68,32 +107,46 @@ export default function NotesPage() {
     setEditingNote(null);
   };
 
+  const defaultCategoryForMode = mode === 'knowledge' ? 'Technical & DSA' : 'General';
+
   return (
     <div className="page-container pb-safe">
       {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: '1.25rem',
-          flexWrap: 'wrap',
-          gap: '0.75rem',
-        }}
-      >
-        <div>
-          <h1 style={{ fontSize: '1.6rem', fontWeight: 800, marginBottom: '0.25rem' }}>
-            📝 <span className="gradient-text">Personal Notes & Insights</span>
-          </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-            DSA patterns, interview concepts, system design takeaways, and personal learning logs.
-          </p>
-        </div>
+      {!hideHeader && (
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            marginBottom: '1.25rem',
+            flexWrap: 'wrap',
+            gap: '0.75rem',
+          }}
+        >
+          <div>
+            <h1 style={{ fontSize: '1.6rem', fontWeight: 800, marginBottom: '0.25rem' }}>
+              {mode === 'knowledge' ? (
+                <>🧠 <span className="gradient-text">Knowledge Base & Technical Notes</span></>
+              ) : mode === 'notes' ? (
+                <>📝 <span className="gradient-text">Personal Notes & Thoughts</span></>
+              ) : (
+                <>📝 <span className="gradient-text">Personal Notes & Insights</span></>
+              )}
+            </h1>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+              {mode === 'knowledge'
+                ? 'Technical concepts, DSA patterns, algorithms, system design takeaways, and learning logs.'
+                : mode === 'notes'
+                ? 'Personal reflections, quick ideas, thoughts, book notes, and everyday insights.'
+                : 'DSA patterns, interview concepts, system design takeaways, and personal learning logs.'}
+            </p>
+          </div>
 
-        <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
-          <Plus size={15} /> Add Note
-        </button>
-      </div>
+          <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
+            <Plus size={15} /> {mode === 'knowledge' ? 'Add Technical Note' : 'Add Note'}
+          </button>
+        </div>
+      )}
 
       {/* Error Banner */}
       {error && (
@@ -249,7 +302,7 @@ export default function NotesPage() {
           maxWidth="640px"
         >
           <NoteForm
-            initial={{ category: selectedCategory !== 'All' ? selectedCategory : undefined }}
+            initial={{ category: selectedCategory !== 'All' ? selectedCategory : defaultCategoryForMode }}
             onSubmit={handleAddSubmit}
             onCancel={() => setShowAddModal(false)}
           />

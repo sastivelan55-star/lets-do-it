@@ -35,7 +35,7 @@ import type {
   AiSettings
 } from '../types';
 
-type SettingsTab =
+export type SettingsTab =
   | 'areas'
   | 'appearance'
   | 'ai'
@@ -44,6 +44,12 @@ type SettingsTab =
   | 'recycle-bin'
   | 'data'
   | 'branding';
+
+interface SettingsPageProps {
+  initialTab?: SettingsTab;
+  hideHeader?: boolean;
+  hideTabs?: boolean;
+}
 
 const THEME_PRESETS: { id: ThemePreset; name: string; desc: string; previewBg: string; border: string }[] = [
   { id: 'navy-purple', name: 'Navy & Purple', desc: 'Life OS Classic deep navy and radiant purple identity', previewBg: '#0f172a', border: '#6366f1' },
@@ -61,7 +67,7 @@ const ACCENT_COLORS = [
   { label: 'Amber', value: '#f59e0b' },
 ];
 
-export default function SettingsPage() {
+export default function SettingsPage({ initialTab, hideHeader = false, hideTabs = false }: SettingsPageProps = {}) {
   const {
     settings,
     updateSettings,
@@ -84,8 +90,14 @@ export default function SettingsPage() {
 
   const { user, isConfigured: isSupabaseConfigured, signOut, resetPassword, isGuest } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<SettingsTab>('areas');
+  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab || 'areas');
   const [saveBanner, setSaveBanner] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   const showSaveSuccess = (msg = 'Changes saved successfully') => {
     setSaveBanner(msg);
@@ -95,14 +107,16 @@ export default function SettingsPage() {
   return (
     <div className="page-container pb-safe">
       {/* Page Header */}
-      <div style={{ marginBottom: '1.25rem' }}>
-        <h1 style={{ fontSize: '1.6rem', fontWeight: 800, marginBottom: '0.25rem' }}>
-          ⚙️ <span className="gradient-text">Life OS Control Center</span>
-        </h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-          Customize life areas, appearance, secure AI execution, and data management.
-        </p>
-      </div>
+      {!hideHeader && (
+        <div style={{ marginBottom: '1.25rem' }}>
+          <h1 style={{ fontSize: '1.6rem', fontWeight: 800, marginBottom: '0.25rem' }}>
+            ⚙️ <span className="gradient-text">Life OS Control Center</span>
+          </h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+            Customize life areas, appearance, secure AI execution, and data management.
+          </p>
+        </div>
+      )}
 
       {/* Global save confirmation toast */}
       {saveBanner && (
@@ -132,43 +146,45 @@ export default function SettingsPage() {
       )}
 
       {/* Navigation Tabs Bar */}
-      <div
-        className="filter-scroll"
-        style={{
-          display: 'flex',
-          gap: '0.4rem',
-          marginBottom: '1.5rem',
-          paddingBottom: '0.3rem',
-          borderBottom: '1px solid var(--border)',
-        }}
-      >
-        {[
-          { id: 'areas', label: 'Life-Planning Areas', icon: <Sliders size={14} /> },
-          { id: 'appearance', label: 'Appearance & Backgrounds', icon: <Palette size={14} /> },
-          { id: 'ai', label: 'AI Providers & Execution', icon: <Bot size={14} /> },
-          { id: 'reports', label: 'Reports & History', icon: <FileClock size={14} /> },
-          { id: 'account', label: 'Profile & Account', icon: <User size={14} /> },
-          { id: 'recycle-bin', label: `Recycle Bin (${deletedTasks.length})`, icon: <Trash2 size={14} /> },
-          { id: 'data', label: 'Data Management', icon: <Database size={14} /> },
-          { id: 'branding', label: 'Manual Branding', icon: <Info size={14} /> },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            className={`btn btn-sm ${activeTab === tab.id ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => setActiveTab(tab.id as SettingsTab)}
-            style={{
-              fontSize: '0.8rem',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {tab.icon}
-            <span>{tab.label}</span>
-          </button>
-        ))}
-      </div>
+      {!hideTabs && (
+        <div
+          className="filter-scroll"
+          style={{
+            display: 'flex',
+            gap: '0.4rem',
+            marginBottom: '1.5rem',
+            paddingBottom: '0.3rem',
+            borderBottom: '1px solid var(--border)',
+          }}
+        >
+          {[
+            { id: 'areas', label: 'Life-Planning Areas', icon: <Sliders size={14} /> },
+            { id: 'appearance', label: 'Appearance & Backgrounds', icon: <Palette size={14} /> },
+            { id: 'ai', label: 'AI Providers & Execution', icon: <Bot size={14} /> },
+            { id: 'reports', label: 'Reports & History', icon: <FileClock size={14} /> },
+            { id: 'account', label: 'Profile & Account', icon: <User size={14} /> },
+            { id: 'recycle-bin', label: `Recycle Bin (${deletedTasks.length})`, icon: <Trash2 size={14} /> },
+            { id: 'data', label: 'Data Management', icon: <Database size={14} /> },
+            { id: 'branding', label: 'Manual Branding', icon: <Info size={14} /> },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              className={`btn btn-sm ${activeTab === tab.id ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setActiveTab(tab.id as SettingsTab)}
+              style={{
+                fontSize: '0.8rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {tab.icon}
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Tab Panels */}
       {activeTab === 'areas' && (
@@ -652,7 +668,13 @@ function AppearanceManager({
   const [preset, setPreset] = useState<ThemePreset>(settings.themePreset || 'navy-purple');
   const [accent, setAccent] = useState(settings.accentColor || '#818cf8');
   const [bgImage, setBgImage] = useState(settings.backgroundImageUrl || '');
-  const [overlayOpacity, setOverlayOpacity] = useState(settings.backgroundOverlayOpacity ?? 20);
+  const [overlayOpacity, setOverlayOpacity] = useState<number>(() => {
+    const raw = settings.backgroundOverlayOpacity;
+    if (typeof raw === 'number') {
+      return raw <= 1 ? Math.round(raw * 100) : Math.min(65, Math.max(5, raw));
+    }
+    return 25;
+  });
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -662,8 +684,8 @@ function AppearanceManager({
       theme: 'dark',
       themePreset: preset,
       accentColor: accent,
-      backgroundImageUrl: bgImage || undefined,
-      backgroundOverlayOpacity: overlayOpacity,
+      backgroundImageUrl: bgImage.trim() || undefined,
+      backgroundOverlayOpacity: overlayOpacity / 100,
     });
   };
 
@@ -671,13 +693,13 @@ function AppearanceManager({
     setPreset('navy-purple');
     setAccent('#818cf8');
     setBgImage('');
-    setOverlayOpacity(20);
+    setOverlayOpacity(25);
     await onSave({
       theme: 'dark',
       themePreset: 'navy-purple',
       accentColor: '#818cf8',
       backgroundImageUrl: undefined,
-      backgroundOverlayOpacity: 20,
+      backgroundOverlayOpacity: 0.25,
     });
   };
 
@@ -852,8 +874,8 @@ function AppearanceManager({
                 </div>
                 <input
                   type="range"
-                  min={0}
-                  max={80}
+                  min={5}
+                  max={65}
                   value={overlayOpacity}
                   onChange={(e) => setOverlayOpacity(Number(e.target.value))}
                   style={{ width: '100%', accentColor: '#818cf8' }}

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
   Plus, Zap, CalendarDays, Target, TrendingUp,
-  AlertCircle, CheckCircle2, Clock, Sparkles, CloudOff, RefreshCw
+  AlertCircle, CheckCircle2, Clock, Sparkles, CloudOff, RefreshCw,
+  Sliders, ArrowUp, ArrowDown, RotateCcw, Eye, EyeOff, Calendar
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import ProgressRing from '../components/ui/ProgressRing';
@@ -10,9 +11,68 @@ import TaskForm from '../components/tasks/TaskForm';
 import TaskCard from '../components/tasks/TaskCard';
 import ScheduleForm from '../components/schedules/ScheduleForm';
 import OverdueManagerModal from '../components/tasks/OverdueManagerModal';
+import LifeProgressMap from '../components/dashboard/LifeProgressMap';
 import { getGreeting, today } from '../utils/dates';
 import { formatSafeErrorMessage } from '../utils/errorUtils';
 import type { Task } from '../types';
+
+export const DASHBOARD_STORAGE_KEY = 'lifeos.dashboard.layout.v1';
+
+export type DashboardWidgetId =
+  | 'stats'
+  | 'progress_map'
+  | 'tasks'
+  | 'priorities'
+  | 'milestone'
+  | 'schedule';
+
+export interface DashboardWidgetConfig {
+  id: DashboardWidgetId;
+  label: string;
+  visible: boolean;
+}
+
+export const DEFAULT_DASHBOARD_LAYOUT: DashboardWidgetConfig[] = [
+  { id: 'stats', label: 'Daily Metric Progress Cards', visible: true },
+  { id: 'progress_map', label: 'Interactive Life Progress Map', visible: true },
+  { id: 'tasks', label: "Today's Task Execution List", visible: true },
+  { id: 'priorities', label: 'Top 3 Priorities & Focus Session', visible: true },
+  { id: 'milestone', label: 'Current Roadmap Milestone', visible: true },
+  { id: 'schedule', label: "Today's Schedule & Time Blocks", visible: true },
+];
+
+export function loadStoredDashboardLayout(): DashboardWidgetConfig[] {
+  try {
+    const raw = localStorage.getItem(DASHBOARD_STORAGE_KEY);
+    if (!raw) return DEFAULT_DASHBOARD_LAYOUT;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) return DEFAULT_DASHBOARD_LAYOUT;
+    const validIds = new Set(DEFAULT_DASHBOARD_LAYOUT.map((w) => w.id));
+    const result: DashboardWidgetConfig[] = [];
+    for (const item of parsed) {
+      if (item && typeof item === 'object' && validIds.has(item.id)) {
+        result.push({
+          id: item.id,
+          label: DEFAULT_DASHBOARD_LAYOUT.find((w) => w.id === item.id)?.label || item.id,
+          visible: typeof item.visible === 'boolean' ? item.visible : true,
+        });
+      }
+    }
+    for (const def of DEFAULT_DASHBOARD_LAYOUT) {
+      if (!result.some((r) => r.id === def.id)) {
+        result.push(def);
+      }
+    }
+    return result;
+  } catch {
+    return DEFAULT_DASHBOARD_LAYOUT;
+  }
+}
+
+interface TodayPageProps {
+  onNavigateSubTab?: (target: 'calendar' | 'timeline') => void;
+  onNavigateSection?: (section: string) => void;
+}
 
 const MOTIVATIONAL_QUOTES = [
   "Focus, Execute, Improve, Repeat. 8 months of consistency = a lifetime of opportunities.",
@@ -22,7 +82,7 @@ const MOTIVATIONAL_QUOTES = [
   "Consistency beats intensity. Show up today.",
 ];
 
-export default function TodayPage() {
+export default function TodayPage({ onNavigateSubTab, onNavigateSection }: TodayPageProps = {}) {
   const {
     settings,
     todaysTasks,
@@ -48,6 +108,45 @@ export default function TodayPage() {
   const [focusMode, setFocusMode] = useState(false);
   const [startTask, setStartTask] = useState<Task | null>(null);
   const [seeding, setSeeding] = useState(false);
+
+  // Configurable Dashboard Widget Layout State
+  const [widgetLayout, setWidgetLayout] = useState<DashboardWidgetConfig[]>(loadStoredDashboardLayout);
+  const [showCustomizeModal, setShowCustomizeModal] = useState(false);
+
+  const saveLayout = (newLayout: DashboardWidgetConfig[]) => {
+    setWidgetLayout(newLayout);
+    try {
+      localStorage.setItem(DASHBOARD_STORAGE_KEY, JSON.stringify(newLayout));
+    } catch {
+      // storage unavailable
+    }
+  };
+
+  const handleToggleWidget = (id: DashboardWidgetId) => {
+    const updated = widgetLayout.map((w) =>
+      w.id === id ? { ...w, visible: !w.visible } : w
+    );
+    saveLayout(updated);
+  };
+
+  const handleMoveWidget = (index: number, direction: 'up' | 'down') => {
+    const target = direction === 'up' ? index - 1 : index + 1;
+    if (target < 0 || target >= widgetLayout.length) return;
+    const updated = [...widgetLayout];
+    const temp = updated[index];
+    updated[index] = updated[target];
+    updated[target] = temp;
+    saveLayout(updated);
+  };
+
+  const handleResetLayout = () => {
+    saveLayout(DEFAULT_DASHBOARD_LAYOUT);
+  };
+
+  const isWidgetVisible = (id: DashboardWidgetId) => {
+    const item = widgetLayout.find((w) => w.id === id);
+    return item ? item.visible : true;
+  };
 
   // Live real-time clock updating every second
   const [now, setNow] = useState(() => new Date());
@@ -147,27 +246,52 @@ export default function TodayPage() {
           </p>
         </div>
 
-        {/* Sync status indicator — only visible when syncing, offline, or error (removing clutter when synced) */}
-        {syncStatus !== 'synced' && (
-          <div className="sync-badge">
-            {syncStatus === 'syncing' && <RefreshCw size={14} color="#818cf8" className="animate-spin" />}
-            {syncStatus === 'offline' && <CloudOff size={14} color="#f59e0b" />}
-            {syncStatus === 'error' && <AlertCircle size={14} color="#ef4444" />}
-            <span
-              className="sync-badge-text"
-              style={{
-                color:
-                  syncStatus === 'syncing' ? '#818cf8'
-                  : syncStatus === 'error' ? '#ef4444'
-                  : '#f59e0b',
-              }}
+        {/* Top Header Actions & Sync Status */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {onNavigateSubTab && (
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => onNavigateSubTab('calendar')}
+              style={{ fontSize: '0.75rem', padding: '0.35rem 0.7rem', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
             >
-              {syncStatus === 'syncing' ? 'Saving…'
-                : syncStatus === 'error' ? 'Sync Error'
-                : 'Offline'}
-            </span>
-          </div>
-        )}
+              <Calendar size={13} color="#38bdf8" />
+              <span>Full Calendar</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => setShowCustomizeModal(true)}
+            title="Configure and reorder dashboard widgets"
+            style={{ fontSize: '0.75rem', padding: '0.35rem 0.7rem', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+          >
+            <Sliders size={13} color="#818cf8" />
+            <span>Customize</span>
+          </button>
+
+          {syncStatus !== 'synced' && (
+            <div className="sync-badge">
+              {syncStatus === 'syncing' && <RefreshCw size={14} color="#818cf8" className="animate-spin" />}
+              {syncStatus === 'offline' && <CloudOff size={14} color="#f59e0b" />}
+              {syncStatus === 'error' && <AlertCircle size={14} color="#ef4444" />}
+              <span
+                className="sync-badge-text"
+                style={{
+                  color:
+                    syncStatus === 'syncing' ? '#818cf8'
+                    : syncStatus === 'error' ? '#ef4444'
+                    : '#f59e0b',
+                }}
+              >
+                {syncStatus === 'syncing' ? 'Saving…'
+                  : syncStatus === 'error' ? 'Sync Error'
+                  : 'Offline'}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Global Error Banner if any */}
@@ -192,46 +316,55 @@ export default function TodayPage() {
         </div>
       )}
 
-      {/* Stats Row — Clean daily progress & overdue manager trigger */}
-      <div className="stats-grid" style={{ marginBottom: '1.25rem' }}>
-        <StatCard
-          icon={<CheckCircle2 size={20} color="#10b981" />}
-          label="Tasks Completed"
-          value={`${completedToday} / ${totalToday}`}
-          sub={`${remaining} remaining today`}
-          color="#10b981"
-        />
-        <StatCard
-          icon={<TrendingUp size={20} color="#6366f1" />}
-          label="Daily Progress"
-          value={`${todayCompletionRate}%`}
-          sub="tasks completed"
-          color="#6366f1"
-        />
-        <StatCard
-          icon={<Clock size={20} color="#38bdf8" />}
-          label="Scheduled Today"
-          value={`${todaySchedules.length} block${todaySchedules.length === 1 ? '' : 's'}`}
-          sub={todaySchedules.length > 0 ? 'time blocks planned' : 'no blocks scheduled'}
-          color="#38bdf8"
-        />
-        <div
-          onClick={() => setShowOverdueModal(true)}
-          role="button"
-          tabIndex={0}
-          style={{ cursor: 'pointer', outline: 'none' }}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setShowOverdueModal(true); }}
-          title="Click to view and reschedule overdue tasks"
-        >
-          <StatCard
-            icon={<AlertCircle size={20} color={overdueTasks.length > 0 ? '#f59e0b' : '#64748b'} />}
-            label="Overdue (Click to Manage)"
-            value={String(overdueTasks.length)}
-            sub={overdueTasks.length === 0 ? 'All caught up!' : 'click to review & reschedule'}
-            color={overdueTasks.length > 0 ? '#f59e0b' : '#64748b'}
-          />
+      {/* Interactive Life Progress Map Widget */}
+      {isWidgetVisible('progress_map') && (
+        <div style={{ marginBottom: '1.25rem' }}>
+          <LifeProgressMap onNavigateSection={onNavigateSection} />
         </div>
-      </div>
+      )}
+
+      {/* Stats Row — Clean daily progress & overdue manager trigger */}
+      {isWidgetVisible('stats') && (
+        <div className="stats-grid" style={{ marginBottom: '1.25rem' }}>
+          <StatCard
+            icon={<CheckCircle2 size={20} color="#10b981" />}
+            label="Tasks Completed"
+            value={`${completedToday} / ${totalToday}`}
+            sub={`${remaining} remaining today`}
+            color="#10b981"
+          />
+          <StatCard
+            icon={<TrendingUp size={20} color="#6366f1" />}
+            label="Daily Progress"
+            value={`${todayCompletionRate}%`}
+            sub="tasks completed"
+            color="#6366f1"
+          />
+          <StatCard
+            icon={<Clock size={20} color="#38bdf8" />}
+            label="Scheduled Today"
+            value={`${todaySchedules.length} block${todaySchedules.length === 1 ? '' : 's'}`}
+            sub={todaySchedules.length > 0 ? 'time blocks planned' : 'no blocks scheduled'}
+            color="#38bdf8"
+          />
+          <div
+            onClick={() => setShowOverdueModal(true)}
+            role="button"
+            tabIndex={0}
+            style={{ cursor: 'pointer', outline: 'none' }}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setShowOverdueModal(true); }}
+            title="Click to view and reschedule overdue tasks"
+          >
+            <StatCard
+              icon={<AlertCircle size={20} color={overdueTasks.length > 0 ? '#f59e0b' : '#64748b'} />}
+              label="Overdue (Click to Manage)"
+              value={String(overdueTasks.length)}
+              sub={overdueTasks.length === 0 ? 'All caught up!' : 'click to review & reschedule'}
+              color={overdueTasks.length > 0 ? '#f59e0b' : '#64748b'}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Main 2-column layout — single column on mobile, 2-col on desktop */}
       <div className="today-main-grid">
@@ -280,165 +413,169 @@ export default function TodayPage() {
           )}
 
           {/* Today's Tasks */}
-          <div className="card">
-            <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <h2 className="section-title" style={{ margin: 0 }}>📋 Today's Tasks</h2>
-                <span className="badge" style={{ background: 'var(--bg-surface-2)', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-                  {totalToday}
-                </span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-                <ProgressRing value={todayCompletionRate} size={44} strokeWidth={5} label={`${todayCompletionRate}%`} />
-                <button className="btn btn-primary btn-sm" onClick={() => setShowAddTask(true)}>
-                  <Plus size={14} /> Add Task
-                </button>
-              </div>
-            </div>
-
-            {todaysTasks.length === 0 ? (
-              <div className="empty-state" style={{ padding: '2.5rem 1rem', textAlign: 'center' }}>
-                <Target size={40} color="#818cf8" style={{ margin: '0 auto 0.75rem auto' }} />
-                <p style={{ fontWeight: 700, fontSize: '1.05rem', margin: '0 0 0.25rem 0' }}>No tasks scheduled for today</p>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 1.25rem 0' }}>
-                  Use the <strong>+ Add Task</strong> button above to plan your day, or load the starter routine below.
-                </p>
-                <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                  <button
-                    className="btn btn-secondary btn-sm"
-                    onClick={handleLoadStarter}
-                    disabled={seeding}
-                    style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-                  >
-                    <Sparkles size={15} color="#f59e0b" />
-                    {seeding ? 'Loading Starter Pack…' : 'Load Starter Routine'}
+          {isWidgetVisible('tasks') && (
+            <div className="card">
+              <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <h2 className="section-title" style={{ margin: 0 }}>📋 Today's Tasks</h2>
+                  <span className="badge" style={{ background: 'var(--bg-surface-2)', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                    {totalToday}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  <ProgressRing value={todayCompletionRate} size={44} strokeWidth={5} label={`${todayCompletionRate}%`} />
+                  <button className="btn btn-primary btn-sm" onClick={() => setShowAddTask(true)}>
+                    <Plus size={14} /> Add Task
                   </button>
                 </div>
               </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                {/* Incomplete tasks */}
-                {todaysTasks
-                  .filter((t) => t.status !== 'completed')
-                  .sort((a, b) => {
-                    const po: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
-                    return po[a.priority] - po[b.priority];
-                  })
-                  .map((t) => (
-                    <TaskCard
-                      key={t.id}
-                      task={t}
-                      onComplete={completeTask}
-                      onEdit={setEditingTask}
-                      onDelete={removeTask}
-                      onReschedule={rescheduleTask}
-                      onStart={(id) => {
-                        const task = todaysTasks.find((tt) => tt.id === id);
-                        if (task) { setStartTask(task); setFocusMode(true); }
-                      }}
-                    />
-                  ))}
 
-                {/* Completed tasks */}
-                {todaysTasks.filter((t) => t.status === 'completed').length > 0 && (
-                  <>
-                    <div className="divider" style={{ margin: '0.75rem 0' }} />
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600, margin: '0 0 0.4rem 0' }}>
-                      ✅ Completed Today ({todaysTasks.filter((t) => t.status === 'completed').length})
-                    </p>
-                    {todaysTasks
-                      .filter((t) => t.status === 'completed')
-                      .map((t) => (
-                        <TaskCard
-                          key={t.id}
-                          task={t}
-                          onComplete={completeTask}
-                          onEdit={setEditingTask}
-                          onDelete={removeTask}
-                          onReschedule={rescheduleTask}
-                        />
-                      ))}
-                  </>
-                )}
-              </div>
-            )}
-          </div>
+              {todaysTasks.length === 0 ? (
+                <div className="empty-state" style={{ padding: '2.5rem 1rem', textAlign: 'center' }}>
+                  <Target size={40} color="#818cf8" style={{ margin: '0 auto 0.75rem auto' }} />
+                  <p style={{ fontWeight: 700, fontSize: '1.05rem', margin: '0 0 0.25rem 0' }}>No tasks scheduled for today</p>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 1.25rem 0' }}>
+                    Use the <strong>+ Add Task</strong> button above to plan your day, or load the starter routine below.
+                  </p>
+                  <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={handleLoadStarter}
+                      disabled={seeding}
+                      style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <Sparkles size={15} color="#f59e0b" />
+                      {seeding ? 'Loading Starter Pack…' : 'Load Starter Routine'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                  {/* Incomplete tasks */}
+                  {todaysTasks
+                    .filter((t) => t.status !== 'completed')
+                    .sort((a, b) => {
+                      const po: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+                      return po[a.priority] - po[b.priority];
+                    })
+                    .map((t) => (
+                      <TaskCard
+                        key={t.id}
+                        task={t}
+                        onComplete={completeTask}
+                        onEdit={setEditingTask}
+                        onDelete={removeTask}
+                        onReschedule={rescheduleTask}
+                        onStart={(id) => {
+                          const task = todaysTasks.find((tt) => tt.id === id);
+                          if (task) { setStartTask(task); setFocusMode(true); }
+                        }}
+                      />
+                    ))}
+
+                  {/* Completed tasks */}
+                  {todaysTasks.filter((t) => t.status === 'completed').length > 0 && (
+                    <>
+                      <div className="divider" style={{ margin: '0.75rem 0' }} />
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600, margin: '0 0 0.4rem 0' }}>
+                        ✅ Completed Today ({todaysTasks.filter((t) => t.status === 'completed').length})
+                      </p>
+                      {todaysTasks
+                        .filter((t) => t.status === 'completed')
+                        .map((t) => (
+                          <TaskCard
+                            key={t.id}
+                            task={t}
+                            onComplete={completeTask}
+                            onEdit={setEditingTask}
+                            onDelete={removeTask}
+                            onReschedule={rescheduleTask}
+                          />
+                        ))}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right column */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           {/* Top 3 Priorities */}
-          <div className="card">
-            <h2 className="section-title" style={{ marginBottom: '1rem' }}>🎯 Top 3 Priorities</h2>
-            {topPriorities.length === 0 ? (
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>
-                {totalToday > 0 ? '🎉 All priorities completed today!' : 'Add tasks to see today\'s priority ranking.'}
-              </p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                {topPriorities.map((t, i) => (
-                  <div
-                    key={t.id}
-                    style={{
-                      display: 'flex',
-                      gap: '0.75rem',
-                      alignItems: 'flex-start',
-                      padding: '0.75rem',
-                      background: 'var(--bg-surface-2)',
-                      borderRadius: '10px',
-                      border: '1px solid var(--border)',
-                    }}
-                  >
+          {isWidgetVisible('priorities') && (
+            <div className="card">
+              <h2 className="section-title" style={{ marginBottom: '1rem' }}>🎯 Top 3 Priorities</h2>
+              {topPriorities.length === 0 ? (
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>
+                  {totalToday > 0 ? '🎉 All priorities completed today!' : 'Add tasks to see today\'s priority ranking.'}
+                </p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                  {topPriorities.map((t, i) => (
                     <div
+                      key={t.id}
                       style={{
-                        width: '1.5rem',
-                        height: '1.5rem',
-                        borderRadius: '50%',
-                        background: 'rgba(99,102,241,0.2)',
-                        color: '#818cf8',
                         display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '0.75rem',
-                        fontWeight: 800,
-                        flexShrink: 0,
+                        gap: '0.75rem',
+                        alignItems: 'flex-start',
+                        padding: '0.75rem',
+                        background: 'var(--bg-surface-2)',
+                        borderRadius: '10px',
+                        border: '1px solid var(--border)',
                       }}
                     >
-                      {i + 1}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p className="task-title" style={{ fontWeight: 600, fontSize: '0.88rem', margin: '0 0 2px 0', color: 'var(--text-primary)', flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>
-                        {t.title}
-                      </p>
-                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                        <span className={`badge priority-${t.priority}`} style={{ fontSize: '0.7rem' }}>
-                          {t.priority}
-                        </span>
-                        {t.estimatedMinutes && (
-                          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '2px' }}>
-                            <Clock size={11} /> {t.estimatedMinutes}m
+                      <div
+                        style={{
+                          width: '1.5rem',
+                          height: '1.5rem',
+                          borderRadius: '50%',
+                          background: 'rgba(99,102,241,0.2)',
+                          color: '#818cf8',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '0.75rem',
+                          fontWeight: 800,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {i + 1}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p className="task-title" style={{ fontWeight: 600, fontSize: '0.88rem', margin: '0 0 2px 0', color: 'var(--text-primary)', flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>
+                          {t.title}
+                        </p>
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                          <span className={`badge priority-${t.priority}`} style={{ fontSize: '0.7rem' }}>
+                            {t.priority}
                           </span>
-                        )}
+                          {t.estimatedMinutes && (
+                            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                              <Clock size={11} /> {t.estimatedMinutes}m
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
 
-                {topPriorities[0] && (
-                  <button
-                    className="btn btn-secondary btn-sm"
-                    style={{ marginTop: '0.5rem', width: '100%', justifyContent: 'center' }}
-                    onClick={handleStartWithTen}
-                  >
-                    <Zap size={14} color="#f59e0b" /> Start 10-Min Focus Session
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
+                  {topPriorities[0] && (
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      style={{ marginTop: '0.5rem', width: '100%', justifyContent: 'center' }}
+                      onClick={handleStartWithTen}
+                    >
+                      <Zap size={14} color="#f59e0b" /> Start 10-Min Focus Session
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Current Roadmap Milestone */}
-          {currentMilestone && (
+          {isWidgetVisible('milestone') && currentMilestone && (
             <div className="card">
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
                 <Target size={16} color="#818cf8" />
@@ -468,61 +605,76 @@ export default function TodayPage() {
           )}
 
           {/* Daily Schedule Card */}
-          <div className="card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-              <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0 }}>
-                ⏰ Today's Schedule
-              </h3>
-              <button
-                className="btn btn-ghost btn-sm"
-                onClick={() => setShowAddSchedule(true)}
-                style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', color: '#818cf8' }}
-              >
-                <Plus size={12} /> Add Block
-              </button>
-            </div>
-
-            {todaySchedules.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', fontSize: '0.8rem' }}>
-                {todaySchedules.map((entry) => (
-                  <div
-                    key={entry.id}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      gap: '0.75rem',
-                      padding: '0.4rem 0.6rem',
-                      background: 'var(--bg-surface-2)',
-                      borderRadius: '6px',
-                      color: 'var(--text-secondary)',
-                    }}
+          {isWidgetVisible('schedule') && (
+            <div className="card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0 }}>
+                  ⏰ Today's Schedule
+                </h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {onNavigateSubTab && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => onNavigateSubTab('timeline')}
+                      style={{ fontSize: '0.72rem', padding: '0.2rem 0.5rem', color: '#818cf8' }}
+                    >
+                      Timeline →
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => setShowAddSchedule(true)}
+                    style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', color: '#818cf8' }}
                   >
-                    <span style={{ color: '#818cf8', fontWeight: 600, flexShrink: 0, fontSize: '0.75rem' }}>
-                      {entry.startTime}–{entry.endTime}
-                    </span>
-                    <span style={{ fontWeight: 500, flex: 1, minWidth: 0, textAlign: 'right', overflowWrap: 'anywhere' }}>
-                      {entry.title}
-                    </span>
-                  </div>
-                ))}
+                    <Plus size={12} /> Add Block
+                  </button>
+                </div>
               </div>
-            ) : (
-              <div style={{ textAlign: 'center', padding: '1.5rem 1rem' }}>
-                <Clock size={28} color="var(--text-muted)" style={{ margin: '0 auto 0.5rem auto', opacity: 0.7 }} />
-                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: '0 0 0.75rem 0' }}>
-                  No schedule blocks scheduled for today yet.
-                </p>
-                <button
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => setShowAddSchedule(true)}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                >
-                  <Plus size={13} /> Add Schedule Block
-                </button>
-              </div>
-            )}
-          </div>
+
+              {todaySchedules.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', fontSize: '0.8rem' }}>
+                  {todaySchedules.map((entry) => (
+                    <div
+                      key={entry.id}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        padding: '0.4rem 0.6rem',
+                        background: 'var(--bg-surface-2)',
+                        borderRadius: '6px',
+                        color: 'var(--text-secondary)',
+                      }}
+                    >
+                      <span style={{ color: '#818cf8', fontWeight: 600, flexShrink: 0, fontSize: '0.75rem' }}>
+                        {entry.startTime}–{entry.endTime}
+                      </span>
+                      <span style={{ fontWeight: 500, flex: 1, minWidth: 0, textAlign: 'right', overflowWrap: 'anywhere' }}>
+                        {entry.title}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '1.5rem 1rem' }}>
+                  <Clock size={28} color="var(--text-muted)" style={{ margin: '0 auto 0.5rem auto', opacity: 0.7 }} />
+                  <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: '0 0 0.75rem 0' }}>
+                    No schedule blocks scheduled for today yet.
+                  </p>
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => setShowAddSchedule(true)}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <Plus size={13} /> Add Schedule Block
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -558,6 +710,107 @@ export default function TodayPage() {
         isOpen={showOverdueModal}
         onClose={() => setShowOverdueModal(false)}
       />
+
+      {/* Customize Dashboard Layout Modal */}
+      {showCustomizeModal && (
+        <Modal title="Customize Home Dashboard" onClose={() => setShowCustomizeModal(false)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              Toggle visibility or reorder dashboard widgets. Preferences are preserved across sessions in local storage.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              {widgetLayout.map((widget, idx) => (
+                <div
+                  key={widget.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '0.65rem 0.85rem',
+                    background: widget.visible ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.015)',
+                    border: `1px solid ${widget.visible ? 'rgba(129, 140, 248, 0.25)' : 'rgba(255, 255, 255, 0.08)'}`,
+                    borderRadius: '8px',
+                    opacity: widget.visible ? 1 : 0.6,
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, minWidth: 0 }}>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleWidget(widget.id)}
+                      className={`btn btn-sm ${widget.visible ? 'btn-primary' : 'btn-ghost'}`}
+                      style={{
+                        padding: '0.35rem 0.55rem',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontSize: '0.78rem',
+                      }}
+                      title={widget.visible ? 'Hide widget' : 'Show widget'}
+                    >
+                      {widget.visible ? <Eye size={14} /> : <EyeOff size={14} />}
+                      <span>{widget.visible ? 'Visible' : 'Hidden'}</span>
+                    </button>
+                    <span style={{ fontSize: '0.88rem', fontWeight: 500, color: 'var(--text-primary)' }}>
+                      {widget.label}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <button
+                      type="button"
+                      disabled={idx === 0}
+                      onClick={() => handleMoveWidget(idx, 'up')}
+                      className="btn btn-ghost btn-sm"
+                      style={{ padding: '0.35rem', opacity: idx === 0 ? 0.3 : 1 }}
+                      title="Move up"
+                    >
+                      <ArrowUp size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={idx === widgetLayout.length - 1}
+                      onClick={() => handleMoveWidget(idx, 'down')}
+                      className="btn btn-ghost btn-sm"
+                      style={{ padding: '0.35rem', opacity: idx === widgetLayout.length - 1 ? 0.3 : 1 }}
+                      title="Move down"
+                    >
+                      <ArrowDown size={14} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                paddingTop: '0.75rem',
+                borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+              }}
+            >
+              <button
+                type="button"
+                onClick={handleResetLayout}
+                className="btn btn-ghost btn-sm"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'var(--text-muted)' }}
+              >
+                <RotateCcw size={13} /> Reset Layout
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowCustomizeModal(false)}
+                className="btn btn-primary btn-sm"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

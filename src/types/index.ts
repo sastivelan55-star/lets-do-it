@@ -379,7 +379,7 @@ export const DEFAULT_APPEARANCE: AppearanceSettings = {
   themePreset: 'navy-purple',
   accentColor: '#6366f1',
   backgroundImageUrl: '',
-  backgroundOverlayOpacity: 0.85,
+  backgroundOverlayOpacity: 0.25,
 };
 
 export const DEFAULT_AI_SETTINGS: AiSettings = {

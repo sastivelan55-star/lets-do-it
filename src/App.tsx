@@ -1,44 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AppProvider } from './context/AppContext';
 import AuthPage from './components/auth/AuthPage';
 import Sidebar from './components/layout/Sidebar';
 import MobileNav from './components/layout/MobileNav';
-import TodayPage from './pages/TodayPage';
-import RoadmapPage from './pages/RoadmapPage';
-import TechnicalPage from './pages/TechnicalPage';
-import CommunicationPage from './pages/CommunicationPage';
-import CareerPage from './pages/CareerPage';
-import CreativityPage from './pages/CreativityPage';
-import HealthPage from './pages/HealthPage';
-import ProjectsPage from './pages/ProjectsPage';
-import WeeklyReviewPage from './pages/WeeklyReviewPage';
-import SettingsPage from './pages/SettingsPage';
-import NotesPage from './pages/NotesPage';
-import UploadsPage from './pages/UploadsPage';
+import HomePage from './pages/HomePage';
 import TaskBuilderPage from './pages/TaskBuilderPage';
+import MyJourneyPage from './pages/MyJourneyPage';
+import PersonalLifePage from './pages/PersonalLifePage';
+import KnowledgePage from './pages/KnowledgePage';
 import NewsPage from './pages/NewsPage';
-import AiAssistantModal from './components/ai/AiAssistantModal';
+import ReviewSettingsPage from './pages/ReviewSettingsPage';
+import TopBar from './components/layout/TopBar';
+import UniversalSearchModal from './components/search/UniversalSearchModal';
+import QuickCaptureModal from './components/quickCapture/QuickCaptureModal';
 
 export type NavSection =
-  | 'today'
-  | 'task-builder'
-  | 'projects'
-  | 'roadmap'
-  | 'notes'
-  | 'technical'
-  | 'communication'
-  | 'career'
-  | 'creativity'
-  | 'health'
-  | 'review'
-  | 'news'
-  | 'settings'
-  | 'planner'
-  | 'schedules'
-  | 'uploads';
-
+  | 'home'
+  | 'tasks'
+  | 'journey'
+  | 'personal'
+  | 'knowledge'
+  | 'explore'
+  | 'review';
 
 function LoadingScreen() {
   return (
@@ -86,7 +70,7 @@ function LoadingScreen() {
           Life OS
         </h1>
         <p style={{ color: 'rgba(148,163,184,0.7)', fontSize: '0.85rem', marginTop: '0.25rem' }}>
-          Personal Progress & AI Execution System…
+          Personal Command & Growth Center
         </p>
       </div>
       <div
@@ -119,10 +103,11 @@ function LoadingScreen() {
 }
 
 function AppContent() {
-  const [section, setSection] = useState<NavSection>('today');
+  const [section, setSection] = useState<NavSection>('home');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  const [showAiModal, setShowAiModal] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isQuickCaptureOpen, setIsQuickCaptureOpen] = useState(false);
 
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < 768);
@@ -130,28 +115,43 @@ function AppContent() {
     return () => window.removeEventListener('resize', handler);
   }, []);
 
+  // Global event listeners for search command palette and quick capture
+  useEffect(() => {
+    const handleOpenSearch = () => setIsSearchOpen(true);
+    const handleOpenCapture = () => setIsQuickCaptureOpen(true);
+
+    window.addEventListener('lifeos:open-search', handleOpenSearch);
+    window.addEventListener('lifeos:open-quick-capture', handleOpenCapture);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+K or Cmd+K: toggle command palette
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsSearchOpen((prev) => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('lifeos:open-search', handleOpenSearch);
+      window.removeEventListener('lifeos:open-quick-capture', handleOpenCapture);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
   const PAGE_MAP: Record<NavSection, React.ReactNode> = {
-    today:          <TodayPage />,
-    'task-builder': <TaskBuilderPage />,
-    projects:      <ProjectsPage />,
-    roadmap:        <RoadmapPage />,
-    notes:         <NotesPage />,
-    technical:     <TechnicalPage />,
-    communication: <CommunicationPage />,
-    career:        <CareerPage />,
-    creativity:    <CreativityPage />,
-    health:        <HealthPage />,
-    review:        <WeeklyReviewPage />,
-    news:          <NewsPage />,
-    settings:      <SettingsPage />,
-    planner:       <TodayPage />, // Migrated into Today
-    schedules:     <TodayPage />, // Migrated into Today
-    uploads:       <UploadsPage />,
+    home:      <HomePage onNavigateSection={(sec) => setSection(sec as NavSection)} />,
+    tasks:     <TaskBuilderPage />,
+    journey:   <MyJourneyPage />,
+    personal:  <PersonalLifePage />,
+    knowledge: <KnowledgePage />,
+    explore:   <NewsPage />,
+    review:    <ReviewSettingsPage />,
   };
 
   return (
     <div className="app-layout">
-      {/* Sidebar — desktop only */}
+      {/* Sidebar — desktop only (exact 7 destinations) */}
       {!isMobile && (
         <Sidebar
           active={section}
@@ -167,45 +167,40 @@ function AppContent() {
         id="main-content"
         role="main"
       >
+        <TopBar
+          onOpenSearch={() => setIsSearchOpen(true)}
+          onOpenQuickCapture={() => setIsQuickCaptureOpen(true)}
+          onNavigate={setSection}
+          activeSection={section}
+        />
         {PAGE_MAP[section]}
       </main>
-
-      {/* Floating AI Assistant Trigger */}
-      <button
-        onClick={() => setShowAiModal(true)}
-        className="btn"
-        aria-label="Open Life OS AI Assistant"
-        title="Open AI Assistant (Natural Language Tasks)"
-        style={{
-          position: 'fixed',
-          bottom: isMobile ? '74px' : '24px',
-          right: '24px',
-          zIndex: 40,
-          borderRadius: '999px',
-          background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-          color: 'white',
-          padding: '0.6rem 1.1rem',
-          boxShadow: '0 8px 24px rgba(99, 102, 241, 0.45)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          fontSize: '0.84rem',
-          fontWeight: 700,
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          cursor: 'pointer',
-        }}
-      >
-        <Sparkles size={16} />
-        <span>AI Assistant</span>
-      </button>
-
-      {/* AI Assistant Modal */}
-      <AiAssistantModal isOpen={showAiModal} onClose={() => setShowAiModal(false)} />
 
       {/* Mobile bottom nav */}
       {isMobile && (
         <MobileNav active={section} onNavigate={setSection} />
       )}
+
+      {/* Global Universal Search Command Palette */}
+      <UniversalSearchModal
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        onNavigate={(target) => {
+          setSection(target);
+          setIsSearchOpen(false);
+        }}
+      />
+
+      {/* Global Quick Capture Modal */}
+      <QuickCaptureModal
+        isOpen={isQuickCaptureOpen}
+        onClose={() => setIsQuickCaptureOpen(false)}
+        onSuccessNavigate={(target) => {
+          if (target && target in PAGE_MAP) {
+            setSection(target as NavSection);
+          }
+        }}
+      />
     </div>
   );
 }

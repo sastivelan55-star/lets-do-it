@@ -44,7 +44,13 @@ const DEFAULT_HABITS: HealthHabit[] = [
   { id: '8', text: 'Take intentional rest when recovering without guilt', category: 'boundary' },
 ];
 
-export default function HealthPage() {
+export type HealthSectionFocus = 'all' | 'health' | 'reflection' | 'relationships';
+
+export interface HealthPageProps {
+  initialFocus?: HealthSectionFocus;
+}
+
+export default function HealthPage({ initialFocus = 'all' }: HealthPageProps = {}) {
   const { settings } = useApp();
   const [entries, setEntries] = useState<HealthEntry[]>([]);
   const [prompts, setPrompts] = useState<string[]>(() => {
@@ -56,13 +62,31 @@ export default function HealthPage() {
     return saved ? JSON.parse(saved) : DEFAULT_HABITS;
   });
 
-  // Section visibility settings
-  const [visibleSections, setVisibleSections] = useState({
-    routines: true,
-    relationships: true,
-    boundaries: true,
-    prompts: true,
+  // Section visibility settings initialized from initialFocus
+  const [visibleSections, setVisibleSections] = useState(() => {
+    if (initialFocus === 'health') {
+      return { routines: true, relationships: false, boundaries: false, prompts: false };
+    }
+    if (initialFocus === 'reflection') {
+      return { routines: false, relationships: false, boundaries: false, prompts: true };
+    }
+    if (initialFocus === 'relationships') {
+      return { routines: false, relationships: true, boundaries: true, prompts: false };
+    }
+    return { routines: true, relationships: true, boundaries: true, prompts: true };
   });
+
+  useEffect(() => {
+    if (initialFocus === 'health') {
+      setVisibleSections({ routines: true, relationships: false, boundaries: false, prompts: false });
+    } else if (initialFocus === 'reflection') {
+      setVisibleSections({ routines: false, relationships: false, boundaries: false, prompts: true });
+    } else if (initialFocus === 'relationships') {
+      setVisibleSections({ routines: false, relationships: true, boundaries: true, prompts: false });
+    } else {
+      setVisibleSections({ routines: true, relationships: true, boundaries: true, prompts: true });
+    }
+  }, [initialFocus]);
 
   // Search & history
   const [searchQuery, setSearchQuery] = useState('');

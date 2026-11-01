@@ -1,14 +1,11 @@
+import React from 'react';
 import {
   LayoutDashboard,
+  ListTree,
   Map,
-  FileText,
-  Code2,
-  MessageSquare,
-  Briefcase,
-  Palette,
   Heart,
-  FolderOpen,
-  BarChart3,
+  FileText,
+  Newspaper,
   Settings,
   ChevronLeft,
   ChevronRight,
@@ -17,8 +14,6 @@ import {
   CloudOff,
   RefreshCw,
   User,
-  ListTree,
-  Newspaper,
   AlertCircle,
 } from 'lucide-react';
 import type { NavSection } from '../../App';
@@ -34,19 +29,13 @@ interface SidebarProps {
 }
 
 const NAV_ITEMS: { id: NavSection; label: string; icon: React.ReactNode; color: string }[] = [
-  { id: 'today',         label: 'Today',                 icon: <LayoutDashboard size={18} />, color: '#818cf8' },
-  { id: 'task-builder',  label: 'Task Builder',          icon: <ListTree size={18} />,        color: '#38bdf8' },
-  { id: 'projects',      label: 'My Projects',           icon: <FolderOpen size={18} />,      color: '#f97316' },
-  { id: 'roadmap',       label: 'My Roadmap',            icon: <Map size={18} />,             color: '#60a5fa' },
-  { id: 'notes',         label: 'Notes & Insights',      icon: <FileText size={18} />,        color: '#c084fc' },
-  { id: 'technical',     label: 'Technical Mastery',     icon: <Code2 size={18} />,           color: '#6366f1' },
-  { id: 'communication', label: 'Communication',         icon: <MessageSquare size={18} />,   color: '#06b6d4' },
-  { id: 'career',        label: 'Career Readiness',      icon: <Briefcase size={18} />,       color: '#f59e0b' },
-  { id: 'creativity',    label: 'Creativity & Identity', icon: <Palette size={18} />,         color: '#ec4899' },
-  { id: 'health',        label: 'Health & Reflection',   icon: <Heart size={18} />,           color: '#10b981' },
-  { id: 'review',        label: 'Weekly Review',         icon: <BarChart3 size={18} />,       color: '#8b5cf6' },
-  { id: 'news',          label: 'News',                  icon: <Newspaper size={18} />,       color: '#14b8a6' },
-  { id: 'settings',      label: 'Settings & Data',       icon: <Settings size={18} />,        color: '#94a3b8' },
+  { id: 'home',      label: 'Home',               icon: <LayoutDashboard size={18} />, color: '#818cf8' },
+  { id: 'tasks',     label: 'Tasks',              icon: <ListTree size={18} />,        color: '#38bdf8' },
+  { id: 'journey',   label: 'My Journey',         icon: <Map size={18} />,             color: '#6366f1' },
+  { id: 'personal',  label: 'Personal Life',      icon: <Heart size={18} />,           color: '#10b981' },
+  { id: 'knowledge', label: 'Notes & Knowledge',  icon: <FileText size={18} />,        color: '#c084fc' },
+  { id: 'explore',   label: 'Explore',            icon: <Newspaper size={18} />,       color: '#14b8a6' },
+  { id: 'review',    label: 'Review & Settings',  icon: <Settings size={18} />,        color: '#94a3b8' },
 ];
 
 export default function Sidebar({ active, onNavigate, collapsed, onToggle }: SidebarProps) {
@@ -57,17 +46,17 @@ export default function Sidebar({ active, onNavigate, collapsed, onToggle }: Sid
     <aside
       className="sidebar flex flex-col"
       style={{
-        width: collapsed ? '60px' : '240px',
-        minWidth: collapsed ? '60px' : '240px',
-        transition: 'width 0.3s ease, min-width 0.3s ease',
+        width: collapsed ? '62px' : '230px',
+        minWidth: collapsed ? '62px' : '230px',
+        transition: 'width 0.25s cubic-bezier(0.4, 0, 0.2, 1), min-width 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
         display: 'flex',
         flexDirection: 'column',
       }}
     >
-      {/* Logo */}
+      {/* Brand Header */}
       <div
         style={{
-          padding: collapsed ? '1.2rem 0' : '1.2rem 1rem',
+          padding: collapsed ? '1.25rem 0' : '1.25rem 1rem',
           display: 'flex',
           alignItems: 'center',
           gap: '0.75rem',
@@ -85,24 +74,24 @@ export default function Sidebar({ active, onNavigate, collapsed, onToggle }: Sid
             alignItems: 'center',
             justifyContent: 'center',
             flexShrink: 0,
-            boxShadow: '0 4px 12px rgba(99,102,241,0.4)',
+            boxShadow: '0 4px 14px rgba(99,102,241,0.4)',
           }}
         >
           <Sparkles size={18} color="white" />
         </div>
         {!collapsed && (
-          <div>
-            <div style={{ color: '#e2e8f0', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.05rem', lineHeight: 1 }}>
+          <div style={{ overflow: 'hidden' }}>
+            <div style={{ color: '#f8fafc', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.05rem', lineHeight: 1 }}>
               Life OS
             </div>
-            <div style={{ color: 'rgba(148,163,184,0.7)', fontSize: '0.65rem', fontWeight: 500, marginTop: '2px' }}>
-              Personal Progress System
+            <div style={{ color: 'rgba(148,163,184,0.7)', fontSize: '0.66rem', fontWeight: 500, marginTop: '3px', letterSpacing: '0.02em' }}>
+              Command Center
             </div>
           </div>
         )}
       </div>
 
-      {/* Sync Status Badge — Clean: Only visible if syncing, error or offline */}
+      {/* Sync Status Strip */}
       {!collapsed && syncStatus !== 'synced' && (
         <div
           style={{
@@ -133,7 +122,7 @@ export default function Sidebar({ active, onNavigate, collapsed, onToggle }: Sid
               {syncStatus === 'syncing'
                 ? 'Syncing changes…'
                 : syncStatus === 'error'
-                ? 'Sync Error — check connection'
+                ? 'Sync Error — offline mode'
                 : 'Offline mode'}
             </span>
           </div>
@@ -143,7 +132,7 @@ export default function Sidebar({ active, onNavigate, collapsed, onToggle }: Sid
         </div>
       )}
 
-      {/* Nav items */}
+      {/* Nav items — Exactly 7 destinations */}
       <nav style={{ flex: 1, padding: '0.75rem 0.5rem', overflowY: 'auto', overflowX: 'hidden' }}>
         {NAV_ITEMS.map((item) => (
           <button
@@ -151,7 +140,7 @@ export default function Sidebar({ active, onNavigate, collapsed, onToggle }: Sid
             className={clsx('nav-item', active === item.id && 'active')}
             onClick={() => onNavigate(item.id)}
             data-tooltip={collapsed ? item.label : undefined}
-            style={{ justifyContent: collapsed ? 'center' : 'flex-start', marginBottom: '2px' }}
+            style={{ justifyContent: collapsed ? 'center' : 'flex-start', marginBottom: '3px' }}
             aria-label={item.label}
             aria-current={active === item.id ? 'page' : undefined}
           >
@@ -211,7 +200,7 @@ export default function Sidebar({ active, onNavigate, collapsed, onToggle }: Sid
                   {user?.email ? user.email.split('@')[0] : isGuest ? 'Guest Demo' : 'Account'}
                 </p>
                 <p style={{ margin: 0, fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-                  {user ? 'Cloud Active' : 'Offline'}
+                  {user ? 'Cloud Active' : 'Offline Mode'}
                 </p>
               </div>
             </div>
