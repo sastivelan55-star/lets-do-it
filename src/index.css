@@ -1617,3 +1617,36 @@ label {
   box-shadow: 0 14px 32px -10px rgba(0, 0, 0, 0.65), 0 0 20px -4px rgba(99, 102, 241, 0.2);
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   TASK BUILDER SCROLL SYSTEM
+   ═══════════════════════════════════════════════════════════════ */
+.task-builder-page-scroll {
+  flex: 1 1 0% !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  width: 100% !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch !important;
+  scroll-behavior: smooth;
+  overscroll-behavior-y: contain;
+}
+
+.task-builder-page-scroll::-webkit-scrollbar {
+  width: 7px;
+}
+
+.task-builder-page-scroll::-webkit-scrollbar-track {
+  background: rgba(7, 10, 18, 0.6);
+}
+
+.task-builder-page-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 240, 255, 0.35);
+  border-radius: 999px;
+  border: 1px solid rgba(0, 240, 255, 0.2);
+}
+
+.task-builder-page-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 240, 255, 0.65);
+}
+

@@ -634,12 +634,20 @@ export default function TaskBuilderPage() {
 
   return (
     <div
+      className="task-builder-page-scroll"
       style={{
-        minHeight: '100%',
+        flex: 1,
+        minHeight: 0,
+        height: '100%',
         width: '100%',
         position: 'relative',
         color: '#E2E8F0',
         fontFamily: 'Rajdhani, Inter, sans-serif',
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        WebkitOverflowScrolling: 'touch',
+        overscrollBehaviorY: 'contain',
+        paddingBottom: '6rem',
       }}
     >
       {/* Background Particles Canvas */}
@@ -1979,6 +1987,8 @@ export default function TaskBuilderPage() {
             style={{
               maxWidth: '520px',
               width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
               borderRadius: '20px',
               padding: '1.5rem',
               border: '1px solid rgba(0, 240, 255, 0.4)',
