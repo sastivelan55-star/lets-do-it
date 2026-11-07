@@ -2,15 +2,17 @@ import React, { useState } from 'react';
 import {
   LayoutDashboard,
   ListTree,
-  Map,
-  Heart,
+  Calendar,
+  FolderKanban,
   FileText,
-  Newspaper,
+  Rocket,
+  Heart,
   Settings,
   MoreHorizontal,
   X,
   LogOut,
   User,
+  Globe,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import type { NavSection } from '../../App';
@@ -24,18 +26,31 @@ interface MobileNavProps {
 const PRIMARY_NAV: { id: NavSection; label: string; icon: React.ReactNode }[] = [
   { id: 'home',     label: 'Home',     icon: <LayoutDashboard size={20} /> },
   { id: 'tasks',    label: 'Tasks',    icon: <ListTree size={20} /> },
-  { id: 'journey',  label: 'Journey',  icon: <Map size={20} /> },
-  { id: 'personal', label: 'Personal', icon: <Heart size={20} /> },
+  { id: 'calendar', label: 'Calendar', icon: <Calendar size={20} /> },
+  { id: 'projects', label: 'Projects', icon: <FolderKanban size={20} /> },
 ];
 
 // Sections accessible from the "More" drawer
 const MORE_NAV: { id: NavSection; label: string; icon: React.ReactNode; color: string }[] = [
-  { id: 'knowledge', label: 'Notes & Knowledge', icon: <FileText size={20} />,  color: '#c084fc' },
-  { id: 'explore',   label: 'Explore',           icon: <Newspaper size={20} />, color: '#14b8a6' },
-  { id: 'review',    label: 'Review & Settings', icon: <Settings size={20} />,  color: '#94a3b8' },
+  { id: 'pulse',      label: 'News',                icon: <Globe size={20} />,        color: '#38bdf8' },
+  { id: 'notes',      label: 'Notes',               icon: <FileText size={20} />,     color: '#c084fc' },
+  { id: 'roadmap',    label: 'Roadmap & Goals',     icon: <Rocket size={20} />,       color: '#f59e0b' },
+  { id: 'reflection', label: 'Weekly Reflection',   icon: <Heart size={20} />,        color: '#10b981' },
+  { id: 'settings',   label: 'Anime & Settings',    icon: <Settings size={20} />,     color: '#ec4899' },
 ];
 
-const MORE_SECTION_IDS: NavSection[] = ['knowledge', 'explore', 'review'];
+const MORE_SECTION_IDS: NavSection[] = [
+  'pulse',
+  'notes',
+  'roadmap',
+  'reflection',
+  'settings',
+  'knowledge',
+  'explore',
+  'review',
+  'journey',
+  'personal',
+];
 
 export default function MobileNav({ active, onNavigate }: MobileNavProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -51,20 +66,23 @@ export default function MobileNav({ active, onNavigate }: MobileNavProps) {
     <>
       {/* Bottom Navigation Bar */}
       <nav className="mobile-nav" aria-label="Mobile navigation">
-        {PRIMARY_NAV.map((item) => (
-          <button
-            key={item.id}
-            className={`mobile-nav-btn${active === item.id ? ' active' : ''}`}
-            onClick={() => handleNavigate(item.id)}
-            aria-label={item.label}
-            aria-current={active === item.id ? 'page' : undefined}
-            style={{ position: 'relative' }}
-          >
-            <span className="mobile-nav-indicator" />
-            {item.icon}
-            <span>{item.label}</span>
-          </button>
-        ))}
+        {PRIMARY_NAV.map((item) => {
+          const isActive = active === item.id;
+          return (
+            <button
+              key={item.id}
+              className={`mobile-nav-btn${isActive ? ' active' : ''}`}
+              onClick={() => handleNavigate(item.id)}
+              aria-label={item.label}
+              aria-current={isActive ? 'page' : undefined}
+              style={{ position: 'relative' }}
+            >
+              <span className="mobile-nav-indicator" />
+              {item.icon}
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
 
         {/* More button */}
         <button
@@ -92,7 +110,7 @@ export default function MobileNav({ active, onNavigate }: MobileNavProps) {
             <p
               style={{
                 fontSize: '0.72rem',
-                color: 'rgba(148,163,184,0.5)',
+                color: 'rgba(192,132,252,0.7)',
                 fontWeight: 700,
                 textTransform: 'uppercase',
                 letterSpacing: '0.08em',
@@ -100,23 +118,26 @@ export default function MobileNav({ active, onNavigate }: MobileNavProps) {
                 textAlign: 'center',
               }}
             >
-              Destinations & Account
+              Anime Destinations & Account
             </p>
             <div className="mobile-drawer-grid">
-              {MORE_NAV.map((item) => (
-                <button
-                  key={item.id}
-                  className={`mobile-drawer-item${active === item.id ? ' active' : ''}`}
-                  onClick={() => handleNavigate(item.id)}
-                  aria-label={item.label}
-                  aria-current={active === item.id ? 'page' : undefined}
-                >
-                  <span style={{ color: active === item.id ? item.color : undefined }}>
-                    {item.icon}
-                  </span>
-                  <span>{item.label}</span>
-                </button>
-              ))}
+              {MORE_NAV.map((item) => {
+                const isActive = active === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    className={`mobile-drawer-item${isActive ? ' active' : ''}`}
+                    onClick={() => handleNavigate(item.id)}
+                    aria-label={item.label}
+                    aria-current={isActive ? 'page' : undefined}
+                  >
+                    <span style={{ color: isActive ? item.color : undefined }}>
+                      {item.icon}
+                    </span>
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
             </div>
 
             {/* Account & Sign out bar */}
@@ -124,7 +145,7 @@ export default function MobileNav({ active, onNavigate }: MobileNavProps) {
               style={{
                 marginTop: '1rem',
                 paddingTop: '0.75rem',
-                borderTop: '1px solid var(--border)',
+                borderTop: '1px solid rgba(168, 85, 247, 0.2)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
@@ -134,18 +155,20 @@ export default function MobileNav({ active, onNavigate }: MobileNavProps) {
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0, overflow: 'hidden' }}>
                 <div
                   style={{
-                    width: '26px',
-                    height: '26px',
+                    width: '28px',
+                    height: '28px',
                     borderRadius: '50%',
-                    background: 'rgba(99,102,241,0.2)',
+                    background: 'linear-gradient(135deg, #a855f7, #ec4899)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#818cf8',
+                    color: '#ffffff',
+                    fontWeight: 800,
+                    fontSize: '0.75rem',
                     flexShrink: 0,
                   }}
                 >
-                  <User size={13} />
+                  <User size={14} />
                 </div>
                 <div style={{ minWidth: 0, overflow: 'hidden' }}>
                   <p
@@ -161,7 +184,7 @@ export default function MobileNav({ active, onNavigate }: MobileNavProps) {
                   >
                     {user?.email ?? (isGuest ? 'Guest Demo' : 'Account')}
                   </p>
-                  <p style={{ margin: 0, fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                  <p style={{ margin: 0, fontSize: '0.65rem', color: '#c084fc' }}>
                     {user ? 'Cloud Active' : 'Offline Mode'}
                   </p>
                 </div>

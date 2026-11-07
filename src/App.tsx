@@ -6,18 +6,31 @@ import Sidebar from './components/layout/Sidebar';
 import MobileNav from './components/layout/MobileNav';
 import HomePage from './pages/HomePage';
 import TaskBuilderPage from './pages/TaskBuilderPage';
+import NotesPage from './pages/NotesPage';
+import PlannerPage from './pages/PlannerPage';
+import ProjectsPage from './pages/ProjectsPage';
+import RoadmapPage from './pages/RoadmapPage';
+import WeeklyReviewPage from './pages/WeeklyReviewPage';
 import MyJourneyPage from './pages/MyJourneyPage';
 import PersonalLifePage from './pages/PersonalLifePage';
 import KnowledgePage from './pages/KnowledgePage';
-import NewsPage from './pages/NewsPage';
 import ReviewSettingsPage from './pages/ReviewSettingsPage';
+import PulseFlowPage from './pages/PulseFlowPage';
 import TopBar from './components/layout/TopBar';
 import UniversalSearchModal from './components/search/UniversalSearchModal';
 import QuickCaptureModal from './components/quickCapture/QuickCaptureModal';
+import FloatingAiAssistant from './components/ai/FloatingAiAssistant';
 
 export type NavSection =
   | 'home'
   | 'tasks'
+  | 'pulse'
+  | 'notes'
+  | 'calendar'
+  | 'projects'
+  | 'roadmap'
+  | 'reflection'
+  | 'settings'
   | 'journey'
   | 'personal'
   | 'knowledge'
@@ -115,13 +128,20 @@ function AppContent() {
     return () => window.removeEventListener('resize', handler);
   }, []);
 
-  // Global event listeners for search command palette and quick capture
+  // Global event listeners for search command palette, quick capture, and navigation
   useEffect(() => {
     const handleOpenSearch = () => setIsSearchOpen(true);
     const handleOpenCapture = () => setIsQuickCaptureOpen(true);
+    const handleNavigate = (e: Event) => {
+      const custom = e as CustomEvent<string>;
+      if (custom.detail) {
+        setSection(custom.detail as NavSection);
+      }
+    };
 
     window.addEventListener('lifeos:open-search', handleOpenSearch);
     window.addEventListener('lifeos:open-quick-capture', handleOpenCapture);
+    window.addEventListener('lifeos:navigate', handleNavigate as EventListener);
 
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ctrl+K or Cmd+K: toggle command palette
@@ -135,18 +155,26 @@ function AppContent() {
     return () => {
       window.removeEventListener('lifeos:open-search', handleOpenSearch);
       window.removeEventListener('lifeos:open-quick-capture', handleOpenCapture);
+      window.removeEventListener('lifeos:navigate', handleNavigate as EventListener);
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
 
   const PAGE_MAP: Record<NavSection, React.ReactNode> = {
-    home:      <HomePage onNavigateSection={(sec) => setSection(sec as NavSection)} />,
-    tasks:     <TaskBuilderPage />,
-    journey:   <MyJourneyPage />,
-    personal:  <PersonalLifePage />,
-    knowledge: <KnowledgePage />,
-    explore:   <NewsPage />,
-    review:    <ReviewSettingsPage />,
+    home:       <HomePage onNavigateSection={(sec) => setSection(sec as NavSection)} />,
+    tasks:      <TaskBuilderPage />,
+    pulse:      <PulseFlowPage />,
+    notes:      <NotesPage />,
+    calendar:   <PlannerPage />,
+    projects:   <ProjectsPage />,
+    roadmap:    <RoadmapPage />,
+    reflection: <WeeklyReviewPage />,
+    settings:   <ReviewSettingsPage initialTab="personalization" />,
+    journey:    <MyJourneyPage />,
+    personal:   <PersonalLifePage />,
+    knowledge:  <KnowledgePage />,
+    explore:    <PulseFlowPage />,
+    review:     <ReviewSettingsPage initialTab="personalization" />,
   };
 
   return (
@@ -201,6 +229,9 @@ function AppContent() {
           }
         }}
       />
+
+      {/* Global Floating AI Assistant */}
+      <FloatingAiAssistant onNavigate={setSection} />
     </div>
   );
 }

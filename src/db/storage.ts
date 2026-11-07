@@ -3,7 +3,7 @@
 
 import { openDB, type IDBPDatabase } from 'idb';
 import type { AppData, AppSettings, Task, RoadmapMilestone, Project, DailyRecord, ScheduleEntry, Note } from '../types';
-import { DEFAULT_LIFE_AREAS, DEFAULT_APPEARANCE, DEFAULT_AI_SETTINGS } from '../types';
+import { DEFAULT_LIFE_AREAS, DEFAULT_APPEARANCE, DEFAULT_AI_SETTINGS, DEFAULT_PERSONALIZATION } from '../types';
 
 const DB_NAME = 'lifemap-db';
 const DB_VERSION = 3;
@@ -388,7 +388,7 @@ export async function clearAllData(): Promise<void> {
 export function getDefaultSettings(): AppSettings {
   return {
     theme: 'dark',
-    displayName: 'Student',
+    displayName: 'Sastivelan',
     lifeAreaWeights: {
       technical: 50,
       communication: 15,
@@ -397,7 +397,14 @@ export function getDefaultSettings(): AppSettings {
       health: 10,
     },
     lifeAreas: DEFAULT_LIFE_AREAS,
-    appearance: DEFAULT_APPEARANCE,
+    appearance: {
+      ...DEFAULT_APPEARANCE,
+      themePreset: 'purple-fantasy',
+      accentColor: '#c084fc',
+      wallpaperId: 'sakura-night',
+      backgroundImageUrl: '/wallpapers/sakura-night.svg',
+    },
+    personalization: DEFAULT_PERSONALIZATION,
     aiSettings: DEFAULT_AI_SETTINGS,
     workingHoursStart: '07:00',
     workingHoursEnd: '22:00',

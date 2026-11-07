@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="100%" height="100%" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="skyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0b0319" />
+      <stop offset="40%" stop-color="#180b33" />
+      <stop offset="75%" stop-color="#2d134b" />
+      <stop offset="100%" stop-color="#461c6b" />
+    </linearGradient>
+    <radialGradient id="moonGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.95" />
+      <stop offset="35%" stop-color="#fdf2f8" stop-opacity="0.8" />
+      <stop offset="70%" stop-color="#f472b6" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#a855f7" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="nebulaPink" cx="30%" cy="30%" r="60%">
+      <stop offset="0%" stop-color="#ec4899" stop-opacity="0.25" />
+      <stop offset="50%" stop-color="#8b5cf6" stop-opacity="0.12" />
+      <stop offset="100%" stop-color="#0b0319" stop-opacity="0" />
+    </radialGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Sky Base -->
+  <rect width="1920" height="1080" fill="url(#skyGrad)" />
+  <rect width="1920" height="1080" fill="url(#nebulaPink)" />
+
+  <!-- Stars -->
+  <g fill="#ffffff" opacity="0.85">
+    <circle cx="120" cy="80" r="1.5" /><circle cx="280" cy="190" r="2" /><circle cx="450" cy="90" r="1.2" />
+    <circle cx="620" cy="220" r="1.8" /><circle cx="780" cy="110" r="2.2" /><circle cx="940" cy="70" r="1.5" />
+    <circle cx="1120" cy="160" r="2" /><circle cx="1340" cy="95" r="1.6" /><circle cx="1520" cy="180" r="2" />
+    <circle cx="1680" cy="120" r="1.4" /><circle cx="1820" cy="70" r="2.4" /><circle cx="180" cy="340" r="1.8" />
+    <circle cx="350" cy="420" r="1.2" /><circle cx="890" cy="310" r="2" /><circle cx="1230" cy="380" r="1.5" />
+    <circle cx="1450" cy="290" r="1.7" /><circle cx="1740" cy="390" r="2" /><circle cx="560" cy="480" r="1.3" />
+  </g>
+
+  <!-- Giant Moon -->
+  <circle cx="1420" cy="320" r="160" fill="url(#moonGlow)" filter="url(#glow)" />
+  <circle cx="1420" cy="320" r="85" fill="#fff5f9" opacity="0.9" />
+
+  <!-- Mountain Silhouettes -->
+  <path d="M0 1080 L0 780 Q240 680 480 750 T960 720 T1440 760 T1920 690 L1920 1080 Z" fill="#130826" opacity="0.7" />
+  <path d="M0 1080 L0 840 Q320 740 640 820 T1280 790 T1920 830 L1920 1080 Z" fill="#0d041c" />
+
+  <!-- Distant Pagoda Silhouette -->
+  <g fill="#080212" transform="translate(1320, 680) scale(0.65)">
+    <rect x="80" y="80" width="40" height="70" />
+    <path d="M50 80 Q100 65 150 80 L140 70 Q100 55 60 70 Z" />
+    <rect x="85" y="45" width="30" height="25" />
+    <path d="M60 45 Q100 32 140 45 L130 36 Q100 24 70 36 Z" />
+    <rect x="90" y="20" width="20" height="16" />
+    <path d="M70 20 Q100 10 130 20 L122 13 Q100 4 78 13 Z" />
+    <line x1="100" y1="0" x2="100" y2="15" stroke="#080212" stroke-width="4" />
+  </g>
+
+  <!-- Cherry Blossom Branches (Silhouette) -->
+  <g fill="#090214">
+    <path d="M0 0 C180 80 340 120 540 90 C420 130 310 180 220 280 C180 210 120 160 0 130 Z" />
+    <path d="M1920 0 C1720 110 1560 140 1340 90 C1460 140 1590 220 1680 320 C1740 240 1810 170 1920 140 Z" />
+  </g>
+
+  <!-- Glowing Pink Sakura Petals -->
+  <g fill="#f472b6" opacity="0.85" filter="url(#glow)">
+    <ellipse cx="260" cy="140" rx="14" ry="7" transform="rotate(-25 260 140)" fill="#fb7185" />
+    <ellipse cx="380" cy="180" rx="16" ry="8" transform="rotate(35 380 180)" fill="#f472b6" />
+    <ellipse cx="490" cy="120" rx="12" ry="6" transform="rotate(-15 490 120)" fill="#fbcfe8" />
+    <ellipse cx="320" cy="260" rx="14" ry="7" transform="rotate(45 320 260)" fill="#fb7185" />
+    <ellipse cx="640" cy="240" rx="10" ry="5" transform="rotate(60 640 240)" fill="#f472b6" />
+    <ellipse cx="820" cy="380" rx="13" ry="6" transform="rotate(-40 820 380)" fill="#fbcfe8" />
+    <ellipse cx="1040" cy="490" rx="11" ry="5" transform="rotate(20 1040 490)" fill="#f472b6" />
+    <ellipse cx="1240" cy="420" rx="14" ry="7" transform="rotate(-30 1240 420)" fill="#fb7185" />
+    <ellipse cx="1480" cy="220" rx="15" ry="8" transform="rotate(50 1480 220)" fill="#f472b6" />
+    <ellipse cx="1620" cy="160" rx="16" ry="7" transform="rotate(-20 1620 160)" fill="#fbcfe8" />
+    <ellipse cx="1730" cy="280" rx="12" ry="6" transform="rotate(30 1730 280)" fill="#fb7185" />
+    <ellipse cx="1560" cy="340" rx="10" ry="5" transform="rotate(-65 1560 340)" fill="#f472b6" />
+  </g>
+</svg>

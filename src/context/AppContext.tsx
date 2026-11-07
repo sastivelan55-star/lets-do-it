@@ -232,15 +232,38 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         root.style.setProperty('--accent', appearance.accentColor);
         root.style.setProperty('--accent-glow', `${appearance.accentColor}33`);
       }
-      if (appearance.backgroundImageUrl && appearance.backgroundImageUrl.trim().length > 0) {
-        root.style.setProperty('--user-bg-image', `url("${appearance.backgroundImageUrl.trim()}")`);
+      if (appearance.secondaryAccent) {
+        root.style.setProperty('--accent-secondary', appearance.secondaryAccent);
+      }
+      if (typeof appearance.glassBlur === 'number') {
+        root.style.setProperty('--glass-blur', `${appearance.glassBlur}px`);
+      }
+      if (typeof appearance.cardTransparency === 'number') {
+        const alpha = Math.max(0.2, Math.min(0.95, 1 - appearance.cardTransparency));
+        root.style.setProperty('--glass-bg', `rgba(18, 10, 40, ${alpha})`);
+      }
+
+      // Resolve background wallpaper URL
+      let resolvedBgUrl = appearance.backgroundImageUrl?.trim() || '';
+      if (!resolvedBgUrl && appearance.wallpaperId && appearance.wallpaperId !== 'none') {
+        resolvedBgUrl = `/wallpapers/${appearance.wallpaperId}.svg`;
+      }
+
+      if (resolvedBgUrl) {
+        root.style.setProperty('--user-bg-image', `url("${resolvedBgUrl}")`);
         root.style.setProperty('--user-bg-overlay-display', 'block');
         const raw = typeof appearance.backgroundOverlayOpacity === 'number'
           ? appearance.backgroundOverlayOpacity
           : 0.25;
         const normalized = raw > 1 ? raw / 100 : raw;
-        const clamped = Math.min(0.65, Math.max(0.05, normalized));
+        const clamped = Math.min(0.85, Math.max(0.05, normalized));
         root.style.setProperty('--user-bg-overlay-opacity', String(clamped));
+        if (appearance.wallpaperScaling) {
+          root.style.setProperty('--user-bg-size', appearance.wallpaperScaling);
+        }
+        if (appearance.wallpaperPosition) {
+          root.style.setProperty('--user-bg-position', appearance.wallpaperPosition);
+        }
       } else {
         root.style.removeProperty('--user-bg-image');
         root.style.setProperty('--user-bg-overlay-display', 'none');

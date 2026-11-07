@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="100%" height="100%" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <radialGradient id="nebulaCenter" cx="45%" cy="50%" r="55%">
+      <stop offset="0%" stop-color="#7c3aed" stop-opacity="0.6" />
+      <stop offset="35%" stop-color="#4f46e5" stop-opacity="0.4" />
+      <stop offset="65%" stop-color="#06b6d4" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#030014" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="nebulaPink2" cx="70%" cy="40%" r="40%">
+      <stop offset="0%" stop-color="#ec4899" stop-opacity="0.5" />
+      <stop offset="50%" stop-color="#a855f7" stop-opacity="0.25" />
+      <stop offset="100%" stop-color="#030014" stop-opacity="0" />
+    </radialGradient>
+    <filter id="starGlow">
+      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Space Background -->
+  <rect width="1920" height="1080" fill="#04010f" />
+  <rect width="1920" height="1080" fill="url(#nebulaCenter)" />
+  <rect width="1920" height="1080" fill="url(#nebulaPink2)" />
+
+  <!-- Swirling Galactic Dust -->
+  <g fill="#ffffff">
+    <circle cx="150" cy="120" r="1.5" /><circle cx="280" cy="240" r="2.2" filter="url(#starGlow)" />
+    <circle cx="430" cy="180" r="1.2" /><circle cx="610" cy="90" r="2.8" filter="url(#starGlow)" />
+    <circle cx="780" cy="260" r="1.4" /><circle cx="920" cy="140" r="3.2" filter="url(#starGlow)" />
+    <circle cx="1060" cy="220" r="1.6" /><circle cx="1250" cy="80" r="2.5" filter="url(#starGlow)" />
+    <circle cx="1420" cy="250" r="1.4" /><circle cx="1620" cy="130" r="3.5" filter="url(#starGlow)" />
+    <circle cx="1780" cy="290" r="1.8" /><circle cx="220" cy="480" r="1.5" />
+    <circle cx="460" cy="560" r="2.5" filter="url(#starGlow)" /><circle cx="820" cy="480" r="1.8" />
+    <circle cx="1140" cy="520" r="3.0" filter="url(#starGlow)" /><circle cx="1380" cy="460" r="1.5" />
+    <circle cx="1560" cy="620" r="2.2" filter="url(#starGlow)" /><circle cx="1720" cy="540" r="1.6" />
+  </g>
+
+  <!-- Radiant Big Starburst -->
+  <g transform="translate(920, 360)" filter="url(#starGlow)">
+    <circle cx="0" cy="0" r="8" fill="#ffffff" />
+    <line x1="-40" y1="0" x2="40" y2="0" stroke="#ffffff" stroke-width="2" />
+    <line x1="0" y1="-40" x2="0" y2="40" stroke="#ffffff" stroke-width="2" />
+    <line x1="-20" y1="-20" x2="20" y2="20" stroke="#c084fc" stroke-width="1.5" />
+    <line x1="-20" y1="20" x2="20" y2="-20" stroke="#c084fc" stroke-width="1.5" />
+  </g>
+</svg>

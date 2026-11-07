@@ -2,6 +2,7 @@ import {
   Search,
   Zap,
   Moon,
+  Bell,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
@@ -15,15 +16,29 @@ interface TopBarProps {
   activeSection: NavSection;
 }
 
-const THEME_CYCLE: ThemePreset[] = ['navy-purple', 'dark-slate', 'midnight-oled'];
+const THEME_CYCLE: ThemePreset[] = [
+  'purple-fantasy',
+  'pink-sakura',
+  'midnight-blue',
+  'neon-cyberpunk',
+  'lavender-dream',
+  'cyan-galaxy',
+];
 
 const SECTION_LABELS: Record<NavSection, string> = {
-  home: 'Command Center',
+  home: 'Anime Command Center',
   tasks: 'Task System',
+  pulse: 'News — Live Intelligence Feeds',
+  notes: 'Knowledge & Notes',
+  calendar: 'Calendar Planner',
+  projects: 'Projects Hub',
+  roadmap: 'Roadmap & Milestones',
+  reflection: 'Weekly Reflection',
+  settings: 'Personalization & Settings',
   journey: 'My Journey',
   personal: 'Personal Life',
   knowledge: 'Knowledge Base',
-  explore: 'Tech & Updates',
+  explore: 'News — Live Intelligence Feeds',
   review: 'Review & Settings',
 };
 
@@ -33,10 +48,10 @@ export default function TopBar({
   onNavigate,
   activeSection,
 }: TopBarProps) {
-  const { user, isGuest } = useAuth();
-  const { settings, updateAppearance } = useApp();
+  const { user } = useAuth();
+  const { settings, updateAppearance, tasks } = useApp();
 
-  const currentTheme = settings.appearance?.themePreset || 'navy-purple';
+  const currentTheme = settings.appearance?.themePreset || 'purple-fantasy';
 
   const handleCycleTheme = async () => {
     const currentIndex = THEME_CYCLE.indexOf(currentTheme);
@@ -48,17 +63,15 @@ export default function TopBar({
     });
   };
 
-  const userInitial = user?.email
-    ? user.email[0].toUpperCase()
-    : isGuest
-    ? 'G'
-    : 'U';
+  const displayName =
+    settings.displayName && settings.displayName.trim().length > 0
+      ? settings.displayName.trim()
+      : user?.email
+      ? user.email.split('@')[0]
+      : 'Sastivelan';
 
-  const displayName = user?.email
-    ? user.email.split('@')[0]
-    : isGuest
-    ? 'Guest Demo'
-    : 'Account';
+  const userInitial = displayName[0].toUpperCase();
+  const dueCount = tasks.filter((t) => !t.isDeleted && t.status !== 'completed').length;
 
   return (
     <header
@@ -68,9 +81,9 @@ export default function TopBar({
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '0.65rem 1.25rem',
-        background: 'rgba(8, 12, 24, 0.75)',
-        backdropFilter: 'blur(16px)',
-        borderBottom: '1px solid var(--border)',
+        background: 'rgba(8, 5, 22, 0.75)',
+        backdropFilter: 'blur(20px)',
+        borderBottom: '1px solid rgba(168, 85, 247, 0.18)',
         position: 'sticky',
         top: 0,
         zIndex: 30,
@@ -85,72 +98,76 @@ export default function TopBar({
             fontWeight: 700,
             textTransform: 'uppercase',
             letterSpacing: '0.06em',
-            color: '#818cf8',
-            background: 'rgba(129, 140, 248, 0.1)',
-            padding: '3px 8px',
-            borderRadius: '6px',
-            border: '1px solid rgba(129, 140, 248, 0.25)',
+            color: '#c084fc',
+            background: 'rgba(168, 85, 247, 0.15)',
+            padding: '3px 10px',
+            borderRadius: '8px',
+            border: '1px solid rgba(192, 132, 252, 0.3)',
             whiteSpace: 'nowrap',
           }}
           className="hidden sm:inline-flex"
         >
           {SECTION_LABELS[activeSection] || 'Life OS'}
         </div>
-      <button
-        type="button"
-        onClick={onOpenSearch}
-        aria-label="Search anything across Life OS (Ctrl + K)"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.65rem',
-          background: 'rgba(255, 255, 255, 0.04)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          borderRadius: '999px',
-          padding: '0.45rem 1rem',
-          color: 'var(--text-muted)',
-          fontSize: '0.84rem',
-          cursor: 'pointer',
-          flex: 1,
-          maxWidth: '440px',
-          minWidth: '160px',
-          transition: 'all 0.2s ease',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.borderColor = 'rgba(129, 140, 248, 0.4)';
-          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.07)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
-        }}
-      >
-        <Search size={15} color="#818cf8" style={{ flexShrink: 0 }} />
-        <span style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          Search anything…
-        </span>
-        <span
+
+        <button
+          type="button"
+          onClick={onOpenSearch}
+          aria-label="Search anything across Life OS (Ctrl + K)"
           style={{
-            display: 'inline-flex',
+            display: 'flex',
             alignItems: 'center',
-            gap: '2px',
-            fontSize: '0.68rem',
-            background: 'rgba(255, 255, 255, 0.07)',
-            padding: '2px 6px',
-            borderRadius: '5px',
+            gap: '0.65rem',
+            background: 'rgba(255, 255, 255, 0.04)',
+            border: '1px solid rgba(168, 85, 247, 0.2)',
+            borderRadius: '999px',
+            padding: '0.45rem 1.1rem',
             color: 'var(--text-muted)',
-            fontWeight: 600,
-            fontFamily: 'monospace',
-            flexShrink: 0,
+            fontSize: '0.84rem',
+            cursor: 'pointer',
+            flex: 1,
+            maxWidth: '440px',
+            minWidth: '160px',
+            transition: 'all 0.2s ease',
+            boxShadow: '0 0 12px rgba(168, 85, 247, 0.08)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = 'rgba(192, 132, 252, 0.5)';
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.07)';
+            e.currentTarget.style.boxShadow = '0 0 16px rgba(168, 85, 247, 0.2)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.2)';
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
+            e.currentTarget.style.boxShadow = '0 0 12px rgba(168, 85, 247, 0.08)';
           }}
         >
-          Ctrl+K
-        </span>
-      </button>
+          <Search size={15} color="#c084fc" style={{ flexShrink: 0 }} />
+          <span style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            Search anything... (Ctrl + K)
+          </span>
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '2px',
+              fontSize: '0.68rem',
+              background: 'rgba(168, 85, 247, 0.15)',
+              padding: '2px 6px',
+              borderRadius: '5px',
+              color: '#c084fc',
+              fontWeight: 600,
+              fontFamily: 'monospace',
+              flexShrink: 0,
+            }}
+          >
+            Ctrl+K
+          </span>
+        </button>
       </div>
 
       {/* Right Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexShrink: 0 }}>
         {/* Quick Capture Button */}
         <button
           type="button"
@@ -162,9 +179,11 @@ export default function TopBar({
             alignItems: 'center',
             gap: '6px',
             fontSize: '0.78rem',
-            padding: '0.45rem 0.85rem',
+            padding: '0.45rem 0.95rem',
             borderRadius: '999px',
-            boxShadow: '0 4px 12px rgba(99, 102, 241, 0.35)',
+            background: 'linear-gradient(135deg, #a855f7, #6366f1)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            boxShadow: '0 0 16px rgba(168, 85, 247, 0.45)',
           }}
         >
           <Zap size={13} color="#ffffff" />
@@ -177,7 +196,7 @@ export default function TopBar({
           type="button"
           onClick={handleCycleTheme}
           className="btn btn-ghost btn-sm"
-          title={`Current Theme: ${currentTheme}. Click to cycle themes.`}
+          title={`Theme: ${currentTheme}. Click to cycle.`}
           aria-label="Cycle visual theme preset"
           style={{
             width: '34px',
@@ -187,54 +206,101 @@ export default function TopBar({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            border: '1px solid var(--border)',
-            background: 'rgba(255, 255, 255, 0.03)',
-            color: 'var(--text-secondary)',
+            border: '1px solid rgba(168, 85, 247, 0.2)',
+            background: 'rgba(255, 255, 255, 0.04)',
+            color: '#c084fc',
           }}
         >
-          <Moon size={15} color="#818cf8" />
+          <Moon size={15} color="#c084fc" />
+        </button>
+
+        {/* Notification Bell Badge */}
+        <button
+          type="button"
+          onClick={() => onNavigate('tasks')}
+          className="btn btn-ghost btn-sm"
+          title={`${dueCount} Tasks Due`}
+          style={{
+            width: '34px',
+            height: '34px',
+            padding: 0,
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: '1px solid rgba(168, 85, 247, 0.2)',
+            background: 'rgba(255, 255, 255, 0.04)',
+            color: '#cbd5e1',
+            position: 'relative',
+          }}
+        >
+          <Bell size={15} color="#cbd5e1" />
+          {dueCount > 0 && (
+            <span
+              style={{
+                position: 'absolute',
+                top: '4px',
+                right: '4px',
+                width: '13px',
+                height: '13px',
+                borderRadius: '50%',
+                background: '#ef4444',
+                color: 'white',
+                fontSize: '0.58rem',
+                fontWeight: 800,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 0 8px rgba(239, 68, 68, 0.6)',
+              }}
+            >
+              {dueCount}
+            </span>
+          )}
         </button>
 
         {/* User Account Pill */}
         <button
           type="button"
-          onClick={() => onNavigate('review')}
+          onClick={() => onNavigate('settings')}
           className="btn btn-ghost btn-sm"
-          title={`Logged in as ${displayName}. Click to open account settings.`}
+          title={`Logged in as ${displayName}. Click to open Settings.`}
           aria-label="User Account"
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '7px',
-            padding: '0.25rem 0.6rem 0.25rem 0.35rem',
+            gap: '8px',
+            padding: '0.25rem 0.75rem 0.25rem 0.35rem',
             borderRadius: '999px',
-            border: '1px solid var(--border)',
-            background: 'rgba(255, 255, 255, 0.03)',
+            border: '1px solid rgba(168, 85, 247, 0.3)',
+            background: 'rgba(168, 85, 247, 0.1)',
+            boxShadow: '0 0 12px rgba(168, 85, 247, 0.15)',
           }}
         >
           <div
             style={{
-              width: '24px',
-              height: '24px',
+              width: '26px',
+              height: '26px',
               borderRadius: '50%',
-              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+              background: 'linear-gradient(135deg, #a855f7, #ec4899)',
               color: '#ffffff',
-              fontSize: '0.72rem',
+              fontSize: '0.74rem',
               fontWeight: 800,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
+              boxShadow: '0 0 8px rgba(168, 85, 247, 0.4)',
             }}
           >
             {userInitial}
           </div>
           <span
             style={{
-              fontSize: '0.76rem',
-              fontWeight: 600,
-              color: 'var(--text-primary)',
-              maxWidth: '100px',
+              fontSize: '0.78rem',
+              fontWeight: 700,
+              color: '#f8fafc',
+              maxWidth: '120px',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',

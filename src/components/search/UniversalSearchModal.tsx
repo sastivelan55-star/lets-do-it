@@ -11,6 +11,7 @@ import {
   X,
   Layers,
   Sparkles,
+  Globe,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import type { NavSection } from '../../App';
@@ -96,6 +97,17 @@ export default function UniversalSearchModal({
       destination: 'tasks',
       badge: 'Destination',
       action: () => { onNavigate('tasks'); onClose(); },
+    },
+    {
+      id: 'nav-pulse',
+      type: 'navigation',
+      title: 'News — Live Open Channels',
+      subtitle: 'Real-time breaking stories, trending topics, technology, business & sports',
+      icon: <Globe size={15} color="#38bdf8" />,
+      color: '#38bdf8',
+      destination: 'pulse',
+      badge: 'Destination',
+      action: () => { onNavigate('pulse'); onClose(); },
     },
     {
       id: 'nav-journey',

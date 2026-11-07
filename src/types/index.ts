@@ -274,15 +274,80 @@ export interface UserUpload {
   updatedAt: string; // ISO datetime
 }
 
-export type ThemePreset = 'navy-purple' | 'dark-slate' | 'midnight-oled' | 'cyberpunk' | 'clean-light';
+export type ThemePreset =
+  | 'purple-fantasy'
+  | 'pink-sakura'
+  | 'midnight-blue'
+  | 'neon-cyberpunk'
+  | 'lavender-dream'
+  | 'cyan-galaxy'
+  | 'custom'
+  | 'navy-purple'
+  | 'dark-slate'
+  | 'midnight-oled'
+  | 'cyberpunk'
+  | 'clean-light';
 
 export interface AppearanceSettings {
   theme: 'dark' | 'light' | 'system';
   themePreset: ThemePreset;
-  accentColor: string; // e.g. '#6366f1'
+  accentColor: string; // e.g. '#818cf8'
+  secondaryAccent?: string; // e.g. '#ec4899'
+  glowIntensity?: number; // 0 to 100
+  glassBlur?: number; // 0 to 30px
+  cardTransparency?: number; // 0.1 to 1.0
   backgroundImageUrl?: string;
   backgroundOverlayOpacity: number; // 0.1 to 0.95
+  wallpaperId?: string; // 'sakura-night' | ... | 'custom'
+  wallpaperBlur?: number; // 0 to 30px
+  wallpaperPosition?: 'center' | 'top' | 'bottom';
+  wallpaperScaling?: 'cover' | 'contain' | 'auto';
 }
+
+export interface DashboardWidgetToggles {
+  showMissions: boolean;
+  showProgressRing: boolean;
+  showStreakLevel: boolean;
+  showQuickDate: boolean;
+  showMilestone: boolean;
+  showCompanionShowcase: boolean;
+  showWardrobe: boolean;
+  showQuote: boolean;
+  showCharacterIllustration: boolean;
+  enableAnimations: boolean;
+  density: 'comfortable' | 'compact';
+}
+
+export interface PersonalizationSettings {
+  activeCharacterId: string;
+  activeOutfitId: string;
+  customCharacterImageUrl?: string;
+  favouriteCharacterIds: string[];
+  sidebarDecorationEnabled: boolean;
+  preferredGreeting?: string;
+  dashboardWidgets: DashboardWidgetToggles;
+}
+
+export const DEFAULT_PERSONALIZATION: PersonalizationSettings = {
+  activeCharacterId: 'nami',
+  activeOutfitId: 'signature',
+  favouriteCharacterIds: ['nami', 'nico-robin', 'rias-gremory', 'yor-forger'],
+  sidebarDecorationEnabled: true,
+  preferredGreeting: "Good Morning! ♡ Let's make today productive together!",
+  dashboardWidgets: {
+    showMissions: true,
+    showProgressRing: true,
+    showStreakLevel: true,
+    showQuickDate: true,
+    showMilestone: true,
+    showCompanionShowcase: true,
+    showWardrobe: true,
+    showQuote: true,
+    showCharacterIllustration: true,
+    enableAnimations: true,
+    density: 'comfortable',
+  },
+};
 
 export type AiProvider = 'openai' | 'gemini';
 
@@ -378,8 +443,12 @@ export const DEFAULT_APPEARANCE: AppearanceSettings = {
   theme: 'dark',
   themePreset: 'navy-purple',
   accentColor: '#6366f1',
-  backgroundImageUrl: '',
-  backgroundOverlayOpacity: 0.25,
+  secondaryAccent: '#f472b6',
+  wallpaperId: 'sakura-night',
+  backgroundImageUrl: '/wallpapers/sakura-night.svg',
+  backgroundOverlayOpacity: 0.28,
+  glassBlur: 16,
+  cardTransparency: 0.32,
 };
 
 export const DEFAULT_AI_SETTINGS: AiSettings = {
@@ -391,9 +460,11 @@ export const DEFAULT_AI_SETTINGS: AiSettings = {
 export interface AppSettings {
   theme: 'dark' | 'light' | 'system';
   displayName: string;
+  profileAvatar?: string;
   lifeAreaWeights: LifeAreaWeights;
   lifeAreas: CustomLifeArea[];
   appearance: AppearanceSettings;
+  personalization?: PersonalizationSettings;
   aiSettings: AiSettings;
   workingHoursStart: string;
   workingHoursEnd: string;
