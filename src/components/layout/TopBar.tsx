@@ -67,8 +67,8 @@ export default function TopBar({
     settings.displayName && settings.displayName.trim().length > 0
       ? settings.displayName.trim()
       : user?.email
-      ? user.email.split('@')[0]
-      : 'Sastivelan';
+        ? user.email.split('@')[0]
+        : 'Sastivelan';
 
   const userInitial = displayName[0].toUpperCase();
   const dueCount = tasks.filter((t) => !t.isDeleted && t.status !== 'completed').length;

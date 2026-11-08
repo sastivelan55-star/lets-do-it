@@ -45,7 +45,7 @@ export default function HomePage({ initialTab = 'dashboard', onNavigateSection }
   ];
 
   return (
-    <div className="composite-page">
+    <div className="composite-page" style={{ maxWidth: '100vw', overflowX: 'hidden', boxSizing: 'border-box', width: '100%' }}>
       {/* Subtab Navigation Bar with Live Time & Date */}
       <header className="composite-header" style={{ marginBottom: '1.25rem' }}>
         <div className="composite-header-top">
@@ -109,7 +109,7 @@ export default function HomePage({ initialTab = 'dashboard', onNavigateSection }
       </header>
 
       {/* Content Area */}
-      <div className="composite-content">
+      <div className="composite-content" style={{ maxWidth: '100vw', overflowX: 'hidden', boxSizing: 'border-box', width: '100%' }}>
         {activeTab === 'dashboard' && (
           <AnimeFantasyDashboard
             onNavigateSection={onNavigateSection}

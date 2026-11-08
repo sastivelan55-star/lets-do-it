@@ -1,12 +1,9 @@
-// Life OS — Anime Fantasy Productivity Dashboard
-// Replicating the exact reference aesthetic: Character showcase, Missions timeline, Streak/Level, Quick Date, Wardrobe & Celebrations
+// Life OS — Productivity Dashboard
+// Clean, streamlined missions timeline, milestones, celebrations & quote
 
 import { useState, useMemo } from 'react';
 import {
   Target,
-  Flame,
-  Crown,
-  CalendarDays,
   Trophy,
   Check,
   ChevronRight,
@@ -20,10 +17,6 @@ import {
   Plus,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import {
-  getCharacterById,
-  getCharacterSvgDataUrl,
-} from '../../data/animeCharacters';
 
 interface AnimeFantasyDashboardProps {
   onNavigateSection?: (section: string) => void;
@@ -38,37 +31,16 @@ export default function AnimeFantasyDashboard({
     settings,
     todaysTasks,
     completeTask,
-    dailyRecords,
   } = useApp();
-
-  // Character & Personalization State
-  const activeCharId = settings.personalization?.activeCharacterId || 'nami';
-  const activeOutfitId = settings.personalization?.activeOutfitId || 'signature';
-  const activeChar = getCharacterById(activeCharId);
-  const customCharUrl = settings.personalization?.customCharacterImageUrl;
-
-  const displayName =
-    settings.displayName && settings.displayName.trim().length > 0
-      ? settings.displayName.trim()
-      : 'Sastivelan';
 
   const rawWidgets = settings.personalization?.dashboardWidgets;
   const widgets = {
     showMissions: rawWidgets?.showMissions !== false,
-    showProgressRing: rawWidgets?.showProgressRing !== false,
-    showStreakLevel: rawWidgets?.showStreakLevel !== false,
-    showQuickDate: rawWidgets?.showQuickDate !== false,
     showMilestone: rawWidgets?.showMilestone !== false,
-    showCompanionShowcase: rawWidgets?.showCompanionShowcase !== false,
-    showWardrobe: rawWidgets?.showWardrobe !== false,
     showQuote: rawWidgets?.showQuote !== false,
-    showCharacterIllustration: rawWidgets?.showCharacterIllustration !== false,
     enableAnimations: rawWidgets?.enableAnimations !== false,
     density: rawWidgets?.density || 'comfortable',
   };
-
-  // Quick Date Select State
-  const [selectedDateFilter, setSelectedDateFilter] = useState<'today' | 'tomorrow' | 'in2days' | 'pick'>('today');
 
   // Task Completion Celebration Banner State
   const [celebrationText, setCelebrationText] = useState<string | null>(null);
@@ -80,20 +52,6 @@ export default function AnimeFantasyDashboard({
     day: 'numeric',
     weekday: 'short',
   });
-
-  // Calculate real streak from dailyRecords or completed tasks
-  const calculatedStreak = useMemo(() => {
-    let streak = 0;
-    const sorted = [...dailyRecords].sort((a, b) => b.date.localeCompare(a.date));
-    for (const rec of sorted) {
-      if (rec.tasksCompleted > 0) {
-        streak++;
-      } else {
-        break;
-      }
-    }
-    return Math.max(streak, 7); // Default baseline 7-day streak as in reference
-  }, [dailyRecords]);
 
   // Real or blended daily missions
   const todayMissions = useMemo(() => {
@@ -116,7 +74,7 @@ export default function AnimeFantasyDashboard({
       });
     }
 
-    // Default reference missions matching the user's screenshot
+    // Default reference missions
     return [
       { id: 'm1', title: 'Wake up & Freshen up', time: '06:00 AM', category: 'Routine', icon: <Sun size={15} />, isCompleted: true },
       { id: 'm2', title: 'Exercise for 30 mins', time: '06:30 AM', category: 'Daily', icon: <Dumbbell size={15} />, isCompleted: true },
@@ -128,11 +86,9 @@ export default function AnimeFantasyDashboard({
 
   const completedCount = todayMissions.filter((m) => m.isCompleted).length;
   const totalMissions = todayMissions.length;
-  const progressPercent = totalMissions > 0 ? Math.round((completedCount / totalMissions) * 100) : 83;
 
   // Toggle mission completion with instant celebration
   const handleToggleMission = async (missionId: string, currentCompleted: boolean) => {
-    // If real task exists in AppContext, trigger completeTask
     const realTask = todaysTasks.find((t) => t.id === missionId);
     if (realTask) {
       await completeTask(missionId);
@@ -144,24 +100,19 @@ export default function AnimeFantasyDashboard({
     }
   };
 
-  const characterSvgUrl = getCharacterSvgDataUrl(activeChar, activeOutfitId);
-
-  // Time-of-day dynamic greeting
-  const greetingText = settings.personalization?.preferredGreeting ||
-    `Good Morning, ${displayName}! ♡ Let's make today productive together!`;
-
   return (
     <div
       className="anime-dashboard-container"
       style={{
         width: '100%',
-        maxWidth: '1440px',
+        maxWidth: '100vw',
+        overflowX: 'hidden',
+        boxSizing: 'border-box',
         margin: '0 auto',
-        padding: '0.5rem 1rem 5rem',
+        padding: '0.5rem 1rem calc(96px + env(safe-area-inset-bottom, 24px))',
         display: 'flex',
         flexDirection: 'column',
         gap: '1.25rem',
-        boxSizing: 'border-box',
       }}
     >
       {/* Celebration Notification Banner */}
@@ -205,611 +156,276 @@ export default function AnimeFantasyDashboard({
         </div>
       )}
 
-      {/* Main Two-Column Layout matching reference screenshot */}
+      {/* Main Grid: Today's Missions & Next Milestone */}
       <div
+        className="dash-middle-grid"
         style={{
           display: 'grid',
-          gridTemplateColumns: widgets.showCharacterIllustration
-            ? 'minmax(280px, 360px) minmax(0, 1fr)'
-            : 'minmax(0, 1fr)',
-          gap: '1.5rem',
-          alignItems: 'start',
+          gap: '1.25rem',
           width: '100%',
+          maxWidth: '100%',
+          boxSizing: 'border-box',
         }}
-        className="anime-dash-grid"
       >
-        {/* ── LEFT COLUMN: ANIME COMPANION PRESENTATION ────────────────────── */}
-        {widgets.showCharacterIllustration && (
+        {/* Today's Missions Glass Card */}
+        {widgets.showMissions && (
           <div
-            className="anime-companion-col"
             style={{
-              position: 'relative',
+              background: 'rgba(18, 12, 38, 0.75)',
+              backdropFilter: 'blur(16px)',
+              borderRadius: '20px',
+              border: '1px solid rgba(192, 132, 252, 0.25)',
+              padding: '1.25rem 1.5rem',
               display: 'flex',
               flexDirection: 'column',
-              alignItems: 'center',
-              width: '100%',
+              gap: '1rem',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
             }}
           >
-            {/* Speech Bubble */}
-            <div
-              className="anime-speech-bubble"
-              style={{
-                position: 'relative',
-                background: 'rgba(255, 255, 255, 0.96)',
-                color: '#1e1b4b',
-                borderRadius: '18px',
-                padding: '0.85rem 1.25rem',
-                fontSize: '0.86rem',
-                fontWeight: 700,
-                lineHeight: 1.4,
-                boxShadow: '0 8px 24px rgba(0, 0, 0, 0.35)',
-                marginBottom: '1rem',
-                maxWidth: '320px',
-                textAlign: 'center',
-                border: '1px solid rgba(192, 132, 252, 0.4)',
-                animation: 'float 3s ease-in-out infinite',
-              }}
-            >
-              {greetingText}
-              {/* Bubble pointer */}
-              <div
-                style={{
-                  position: 'absolute',
-                  bottom: '-8px',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  width: 0,
-                  height: 0,
-                  borderLeft: '8px solid transparent',
-                  borderRight: '8px solid transparent',
-                  borderTop: '8px solid rgba(255, 255, 255, 0.96)',
-                }}
-              />
-            </div>
-
-            {/* Character Artwork Frame */}
-            <div
-              className="anime-char-frame"
-              style={{
-                width: '100%',
-                maxHeight: '620px',
-                borderRadius: '24px',
-                overflow: 'hidden',
-                position: 'relative',
-                background: 'radial-gradient(ellipse at center, rgba(168, 85, 247, 0.25) 0%, rgba(10, 5, 24, 0.8) 75%)',
-                border: '1px solid rgba(192, 132, 252, 0.3)',
-                boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5), 0 0 30px rgba(168, 85, 247, 0.2)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <img
-                src={customCharUrl || characterSvgUrl}
-                alt={activeChar.name}
-                style={{
-                  width: '100%',
-                  height: 'auto',
-                  objectFit: 'contain',
-                  filter: 'drop-shadow(0 15px 30px rgba(0, 0, 0, 0.6))',
-                  transition: 'transform 0.3s ease',
-                }}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* ── RIGHT COLUMN: PRODUCTIVITY WIDGETS ────────────────────────────── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          {/* Row 1: Today's Progress, Streak & Level Card */}
-          {widgets.showProgressRing && (
-            <div
-              style={{
-                background: 'rgba(18, 12, 38, 0.75)',
-                backdropFilter: 'blur(16px)',
-                borderRadius: '20px',
-                border: '1px solid rgba(192, 132, 252, 0.25)',
-                padding: '1.25rem 1.5rem',
-                display: 'grid',
-                gridTemplateColumns: 'auto 1fr 1fr auto',
-                gap: '1.5rem',
-                alignItems: 'center',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-              }}
-              className="dash-metrics-card"
-            >
-              {/* Circular Progress Indicator */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <div style={{ position: 'relative', width: '76px', height: '76px' }}>
-                  <svg width="76" height="76" viewBox="0 0 76 76">
-                    <circle
-                      cx="38"
-                      cy="38"
-                      r="32"
-                      fill="none"
-                      stroke="rgba(255, 255, 255, 0.08)"
-                      strokeWidth="7"
-                    />
-                    <circle
-                      cx="38"
-                      cy="38"
-                      r="32"
-                      fill="none"
-                      stroke="url(#progressGrad)"
-                      strokeWidth="7"
-                      strokeDasharray="201"
-                      strokeDashoffset={201 - (201 * progressPercent) / 100}
-                      strokeLinecap="round"
-                      transform="rotate(-90 38 38)"
-                      style={{ transition: 'stroke-dashoffset 0.6s ease' }}
-                    />
-                    <defs>
-                      <linearGradient id="progressGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stop-color="#06b6d4" />
-                        <stop offset="50%" stop-color="#a855f7" />
-                        <stop offset="100%" stop-color="#10b981" />
-                      </linearGradient>
-                    </defs>
-                  </svg>
-                  <div
-                    style={{
-                      position: 'absolute',
-                      inset: 0,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '1.15rem',
-                      fontWeight: 800,
-                      color: '#f8fafc',
-                    }}
-                  >
-                    {progressPercent}%
-                  </div>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    width: '34px',
+                    height: '34px',
+                    borderRadius: '10px',
+                    background: 'rgba(239, 68, 68, 0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#f87171',
+                  }}
+                >
+                  <Target size={18} />
                 </div>
-
                 <div>
-                  <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#f8fafc' }}>
-                    Today's Progress
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}>
-                    {completedCount} of {totalMissions} completed
-                  </div>
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#f8fafc' }}>
+                    Today Missions
+                  </h3>
+                  <p style={{ margin: '2px 0 0', fontSize: '0.74rem', color: '#94a3b8' }}>
+                    Your plan for today • {formattedDate}
+                  </p>
                 </div>
               </div>
 
-              {/* Streak Card */}
-              {widgets.showStreakLevel && (
-                <div style={{ borderLeft: '1px solid rgba(255, 255, 255, 0.1)', paddingLeft: '1.25rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div
-                      style={{
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '8px',
-                        background: 'rgba(249, 115, 22, 0.2)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#f97316',
-                      }}
-                    >
-                      <Flame size={18} />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#f8fafc' }}>
-                        {calculatedStreak} Day Streak
-                      </div>
-                      <div style={{ fontSize: '0.72rem', color: '#f97316', fontWeight: 600 }}>
-                        Keep going!
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Productive Level */}
-              {widgets.showStreakLevel && (
-                <div style={{ borderLeft: '1px solid rgba(255, 255, 255, 0.1)', paddingLeft: '1.25rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div
-                      style={{
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '8px',
-                        background: 'rgba(234, 179, 8, 0.2)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#facc15',
-                      }}
-                    >
-                      <Crown size={18} />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#f8fafc' }}>
-                        Level 3
-                      </div>
-                      <div style={{ fontSize: '0.72rem', color: '#c084fc', fontWeight: 600 }}>
-                        Productive Soul
-                      </div>
-                    </div>
-                  </div>
-                  {/* Level progress bar */}
-                  <div
-                    style={{
-                      height: '5px',
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      borderRadius: '999px',
-                      marginTop: '6px',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: '80%',
-                        height: '100%',
-                        background: 'linear-gradient(90deg, #a855f7, #10b981)',
-                        borderRadius: '999px',
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Chibi Celebration Sticker */}
-              <div
+              <button
+                type="button"
+                onClick={() => (onOpenTaskBuilder ? onOpenTaskBuilder() : onNavigateSection && onNavigateSection('tasks'))}
+                className="btn btn-ghost btn-sm"
                 style={{
-                  width: '54px',
-                  height: '54px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.3), rgba(168, 85, 247, 0.3))',
+                  color: '#c084fc',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  border: '1px solid rgba(236, 72, 153, 0.4)',
-                  boxShadow: '0 0 16px rgba(236, 72, 153, 0.35)',
+                  gap: '4px',
                 }}
               >
-                <Sparkles size={24} color="#f472b6" />
-              </div>
+                View All <ChevronRight size={14} />
+              </button>
             </div>
-          )}
 
-          {/* Row 2: Today Missions Timeline & Quick Select Panels */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'minmax(0, 1.4fr) minmax(220px, 1fr)',
-              gap: '1.25rem',
-            }}
-            className="dash-middle-grid"
-          >
-            {/* Today's Missions Glass Card */}
-            {widgets.showMissions && (
-              <div
-                style={{
-                  background: 'rgba(18, 12, 38, 0.75)',
-                  backdropFilter: 'blur(16px)',
-                  borderRadius: '20px',
-                  border: '1px solid rgba(192, 132, 252, 0.25)',
-                  padding: '1.25rem 1.5rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '1rem',
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-                }}
-              >
-                {/* Header */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div
-                      style={{
-                        width: '34px',
-                        height: '34px',
-                        borderRadius: '10px',
-                        background: 'rgba(239, 68, 68, 0.2)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#f87171',
-                      }}
-                    >
-                      <Target size={18} />
-                    </div>
-                    <div>
-                      <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#f8fafc' }}>
-                        Today Missions
-                      </h3>
-                      <p style={{ margin: '2px 0 0', fontSize: '0.74rem', color: '#94a3b8' }}>
-                        Your plan for today • {formattedDate}
-                      </p>
-                    </div>
-                  </div>
+            {/* Missions Timeline */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+              {todayMissions.map((m, idx) => {
+                const isRoutine = m.category === 'Routine';
+                const isDaily = m.category === 'Daily';
 
-                  <button
-                    type="button"
-                    onClick={() => (onOpenTaskBuilder ? onOpenTaskBuilder() : onNavigateSection && onNavigateSection('tasks'))}
-                    className="btn btn-ghost btn-sm"
+                const badgeColor = isRoutine
+                  ? '#10b981'
+                  : isDaily
+                    ? '#06b6d4'
+                    : '#a855f7';
+
+                return (
+                  <div
+                    key={m.id || idx}
                     style={{
-                      color: '#c084fc',
-                      fontSize: '0.78rem',
-                      fontWeight: 700,
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '4px',
+                      justifyContent: 'space-between',
+                      padding: '0.75rem 1rem',
+                      borderRadius: '14px',
+                      background: m.isCompleted
+                        ? 'rgba(16, 185, 129, 0.08)'
+                        : 'rgba(255, 255, 255, 0.03)',
+                      border: m.isCompleted
+                        ? '1px solid rgba(16, 185, 129, 0.25)'
+                        : '1px solid rgba(255, 255, 255, 0.06)',
+                      transition: 'all 0.2s ease',
                     }}
                   >
-                    View All <ChevronRight size={14} />
-                  </button>
-                </div>
-
-                {/* Missions Timeline */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                  {todayMissions.map((m, idx) => {
-                    const isRoutine = m.category === 'Routine';
-                    const isDaily = m.category === 'Daily';
-
-                    const badgeColor = isRoutine
-                      ? '#10b981'
-                      : isDaily
-                        ? '#06b6d4'
-                        : '#c084fc';
-
-                    return (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <div
-                        key={m.id || idx}
                         style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '8px',
+                          background: `${badgeColor}20`,
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '0.85rem',
-                          padding: '0.65rem 0.85rem',
-                          borderRadius: '12px',
-                          background: m.isCompleted
-                            ? 'rgba(16, 185, 129, 0.08)'
-                            : 'rgba(255, 255, 255, 0.03)',
-                          border: m.isCompleted
-                            ? '1px solid rgba(16, 185, 129, 0.25)'
-                            : '1px solid rgba(255, 255, 255, 0.06)',
-                          transition: 'all 0.2s ease',
+                          justifyContent: 'center',
+                          color: badgeColor,
                         }}
                       >
-                        {/* Time stamp */}
-                        <div
-                          style={{
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
-                            color: '#94a3b8',
-                            fontFamily: 'monospace',
-                            minWidth: '65px',
-                          }}
-                        >
-                          {m.time}
-                        </div>
+                        {m.icon}
+                      </div>
 
-                        {/* Theme icon */}
+                      <div>
                         <div
                           style={{
-                            color: isRoutine ? '#f59e0b' : isDaily ? '#38bdf8' : '#c084fc',
-                            display: 'flex',
-                            alignItems: 'center',
-                          }}
-                        >
-                          {m.icon}
-                        </div>
-
-                        {/* Task Title */}
-                        <div
-                          style={{
-                            flex: 1,
                             fontSize: '0.88rem',
-                            fontWeight: 600,
+                            fontWeight: 700,
                             color: m.isCompleted ? '#94a3b8' : '#f8fafc',
                             textDecoration: m.isCompleted ? 'line-through' : 'none',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
                           }}
                         >
                           {m.title}
                         </div>
-
-                        {/* Category Badge */}
-                        <span
-                          style={{
-                            fontSize: '0.68rem',
-                            fontWeight: 700,
-                            padding: '2px 8px',
-                            borderRadius: '999px',
-                            background: `${badgeColor}18`,
-                            color: badgeColor,
-                            border: `1px solid ${badgeColor}33`,
-                          }}
-                        >
-                          {m.category}
-                        </span>
-
-                        {/* Interactive Checkbox Circle */}
-                        <button
-                          type="button"
-                          onClick={() => handleToggleMission(m.id, m.isCompleted)}
-                          style={{
-                            width: '24px',
-                            height: '24px',
-                            borderRadius: '50%',
-                            border: m.isCompleted ? 'none' : '2px solid rgba(192, 132, 252, 0.4)',
-                            background: m.isCompleted ? '#10b981' : 'transparent',
-                            color: '#ffffff',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            cursor: 'pointer',
-                            flexShrink: 0,
-                            boxShadow: m.isCompleted ? '0 0 10px rgba(16, 185, 129, 0.5)' : 'none',
-                            transition: 'all 0.2s ease',
-                          }}
-                          aria-label={`Mark ${m.title} ${m.isCompleted ? 'incomplete' : 'complete'}`}
-                        >
-                          {m.isCompleted && <Check size={14} strokeWidth={3} />}
-                        </button>
+                        <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                          {m.time}
+                        </div>
                       </div>
-                    );
-                  })}
-                </div>
-
-                {/* Footer Counter */}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    fontSize: '0.75rem',
-                    color: '#94a3b8',
-                    borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-                    paddingTop: '0.65rem',
-                  }}
-                >
-                  <span style={{ fontWeight: 700, color: '#c084fc' }}>
-                    ✦ {completedCount} of {totalMissions} done!
-                  </span>
-
-                  <button
-                    type="button"
-                    onClick={() => (onOpenTaskBuilder ? onOpenTaskBuilder() : onNavigateSection && onNavigateSection('tasks'))}
-                    className="btn btn-ghost btn-sm"
-                    style={{ fontSize: '0.72rem', color: '#38bdf8', padding: '2px 6px' }}
-                  >
-                    <Plus size={12} /> Add Mission
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Quick Date Select & Next Milestone Stack */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              {/* Quick Date Select */}
-              {widgets.showQuickDate && (
-                <div
-                  style={{
-                    background: 'rgba(18, 12, 38, 0.75)',
-                    backdropFilter: 'blur(16px)',
-                    borderRadius: '20px',
-                    border: '1px solid rgba(192, 132, 252, 0.25)',
-                    padding: '1.25rem',
-                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.85rem' }}>
-                    <CalendarDays size={18} color="#38bdf8" />
-                    <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 800, color: '#f8fafc' }}>
-                      Quick Date Select
-                    </h4>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {[
-                      { id: 'today', label: 'Today' },
-                      { id: 'tomorrow', label: 'Tomorrow' },
-                      { id: 'in2days', label: 'In 2 Days' },
-                      { id: 'pick', label: 'Pick Date' },
-                    ].map((item) => {
-                      const isSelected = selectedDateFilter === item.id;
-                      return (
-                        <button
-                          key={item.id}
-                          onClick={() => setSelectedDateFilter(item.id as any)}
-                          style={{
-                            width: '100%',
-                            padding: '0.55rem 1rem',
-                            borderRadius: '10px',
-                            background: isSelected
-                              ? 'linear-gradient(135deg, #a855f7, #6366f1)'
-                              : 'rgba(255, 255, 255, 0.04)',
-                            border: isSelected ? 'none' : '1px solid rgba(255, 255, 255, 0.06)',
-                            color: isSelected ? '#ffffff' : '#cbd5e1',
-                            fontWeight: isSelected ? 700 : 500,
-                            fontSize: '0.82rem',
-                            textAlign: 'left',
-                            cursor: 'pointer',
-                            boxShadow: isSelected ? '0 0 12px rgba(168, 85, 247, 0.4)' : 'none',
-                            transition: 'all 0.2s ease',
-                          }}
-                        >
-                          {item.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Next Milestone Card */}
-              {widgets.showMilestone && (
-                <div
-                  style={{
-                    background: 'rgba(18, 12, 38, 0.75)',
-                    backdropFilter: 'blur(16px)',
-                    borderRadius: '20px',
-                    border: '1px solid rgba(192, 132, 252, 0.25)',
-                    padding: '1.25rem',
-                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '1rem',
-                  }}
-                >
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#facc15', fontSize: '0.78rem', fontWeight: 800 }}>
-                      <Trophy size={14} /> Next Milestone
-                    </div>
-                    <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#f8fafc', margin: '3px 0 6px' }}>
-                      Complete 5 tasks today!
                     </div>
 
-                    {/* Progress Bar */}
-                    <div
-                      style={{
-                        height: '6px',
-                        background: 'rgba(255, 255, 255, 0.08)',
-                        borderRadius: '999px',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      <div
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span
                         style={{
-                          width: `${Math.min(100, (completedCount / 5) * 100)}%`,
-                          height: '100%',
-                          background: 'linear-gradient(90deg, #ec4899, #a855f7)',
+                          fontSize: '0.68rem',
+                          fontWeight: 700,
+                          padding: '2px 8px',
                           borderRadius: '999px',
+                          background: `${badgeColor}18`,
+                          color: badgeColor,
+                          border: `1px solid ${badgeColor}33`,
                         }}
-                      />
-                    </div>
-                    <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '4px', textAlign: 'right' }}>
-                      {completedCount} / 5
-                    </div>
-                  </div>
+                      >
+                        {m.category}
+                      </span>
 
-                  {/* Gift Box Icon */}
-                  <div
-                    style={{
-                      width: '46px',
-                      height: '46px',
-                      borderRadius: '12px',
-                      background: 'linear-gradient(135deg, #f59e0b, #ec4899)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#ffffff',
-                      boxShadow: '0 0 16px rgba(245, 158, 11, 0.4)',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Gift size={22} />
+                      <button
+                        type="button"
+                        onClick={() => handleToggleMission(m.id, m.isCompleted)}
+                        style={{
+                          width: '24px',
+                          height: '24px',
+                          borderRadius: '50%',
+                          border: m.isCompleted ? 'none' : '2px solid rgba(192, 132, 252, 0.4)',
+                          background: m.isCompleted ? '#10b981' : 'transparent',
+                          color: '#ffffff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          flexShrink: 0,
+                          boxShadow: m.isCompleted ? '0 0 10px rgba(16, 185, 129, 0.5)' : 'none',
+                          transition: 'all 0.2s ease',
+                        }}
+                        aria-label={`Mark ${m.title} ${m.isCompleted ? 'incomplete' : 'complete'}`}
+                      >
+                        {m.isCompleted && <Check size={14} strokeWidth={3} />}
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })}
+            </div>
+
+            {/* Footer Counter */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                fontSize: '0.75rem',
+                color: '#94a3b8',
+                borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                paddingTop: '0.65rem',
+              }}
+            >
+              <span style={{ fontWeight: 700, color: '#c084fc' }}>
+                ✦ {completedCount} of {totalMissions} done!
+              </span>
+
+              <button
+                type="button"
+                onClick={() => (onOpenTaskBuilder ? onOpenTaskBuilder() : onNavigateSection && onNavigateSection('tasks'))}
+                className="btn btn-ghost btn-sm"
+                style={{ fontSize: '0.72rem', color: '#38bdf8', padding: '2px 6px' }}
+              >
+                <Plus size={12} /> Add Mission
+              </button>
             </div>
           </div>
-        </div>
+        )}
+
+        {/* Next Milestone Card */}
+        {widgets.showMilestone && (
+          <div
+            style={{
+              background: 'rgba(18, 12, 38, 0.75)',
+              backdropFilter: 'blur(16px)',
+              borderRadius: '20px',
+              border: '1px solid rgba(192, 132, 252, 0.25)',
+              padding: '1.25rem',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+              height: 'fit-content',
+            }}
+          >
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#facc15', fontSize: '0.78rem', fontWeight: 800 }}>
+                <Trophy size={14} /> Next Milestone
+              </div>
+              <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#f8fafc', margin: '3px 0 6px' }}>
+                Complete 5 tasks today!
+              </div>
+
+              {/* Progress Bar */}
+              <div
+                style={{
+                  height: '6px',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  borderRadius: '999px',
+                  overflow: 'hidden',
+                }}
+              >
+                <div
+                  style={{
+                    width: `${Math.min(100, (completedCount / 5) * 100)}%`,
+                    height: '100%',
+                    background: 'linear-gradient(90deg, #ec4899, #a855f7)',
+                    borderRadius: '999px',
+                  }}
+                />
+              </div>
+              <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '4px', textAlign: 'right' }}>
+                {completedCount} / 5
+              </div>
+            </div>
+
+            {/* Gift Box Icon */}
+            <div
+              style={{
+                width: '46px',
+                height: '46px',
+                borderRadius: '12px',
+                background: 'linear-gradient(135deg, #f59e0b, #ec4899)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#ffffff',
+                boxShadow: '0 0 16px rgba(245, 158, 11, 0.4)',
+                flexShrink: 0,
+              }}
+            >
+              <Gift size={22} />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Motivational Quote Banner - Centered across dashboard */}

@@ -178,7 +178,7 @@ function AppContent() {
   };
 
   return (
-    <div className="app-layout">
+    <div className="app-layout" style={{ maxWidth: '100vw', overflowX: 'hidden', boxSizing: 'border-box', width: '100%' }}>
       {/* Sidebar — desktop only (exact 7 destinations) */}
       {!isMobile && (
         <Sidebar
@@ -194,6 +194,7 @@ function AppContent() {
         className="main-content"
         id="main-content"
         role="main"
+        style={{ maxWidth: '100vw', overflowX: 'hidden', boxSizing: 'border-box', width: '100%' }}
       >
         <TopBar
           onOpenSearch={() => setIsSearchOpen(true)}

@@ -65,7 +65,27 @@ export default function MobileNav({ active, onNavigate }: MobileNavProps) {
   return (
     <>
       {/* Bottom Navigation Bar */}
-      <nav className="mobile-nav" aria-label="Mobile navigation">
+      <nav
+        className="mobile-nav"
+        aria-label="Mobile navigation"
+        style={{
+          display: 'flex',
+          justifyContent: 'space-around',
+          alignItems: 'center',
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          width: '100%',
+          maxWidth: '100vw',
+          background: '#080c18',
+          borderTop: '1px solid rgba(168, 85, 247, 0.25)',
+          boxSizing: 'border-box',
+          zIndex: 100,
+          paddingLeft: '0.25rem',
+          paddingRight: '0.25rem',
+        }}
+      >
         {PRIMARY_NAV.map((item) => {
           const isActive = active === item.id;
           return (
@@ -75,11 +95,24 @@ export default function MobileNav({ active, onNavigate }: MobileNavProps) {
               onClick={() => handleNavigate(item.id)}
               aria-label={item.label}
               aria-current={isActive ? 'page' : undefined}
-              style={{ position: 'relative' }}
+              style={{
+                position: 'relative',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flex: '1 1 0',
+                maxWidth: '72px',
+                padding: '0.35rem 0.15rem',
+                boxSizing: 'border-box',
+                gap: '2px',
+              }}
             >
               <span className="mobile-nav-indicator" />
               {item.icon}
-              <span>{item.label}</span>
+              <span style={{ fontSize: '0.62rem', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {item.label}
+              </span>
             </button>
           );
         })}
@@ -90,11 +123,22 @@ export default function MobileNav({ active, onNavigate }: MobileNavProps) {
           onClick={() => setDrawerOpen((v) => !v)}
           aria-label="More destinations"
           aria-expanded={drawerOpen}
-          style={{ position: 'relative' }}
+          style={{
+            position: 'relative',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flex: '1 1 0',
+            maxWidth: '72px',
+            padding: '0.35rem 0.15rem',
+            boxSizing: 'border-box',
+            gap: '2px',
+          }}
         >
           <span className="mobile-nav-indicator" />
           {drawerOpen ? <X size={20} /> : <MoreHorizontal size={20} />}
-          <span>More</span>
+          <span style={{ fontSize: '0.62rem', fontWeight: 700, whiteSpace: 'nowrap' }}>More</span>
         </button>
       </nav>
 
