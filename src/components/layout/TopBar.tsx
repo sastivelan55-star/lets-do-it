@@ -80,18 +80,20 @@ export default function TopBar({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '0.65rem 1.25rem',
+        padding: '0.5rem clamp(0.6rem, 2vw, 1.25rem)',
         background: 'rgba(8, 5, 22, 0.75)',
         backdropFilter: 'blur(20px)',
         borderBottom: '1px solid rgba(168, 85, 247, 0.18)',
         position: 'sticky',
         top: 0,
         zIndex: 30,
-        gap: '0.75rem',
+        gap: '0.45rem',
+        maxWidth: '100vw',
+        boxSizing: 'border-box',
       }}
     >
       {/* Left: Active Section Indicator & Global Search Trigger */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, maxWidth: '520px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, maxWidth: '520px', minWidth: 0 }}>
         <div
           style={{
             fontSize: '0.75rem',
@@ -114,20 +116,21 @@ export default function TopBar({
           type="button"
           onClick={onOpenSearch}
           aria-label="Search anything across Life OS (Ctrl + K)"
+          className="topbar-search-btn"
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '0.65rem',
+            gap: '0.55rem',
             background: 'rgba(255, 255, 255, 0.04)',
             border: '1px solid rgba(168, 85, 247, 0.2)',
             borderRadius: '999px',
-            padding: '0.45rem 1.1rem',
+            padding: '0.45rem 0.95rem',
             color: 'var(--text-muted)',
             fontSize: '0.84rem',
             cursor: 'pointer',
             flex: 1,
             maxWidth: '440px',
-            minWidth: '160px',
+            minWidth: 0,
             transition: 'all 0.2s ease',
             boxShadow: '0 0 12px rgba(168, 85, 247, 0.08)',
           }}
@@ -143,12 +146,15 @@ export default function TopBar({
           }}
         >
           <Search size={15} color="#c084fc" style={{ flexShrink: 0 }} />
-          <span style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <span className="hidden md:inline" style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             Search anything... (Ctrl + K)
           </span>
+          <span className="md:hidden" style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            Search...
+          </span>
           <span
+            className="hidden md:inline-flex"
             style={{
-              display: 'inline-flex',
               alignItems: 'center',
               gap: '2px',
               fontSize: '0.68rem',
@@ -167,16 +173,17 @@ export default function TopBar({
       </div>
 
       {/* Right Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexShrink: 0 }}>
         {/* Quick Capture Button */}
         <button
           type="button"
           onClick={onOpenQuickCapture}
-          className="btn btn-primary btn-sm"
+          className="btn btn-primary btn-sm topbar-capture-btn"
           title="Universal Quick Capture (Task, Note, Project, Idea)"
           style={{
             display: 'inline-flex',
             alignItems: 'center',
+            justifyContent: 'center',
             gap: '6px',
             fontSize: '0.78rem',
             padding: '0.45rem 0.95rem',
@@ -188,14 +195,13 @@ export default function TopBar({
         >
           <Zap size={13} color="#ffffff" />
           <span className="hidden sm:inline">Quick Capture</span>
-          <span className="sm:hidden">Capture</span>
         </button>
 
         {/* Theme Preset Cycle */}
         <button
           type="button"
           onClick={handleCycleTheme}
-          className="btn btn-ghost btn-sm"
+          className="btn btn-ghost btn-sm topbar-ctrl-btn"
           title={`Theme: ${currentTheme}. Click to cycle.`}
           aria-label="Cycle visual theme preset"
           style={{
@@ -218,7 +224,7 @@ export default function TopBar({
         <button
           type="button"
           onClick={() => onNavigate('tasks')}
-          className="btn btn-ghost btn-sm"
+          className="btn btn-ghost btn-sm topbar-ctrl-btn"
           title={`${dueCount} Tasks Due`}
           style={{
             width: '34px',
@@ -263,7 +269,7 @@ export default function TopBar({
         <button
           type="button"
           onClick={() => onNavigate('settings')}
-          className="btn btn-ghost btn-sm"
+          className="btn btn-ghost btn-sm topbar-user-btn"
           title={`Logged in as ${displayName}. Click to open Settings.`}
           aria-label="User Account"
           style={{

@@ -152,6 +152,7 @@ export default function AnimeFantasyDashboard({
 
   return (
     <div
+      className="anime-dashboard-container"
       style={{
         width: '100%',
         maxWidth: '1440px',
@@ -220,15 +221,18 @@ export default function AnimeFantasyDashboard({
         {/* ── LEFT COLUMN: ANIME COMPANION PRESENTATION ────────────────────── */}
         {widgets.showCharacterIllustration && (
           <div
+            className="anime-companion-col"
             style={{
               position: 'relative',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
+              width: '100%',
             }}
           >
             {/* Speech Bubble */}
             <div
+              className="anime-speech-bubble"
               style={{
                 position: 'relative',
                 background: 'rgba(255, 255, 255, 0.96)',
@@ -265,6 +269,7 @@ export default function AnimeFantasyDashboard({
 
             {/* Character Artwork Frame */}
             <div
+              className="anime-char-frame"
               style={{
                 width: '100%',
                 maxHeight: '620px',
