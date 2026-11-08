@@ -15,8 +15,6 @@ import {
   ChevronRight,
   Heart,
   Sparkles,
-  User,
-  HelpCircle,
 } from 'lucide-react';
 import SupabaseSetupNotice from './SupabaseSetupNotice';
 
@@ -1879,68 +1877,6 @@ export default function AuthPage() {
                   <GoogleIcon size={20} />
                   <span>{googleSubmitting ? 'Connecting…' : 'Sign in with Google'}</span>
                 </button>
-
-                {/* Social Circle Icons (Image 2 style quick taps) */}
-                <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginTop: '0.25rem' }}>
-                  <button
-                    type="button"
-                    onClick={handleGoogleSignIn}
-                    title="Sign in with Google"
-                    style={{
-                      width: '42px',
-                      height: '42px',
-                      borderRadius: '50%',
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      border: '1px solid rgba(255, 255, 255, 0.2)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <GoogleIcon size={18} />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={continueAsGuest}
-                    title="Continue Offline as Guest"
-                    style={{
-                      width: '42px',
-                      height: '42px',
-                      borderRadius: '50%',
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      border: '1px solid rgba(255, 255, 255, 0.2)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#f59e0b',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <User size={18} />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setShowResetModal(true)}
-                    title="Password Recovery"
-                    style={{
-                      width: '42px',
-                      height: '42px',
-                      borderRadius: '50%',
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      border: '1px solid rgba(255, 255, 255, 0.2)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#38bdf8',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <HelpCircle size={18} />
-                  </button>
-                </div>
               </div>
             </div>
 
