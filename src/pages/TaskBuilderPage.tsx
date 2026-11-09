@@ -29,6 +29,7 @@ import { useApp } from '../context/AppContext';
 import TaskRecycleBinModal from '../components/taskBuilder/TaskRecycleBinModal';
 import { today } from '../utils/dates';
 import type { Task, LifeArea } from '../types';
+import TimetableScheduledBadge from '../components/common/TimetableScheduledBadge';
 
 interface QuestItem {
   id: string;
@@ -44,6 +45,9 @@ interface QuestItem {
   subtasks: { id: string; title: string; done: boolean }[];
   realTaskId?: string;
   targetDate?: string;
+  startTime?: string;
+  endTime?: string;
+  isScheduledToday?: boolean;
 }
 
 export default function TaskBuilderPage() {
@@ -308,6 +312,11 @@ export default function TaskBuilderPage() {
         })),
         realTaskId: t.id,
         targetDate: t.targetDate || t.dueDate || today(),
+        startTime: t.startTime || t.plannedStartTime,
+        endTime: t.endTime,
+        isScheduledToday:
+          (t.targetDate || t.dueDate || '').slice(0, 10) === today() &&
+          Boolean(t.startTime || t.plannedStartTime),
       };
     });
   }, [tasks]);
@@ -475,6 +484,8 @@ export default function TaskBuilderPage() {
   const [editElem, setEditElem] = useState<'Void' | 'Tech' | 'Fire' | 'Shadow'>('Tech');
   const [editDur, setEditDur] = useState(25);
   const [editDate, setEditDate] = useState(today());
+  const [editStartTime, setEditStartTime] = useState('');
+  const [editEndTime, setEditEndTime] = useState('');
   const [editNotes, setEditNotes] = useState('');
 
   const openEditModal = (q: QuestItem) => {
@@ -485,6 +496,8 @@ export default function TaskBuilderPage() {
     setEditElem(q.element);
     setEditDur(q.duration);
     setEditDate(q.targetDate || today());
+    setEditStartTime(q.startTime || '');
+    setEditEndTime(q.endTime || '');
     setEditNotes(q.notes || '');
   };
 
@@ -504,6 +517,10 @@ export default function TaskBuilderPage() {
       priority: priorityMap[editRank],
       dueDate: chosenDate,
       targetDate: chosenDate,
+      scheduledDate: chosenDate,
+      startTime: editStartTime || undefined,
+      plannedStartTime: editStartTime || undefined,
+      endTime: editEndTime || undefined,
       estimatedMinutes: editDur,
       description: editNotes.trim(),
     });
@@ -1694,9 +1711,14 @@ export default function TaskBuilderPage() {
                                 color: q.cleared ? '#64748b' : '#ffffff',
                                 textDecoration: q.cleared ? 'line-through' : 'none',
                                 lineHeight: 1.3,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                flexWrap: 'wrap',
                               }}
                             >
-                              {q.title}
+                              <span>{q.title}</span>
+                              {q.isScheduledToday && <TimetableScheduledBadge time={q.startTime} />}
                             </h4>
 
                             {q.notes && (
@@ -2484,6 +2506,51 @@ export default function TaskBuilderPage() {
                     cursor: 'pointer',
                   }}
                 />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', color: '#c084fc', marginBottom: '4px' }}>
+                    Timetable Start (HH:MM)
+                  </label>
+                  <input
+                    type="time"
+                    value={editStartTime}
+                    onChange={(e) => setEditStartTime(e.target.value)}
+                    className="cyber-date-picker"
+                    style={{
+                      width: '100%',
+                      background: '#070A12',
+                      border: '1px solid rgba(168, 85, 247, 0.4)',
+                      borderRadius: '10px',
+                      padding: '0.55rem',
+                      color: '#ffffff',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', color: '#c084fc', marginBottom: '4px' }}>
+                    Timetable End (Optional)
+                  </label>
+                  <input
+                    type="time"
+                    value={editEndTime}
+                    onChange={(e) => setEditEndTime(e.target.value)}
+                    className="cyber-date-picker"
+                    style={{
+                      width: '100%',
+                      background: '#070A12',
+                      border: '1px solid rgba(168, 85, 247, 0.4)',
+                      borderRadius: '10px',
+                      padding: '0.55rem',
+                      color: '#ffffff',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>

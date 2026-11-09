@@ -5,7 +5,7 @@ import {
   Clock,
 } from 'lucide-react';
 import AnimeFantasyDashboard from '../components/dashboard/AnimeFantasyDashboard';
-import SchedulesPage from './SchedulesPage';
+import DailyTimetable from '../components/timetable/DailyTimetable';
 
 export type HomeTab = 'dashboard' | 'timeline';
 
@@ -41,7 +41,7 @@ export default function HomePage({ initialTab = 'dashboard', onNavigateSection }
 
   const TABS: { id: HomeTab; label: string; icon: React.ReactNode; color: string }[] = [
     { id: 'dashboard', label: 'Fantasy Dashboard', icon: <Sparkles size={15} />, color: '#ec4899' },
-    { id: 'timeline',  label: 'Timeline & Blocks', icon: <Clock size={15} />,    color: '#10b981' },
+    { id: 'timeline',  label: 'Daily Timetable',   icon: <Clock size={15} />,    color: '#a855f7' },
   ];
 
   return (
@@ -114,9 +114,10 @@ export default function HomePage({ initialTab = 'dashboard', onNavigateSection }
           <AnimeFantasyDashboard
             onNavigateSection={onNavigateSection}
             onOpenTaskBuilder={() => onNavigateSection && onNavigateSection('tasks')}
+            onOpenTimetable={() => setActiveTab('timeline')}
           />
         )}
-        {activeTab === 'timeline' && <SchedulesPage />}
+        {activeTab === 'timeline' && <DailyTimetable onNavigateSection={onNavigateSection} />}
       </div>
     </div>
   );

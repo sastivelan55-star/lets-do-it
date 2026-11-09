@@ -40,7 +40,10 @@ export function dbRowToTask(row: DbTaskRow): Task {
     roadmapMonth: typeof row.roadmap_month === 'number' ? row.roadmap_month : undefined,
     dueDate: assignedDate,
     targetDate: assignedDate,
+    scheduledDate: assignedDate,
     plannedStartTime: row.planned_start ?? undefined,
+    startTime: row.planned_start ?? undefined,
+    timetablePosition: row.order_index ?? undefined,
     priority: row.priority,
     status: row.status,
     estimatedMinutes: row.estimated_minutes ?? undefined,
@@ -68,9 +71,11 @@ export function taskToDbRow(task: Partial<Task>, userId: string): Partial<DbTask
   if (task.lifeArea !== undefined) row.area = task.lifeArea;
   if (task.projectId !== undefined) row.project_id = task.projectId || null;
   if (task.roadmapMonth !== undefined) row.roadmap_month = typeof task.roadmapMonth === 'number' ? task.roadmapMonth : null;
-  const assignedDate = task.targetDate || task.dueDate;
+  const assignedDate = task.scheduledDate || task.targetDate || task.dueDate;
   if (assignedDate !== undefined) row.due_date = assignedDate || null;
-  if (task.plannedStartTime !== undefined) row.planned_start = task.plannedStartTime || null;
+  const start = task.startTime !== undefined ? task.startTime : task.plannedStartTime;
+  if (start !== undefined) row.planned_start = start || null;
+  if (task.timetablePosition !== undefined) row.order_index = task.timetablePosition;
   if (task.estimatedMinutes !== undefined) {
     row.estimated_minutes = typeof task.estimatedMinutes === 'number' && !isNaN(task.estimatedMinutes)
       ? Math.max(0, Math.round(task.estimatedMinutes))

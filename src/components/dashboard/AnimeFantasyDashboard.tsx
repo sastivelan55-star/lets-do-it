@@ -8,29 +8,33 @@ import {
   Check,
   ChevronRight,
   Sparkles,
-  Sun,
-  Dumbbell,
-  BookOpen,
-  Laptop,
-  Moon,
   Gift,
   Plus,
+  Clock,
+  MoreVertical,
+  X,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import type { Task } from '../../types';
+import TimetableScheduledBadge from '../common/TimetableScheduledBadge';
+import { formatTimetableTime, getTimetableIcon } from '../timetable/DailyTimetable';
 
 interface AnimeFantasyDashboardProps {
   onNavigateSection?: (section: string) => void;
   onOpenTaskBuilder?: () => void;
+  onOpenTimetable?: () => void;
 }
 
 export default function AnimeFantasyDashboard({
   onNavigateSection,
   onOpenTaskBuilder,
+  onOpenTimetable,
 }: AnimeFantasyDashboardProps) {
   const {
     settings,
     tasks,
     completeTask,
+    updateTask,
   } = useApp();
 
   const rawWidgets = settings.personalization?.dashboardWidgets;
@@ -62,34 +66,35 @@ export default function AnimeFantasyDashboard({
     return `${y}-${m}-${d}`;
   }, []);
 
-  // Filter global task array: compare targetDate with current system date
+  // Scheduling modal state
+  const [timeModalTask, setTimeModalTask] = useState<Task | null>(null);
+  const [timeModalStart, setTimeModalStart] = useState('08:00');
+  const [timeModalEnd, setTimeModalEnd] = useState('');
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+
+  // Filter global task array: compare targetDate / scheduledDate / dueDate with current system date
   const todayMissions = useMemo(() => {
     if (!tasks || tasks.length === 0) return [];
 
     const filtered = tasks.filter((t) => {
       if (t.isDeleted) return false;
-      // Compare task's targetDate (or fallback to dueDate) with current system date
-      const taskDate = (t.targetDate || t.dueDate || '').slice(0, 10);
+      const taskDate = (t.scheduledDate || t.targetDate || t.dueDate || '').slice(0, 10);
       return taskDate === todayDateStr;
     });
 
-    return filtered.map((t, idx) => {
-      const timeStamps = ['06:00 AM', '08:00 AM', '10:00 AM', '01:00 PM', '03:00 PM', '06:00 PM', '08:00 PM', '09:30 PM'];
-      const categories: ('Routine' | 'Daily' | 'One-time')[] = ['Routine', 'Daily', 'One-time', 'One-time', 'Daily'];
-      const icons = [
-        <Sun size={15} key="sun" />,
-        <Dumbbell size={15} key="db" />,
-        <BookOpen size={15} key="book" />,
-        <Laptop size={15} key="laptop" />,
-        <Moon size={15} key="moon" />,
-      ];
+    return filtered.map((t) => {
+      const isScheduled = Boolean(t.startTime || t.plannedStartTime);
+      const rawTime = t.startTime || t.plannedStartTime;
+      const formattedTime = isScheduled ? formatTimetableTime(rawTime) : undefined;
+      const icon = getTimetableIcon(t.title, t.lifeArea);
 
       return {
         id: t.id,
         title: t.title,
-        time: t.plannedStartTime || timeStamps[idx % timeStamps.length],
-        category: (t.recurring === 'daily' ? 'Daily' : categories[idx % categories.length]) as 'Routine' | 'Daily' | 'One-time',
-        icon: icons[idx % icons.length],
+        time: formattedTime,
+        isScheduled,
+        category: (t.recurring === 'daily' ? 'Daily' : t.lifeArea === 'routine' ? 'Routine' : 'Daily') as 'Routine' | 'Daily' | 'One-time',
+        icon,
         isCompleted: t.status === 'completed',
         realTask: t,
       };
@@ -107,6 +112,43 @@ export default function AnimeFantasyDashboard({
       setCelebrationText('Task Completed! Great job! +10 XP');
       setTimeout(() => setCelebrationText(null), 3500);
     }
+  };
+
+  const handleOpenTimeModal = (t: Task) => {
+    setTimeModalTask(t);
+    setTimeModalStart(t.startTime || t.plannedStartTime || '08:00');
+    setTimeModalEnd(t.endTime || '');
+    setActiveMenuId(null);
+  };
+
+  const handleSaveTimeModal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!timeModalTask) return;
+
+    await updateTask({
+      ...timeModalTask,
+      startTime: timeModalStart,
+      plannedStartTime: timeModalStart,
+      endTime: timeModalEnd || undefined,
+      targetDate: todayDateStr,
+      dueDate: todayDateStr,
+      scheduledDate: todayDateStr,
+    });
+
+    setTimeModalTask(null);
+  };
+
+  const handleRemoveFromTimetable = async (t: Task) => {
+    await updateTask({
+      ...t,
+      startTime: undefined,
+      plannedStartTime: undefined,
+      endTime: undefined,
+      targetDate: todayDateStr,
+      dueDate: todayDateStr,
+      scheduledDate: todayDateStr,
+    });
+    setActiveMenuId(null);
   };
 
   return (
@@ -220,21 +262,44 @@ export default function AnimeFantasyDashboard({
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => (onOpenTaskBuilder ? onOpenTaskBuilder() : onNavigateSection && onNavigateSection('tasks'))}
-                className="btn btn-ghost btn-sm"
-                style={{
-                  color: '#c084fc',
-                  fontSize: '0.78rem',
-                  fontWeight: 700,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}
-              >
-                View All <ChevronRight size={14} />
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => (onOpenTimetable ? onOpenTimetable() : onNavigateSection && onNavigateSection('timeline'))}
+                  className="btn btn-ghost btn-sm"
+                  style={{
+                    color: '#c084fc',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    background: 'rgba(168, 85, 247, 0.12)',
+                    padding: '4px 10px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(168, 85, 247, 0.3)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Clock size={13} color="#c084fc" /> Timetable
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => (onOpenTaskBuilder ? onOpenTaskBuilder() : onNavigateSection && onNavigateSection('tasks'))}
+                  className="btn btn-ghost btn-sm"
+                  style={{
+                    color: '#94a3b8',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                >
+                  View All <ChevronRight size={14} />
+                </button>
+              </div>
             </div>
 
             {/* Missions Timeline */}
@@ -349,12 +414,37 @@ export default function AnimeFantasyDashboard({
                               fontWeight: 700,
                               color: m.isCompleted ? '#94a3b8' : '#f8fafc',
                               textDecoration: m.isCompleted ? 'line-through' : 'none',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              flexWrap: 'wrap',
                             }}
                           >
-                            {m.title}
+                            <span>{m.title}</span>
+                            {m.isScheduled && <TimetableScheduledBadge time={m.time} />}
                           </div>
-                          <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
-                            {m.time}
+                          <div style={{ fontSize: '0.72rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
+                            {m.isScheduled ? (
+                              <span style={{ color: '#c084fc', fontFamily: 'monospace' }}>{m.time}</span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenTimeModal(m.realTask)}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  padding: 0,
+                                  color: '#38bdf8',
+                                  cursor: 'pointer',
+                                  fontSize: '0.72rem',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                }}
+                              >
+                                <Clock size={11} /> + Schedule in Timetable
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -373,6 +463,89 @@ export default function AnimeFantasyDashboard({
                         >
                           {m.category}
                         </span>
+
+                        {/* Quick options menu */}
+                        <div style={{ position: 'relative' }}>
+                          <button
+                            type="button"
+                            onClick={() => setActiveMenuId(activeMenuId === m.id ? null : m.id)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: '#64748b',
+                              cursor: 'pointer',
+                              padding: '3px',
+                              display: 'flex',
+                              alignItems: 'center',
+                            }}
+                          >
+                            <MoreVertical size={14} />
+                          </button>
+
+                          {activeMenuId === m.id && (
+                            <div
+                              style={{
+                                position: 'absolute',
+                                right: 0,
+                                top: '100%',
+                                zIndex: 100,
+                                background: 'rgba(20, 10, 36, 0.95)',
+                                backdropFilter: 'blur(12px)',
+                                border: '1px solid rgba(168, 85, 247, 0.4)',
+                                borderRadius: '10px',
+                                padding: '5px',
+                                minWidth: '180px',
+                                boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '3px',
+                              }}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => handleOpenTimeModal(m.realTask)}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  color: '#f8fafc',
+                                  padding: '6px 8px',
+                                  borderRadius: '6px',
+                                  fontSize: '0.76rem',
+                                  cursor: 'pointer',
+                                  textAlign: 'left',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                }}
+                              >
+                                <Clock size={12} color="#38bdf8" />
+                                {m.isScheduled ? 'Change Timetable Time' : 'Assign Timetable Time'}
+                              </button>
+
+                              {m.isScheduled && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveFromTimetable(m.realTask)}
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    color: '#cbd5e1',
+                                    padding: '6px 8px',
+                                    borderRadius: '6px',
+                                    fontSize: '0.76rem',
+                                    cursor: 'pointer',
+                                    textAlign: 'left',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                  }}
+                                >
+                                  <X size={12} color="#f87171" /> Remove from Timetable
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
 
                         <button
                           type="button"
@@ -402,6 +575,101 @@ export default function AnimeFantasyDashboard({
                 })
               )}
             </div>
+
+            {/* Quick Time Setting Modal */}
+            {timeModalTask && (
+              <div
+                style={{
+                  padding: '1rem',
+                  background: 'rgba(25, 14, 46, 0.95)',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(168, 85, 247, 0.45)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '10px',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Clock size={15} color="#c084fc" />
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f8fafc' }}>
+                    Schedule "{timeModalTask.title}":
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <label style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    Start:
+                    <input
+                      type="time"
+                      value={timeModalStart}
+                      onChange={(e) => setTimeModalStart(e.target.value)}
+                      className="cyber-date-picker"
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.08)',
+                        border: '1px solid rgba(168, 85, 247, 0.4)',
+                        borderRadius: '6px',
+                        padding: '3px 6px',
+                        color: '#fff',
+                        fontSize: '0.78rem',
+                      }}
+                    />
+                  </label>
+
+                  <label style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    End (opt):
+                    <input
+                      type="time"
+                      value={timeModalEnd}
+                      onChange={(e) => setTimeModalEnd(e.target.value)}
+                      className="cyber-date-picker"
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.08)',
+                        border: '1px solid rgba(168, 85, 247, 0.4)',
+                        borderRadius: '6px',
+                        padding: '3px 6px',
+                        color: '#fff',
+                        fontSize: '0.78rem',
+                      }}
+                    />
+                  </label>
+
+                  <button
+                    type="button"
+                    onClick={handleSaveTimeModal}
+                    style={{
+                      background: '#10b981',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '4px 10px',
+                      color: '#fff',
+                      fontWeight: 700,
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Save
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setTimeModalTask(null)}
+                    style={{
+                      background: 'none',
+                      border: '1px solid rgba(255, 255, 255, 0.2)',
+                      borderRadius: '6px',
+                      padding: '4px 8px',
+                      color: '#94a3b8',
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Footer Counter */}
             <div

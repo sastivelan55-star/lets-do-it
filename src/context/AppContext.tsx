@@ -531,11 +531,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setSyncStatus('syncing');
       setError(null);
 
-      const assigned = taskData.targetDate || taskData.dueDate || today();
+      const assigned = taskData.scheduledDate || taskData.targetDate || taskData.dueDate || today();
+      const startTime = taskData.startTime !== undefined ? taskData.startTime : taskData.plannedStartTime;
       const enrichedData = {
         ...taskData,
         dueDate: assigned,
         targetDate: assigned,
+        scheduledDate: assigned,
+        startTime: startTime,
+        plannedStartTime: startTime,
       };
 
       if (user && isConfigured) {
@@ -575,8 +579,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const updateTask = useCallback(
     async (task: Task) => {
-      const assigned = task.targetDate || task.dueDate || today();
-      const updated: Task = { ...task, targetDate: assigned, dueDate: assigned, updatedAt: nowISO() };
+      const assigned = task.scheduledDate || task.targetDate || task.dueDate || today();
+      const startTime = task.startTime !== undefined ? task.startTime : task.plannedStartTime;
+      const updated: Task = {
+        ...task,
+        targetDate: assigned,
+        dueDate: assigned,
+        scheduledDate: assigned,
+        startTime: startTime,
+        plannedStartTime: startTime,
+        updatedAt: nowISO(),
+      };
 
       // Optimistic state update — capture original entity for targeted rollback
       let originalTask: Task | undefined;

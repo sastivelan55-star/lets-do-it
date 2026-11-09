@@ -34,7 +34,11 @@ export interface Task {
   roadmapMonth?: number;    // 1-8 or any assigned roadmap month
   dueDate: string; // ISO date string YYYY-MM-DD
   targetDate?: string; // Target / assigned date YYYY-MM-DD (linked across Tasks and Home tabs)
+  scheduledDate?: string; // Compatible alias for targetDate/dueDate
   plannedStartTime?: string; // HH:mm
+  startTime?: string; // HH:mm start time for daily timetable
+  endTime?: string; // HH:mm end time for daily timetable
+  timetablePosition?: number; // order position in daily timetable
   duration?: number; // minutes
   priority: TaskPriority;
   recurring?: 'daily' | 'weekly' | 'weekdays' | 'none';
