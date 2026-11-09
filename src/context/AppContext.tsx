@@ -531,12 +531,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setSyncStatus('syncing');
       setError(null);
 
+      const assigned = taskData.targetDate || taskData.dueDate || today();
+      const enrichedData = {
+        ...taskData,
+        dueDate: assigned,
+        targetDate: assigned,
+      };
+
       if (user && isConfigured) {
         try {
-          const savedTask = await createCloudTask(taskData, user.id);
-          setAllTasks((prev) => [savedTask, ...prev]);
+          const savedTask = await createCloudTask(enrichedData, user.id);
+          const fullSaved: Task = {
+            ...savedTask,
+            targetDate: savedTask.targetDate || savedTask.dueDate || assigned,
+            dueDate: savedTask.dueDate || assigned,
+          };
+          setAllTasks((prev) => [fullSaved, ...prev]);
           setSyncStatus('synced');
-          return savedTask;
+          return fullSaved;
         } catch (err: unknown) {
           setSyncStatus('error');
           logSafeError('Create Task', err);
@@ -547,7 +559,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       } else {
         // Offline / Guest Mode
         const task: Task = {
-          ...taskData,
+          ...enrichedData,
           id: nanoid(),
           createdAt: nowISO(),
           updatedAt: nowISO(),
@@ -563,7 +575,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const updateTask = useCallback(
     async (task: Task) => {
-      const updated: Task = { ...task, updatedAt: nowISO() };
+      const assigned = task.targetDate || task.dueDate || today();
+      const updated: Task = { ...task, targetDate: assigned, dueDate: assigned, updatedAt: nowISO() };
 
       // Optimistic state update — capture original entity for targeted rollback
       let originalTask: Task | undefined;
@@ -980,7 +993,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const currentDate = today();
 
   const todaysTasks = tasks.filter(
-    (t) => t.dueDate === currentDate && t.status !== 'rescheduled'
+    (t) => (t.targetDate || t.dueDate) === currentDate && t.status !== 'rescheduled'
   );
 
   const overdueTasks = tasks.filter(

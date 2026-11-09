@@ -33,6 +33,7 @@ export interface Task {
   projectId?: string;
   roadmapMonth?: number;    // 1-8 or any assigned roadmap month
   dueDate: string; // ISO date string YYYY-MM-DD
+  targetDate?: string; // Target / assigned date YYYY-MM-DD (linked across Tasks and Home tabs)
   plannedStartTime?: string; // HH:mm
   duration?: number; // minutes
   priority: TaskPriority;

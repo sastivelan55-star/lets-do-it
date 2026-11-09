@@ -22,6 +22,8 @@ import {
   X,
   User,
   Archive,
+  Calendar,
+  Edit3,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import TaskRecycleBinModal from '../components/taskBuilder/TaskRecycleBinModal';
@@ -41,6 +43,7 @@ interface QuestItem {
   notes?: string;
   subtasks: { id: string; title: string; done: boolean }[];
   realTaskId?: string;
+  targetDate?: string;
 }
 
 export default function TaskBuilderPage() {
@@ -249,70 +252,7 @@ export default function TaskBuilderPage() {
   // Map AppContext tasks into hunter quests so all data stays synchronized
   const quests: QuestItem[] = useMemo(() => {
     if (!tasks || tasks.length === 0) {
-      // Default starter quests
-      return [
-        {
-          id: 'Q-901',
-          title: 'Defeat Sovereign Database Latency in Void Cluster',
-          rank: 'S',
-          element: 'Tech',
-          stage: 'combat',
-          cleared: false,
-          expReward: 450,
-          goldReward: 600,
-          duration: 60,
-          notes: 'Optimize Redis distributed cache and re-index B-Trees. Boss drops rare SSR token.',
-          subtasks: [
-            { id: 'st-1', title: 'Profile SlowLog queries > 200ms', done: true },
-            { id: 'st-2', title: 'Implement read-replica sharding', done: false },
-            { id: 'st-3', title: 'Benchmark zero-copy pipeline', done: false },
-          ],
-        },
-        {
-          id: 'Q-902',
-          title: 'Synthesize Cyberpunk Glass Component Tokens',
-          rank: 'A',
-          element: 'Void',
-          stage: 'combat',
-          cleared: false,
-          expReward: 300,
-          goldReward: 400,
-          duration: 45,
-          notes: 'Produce frosted specular highlights and glowing neon border utilities.',
-          subtasks: [
-            { id: 'st-4', title: 'Finalize Tailwind gradient classes', done: true },
-            { id: 'st-5', title: 'Export responsive canvas shaders', done: false },
-          ],
-        },
-        {
-          id: 'Q-903',
-          title: 'Calibrate Shonen Audio Slash Synthesizer Engine',
-          rank: 'B',
-          element: 'Fire',
-          stage: 'notice',
-          cleared: false,
-          expReward: 200,
-          goldReward: 250,
-          duration: 25,
-          notes: 'Tune Web Audio frequency transitions for tactile feedback.',
-          subtasks: [],
-        },
-        {
-          id: 'Q-904',
-          title: 'Daily Training Arc: Push 5 Git Commits & 50 Push-ups',
-          rank: 'C',
-          element: 'Void',
-          stage: 'victory',
-          cleared: true,
-          expReward: 120,
-          goldReward: 150,
-          duration: 30,
-          notes: 'Consistency maintains the Hunter S-Rank streak multiplier.',
-          subtasks: [
-            { id: 'st-6', title: 'Morning fitness regimen completed', done: true },
-          ],
-        },
-      ];
+      return [];
     }
 
     // Map real AppContext tasks (root tasks as main quests, child tasks as subtasks)
@@ -325,7 +265,7 @@ export default function TaskBuilderPage() {
       }
     });
 
-    const rootTasks = tasks.filter((t) => !t.parentId);
+    const rootTasks = tasks.filter((t) => !t.parentId && !t.isDeleted);
 
     return rootTasks.map((t) => {
       const children = childMap.get(t.id) || [];
@@ -367,6 +307,7 @@ export default function TaskBuilderPage() {
           done: c.status === 'completed',
         })),
         realTaskId: t.id,
+        targetDate: t.targetDate || t.dueDate || today(),
       };
     });
   }, [tasks]);
@@ -423,6 +364,9 @@ export default function TaskBuilderPage() {
 
   const handleDeleteQuest = async (q: QuestItem) => {
     playAnimeSound('click');
+    if (targetQuestId === q.id) {
+      setTargetQuestId(null);
+    }
     if (q.realTaskId) {
       await removeTask(q.realTaskId);
     }
@@ -439,9 +383,29 @@ export default function TaskBuilderPage() {
     }
   };
 
+  const [addingSubtaskQuestId, setAddingSubtaskQuestId] = useState<string | null>(null);
+  const [newSubtaskText, setNewSubtaskText] = useState('');
+
+  const handleAddSubtask = async (parentId: string) => {
+    if (!newSubtaskText.trim()) return;
+    const parentTask = tasks.find((t) => t.id === parentId);
+    await addTask({
+      title: newSubtaskText.trim(),
+      parentId,
+      priority: parentTask?.priority || 'medium',
+      lifeArea: parentTask?.lifeArea || 'growth',
+      status: 'not-started',
+      dueDate: today(),
+    });
+    playAnimeSound('slash');
+    setNewSubtaskText('');
+    setAddingSubtaskQuestId(null);
+  };
+
   // Quick Command input
   const [quickTitle, setQuickTitle] = useState('');
   const [quickRank, setQuickRank] = useState<'S' | 'A' | 'B' | 'C'>('B');
+  const [quickDate, setQuickDate] = useState(today());
 
   const handleQuickSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -455,12 +419,15 @@ export default function TaskBuilderPage() {
       C: 'health',
     };
 
+    const chosenDate = quickDate || today();
+
     await addTask({
       title: quickTitle.trim(),
       priority: priorityMap[quickRank],
       status: 'not-started',
       lifeArea: areaMap[quickRank],
-      dueDate: today(),
+      dueDate: chosenDate,
+      targetDate: chosenDate,
       estimatedMinutes: 30,
     });
 
@@ -474,18 +441,22 @@ export default function TaskBuilderPage() {
   const [mElem, setMElem] = useState<'Void' | 'Tech' | 'Fire' | 'Shadow'>('Tech');
   const [mDur, setMDur] = useState(25);
   const [mNotes, setMNotes] = useState('');
+  const [mDate, setMDate] = useState(today());
 
   const handleDetailedSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!mTitle.trim()) return;
 
     const priorityMap = { S: 'critical', A: 'high', B: 'medium', C: 'low' } as const;
+    const chosenDate = mDate || today();
+
     await addTask({
       title: mTitle.trim(),
       priority: priorityMap[mRank],
       status: 'not-started',
       lifeArea: 'growth',
-      dueDate: today(),
+      dueDate: chosenDate,
+      targetDate: chosenDate,
       estimatedMinutes: mDur,
       description: mNotes.trim() ? `${mNotes.trim()}\n[Element: ${mElem}]` : `[Element: ${mElem}]`,
     });
@@ -494,6 +465,51 @@ export default function TaskBuilderPage() {
     setIsDetailedModalOpen(false);
     setMTitle('');
     setMNotes('');
+    setMDate(today());
+  };
+
+  // Edit Quest Modal state
+  const [editingQuest, setEditingQuest] = useState<QuestItem | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editRank, setEditRank] = useState<'S' | 'A' | 'B' | 'C'>('B');
+  const [editElem, setEditElem] = useState<'Void' | 'Tech' | 'Fire' | 'Shadow'>('Tech');
+  const [editDur, setEditDur] = useState(25);
+  const [editDate, setEditDate] = useState(today());
+  const [editNotes, setEditNotes] = useState('');
+
+  const openEditModal = (q: QuestItem) => {
+    playAnimeSound('click');
+    setEditingQuest(q);
+    setEditTitle(q.title);
+    setEditRank(q.rank);
+    setEditElem(q.element);
+    setEditDur(q.duration);
+    setEditDate(q.targetDate || today());
+    setEditNotes(q.notes || '');
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingQuest || !editingQuest.realTaskId || !editTitle.trim()) return;
+
+    const original = tasks.find((t) => t.id === editingQuest.realTaskId);
+    if (!original) return;
+
+    const priorityMap = { S: 'critical', A: 'high', B: 'medium', C: 'low' } as const;
+    const chosenDate = editDate || today();
+
+    await updateTask({
+      ...original,
+      title: editTitle.trim(),
+      priority: priorityMap[editRank],
+      dueDate: chosenDate,
+      targetDate: chosenDate,
+      estimatedMinutes: editDur,
+      description: editNotes.trim(),
+    });
+
+    playAnimeSound('slash');
+    setEditingQuest(null);
   };
 
   // ── PARTICLES BACKGROUND CANVAS ─────────────────────────────────────────────
@@ -1404,7 +1420,7 @@ export default function TaskBuilderPage() {
                 />
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                 <select
                   value={quickRank}
                   onChange={(e) => setQuickRank(e.target.value as any)}
@@ -1426,6 +1442,33 @@ export default function TaskBuilderPage() {
                   <option value="B">B-RANK (Major)</option>
                   <option value="C">C-RANK (Minor)</option>
                 </select>
+
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <Calendar
+                    size={13}
+                    color="#00F0FF"
+                    style={{ position: 'absolute', left: '10px', pointerEvents: 'none' }}
+                  />
+                  <input
+                    type="date"
+                    value={quickDate}
+                    onChange={(e) => setQuickDate(e.target.value)}
+                    title="Target Operation Date (Synced with Home)"
+                    style={{
+                      background: '#070A12',
+                      border: '1px solid rgba(0, 240, 255, 0.35)',
+                      borderRadius: '12px',
+                      padding: '0.52rem 0.75rem 0.52rem 2rem',
+                      color: '#00F0FF',
+                      fontFamily: 'monospace',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      outline: 'none',
+                      cursor: 'pointer',
+                      colorScheme: 'dark',
+                    }}
+                  />
+                </div>
 
                 <button
                   type="submit"
@@ -1535,9 +1578,32 @@ export default function TaskBuilderPage() {
                   <h3 style={{ margin: '0 0 0.5rem', fontFamily: 'Orbitron, sans-serif', fontSize: '0.95rem', color: '#ffffff' }}>
                     NO QUEST DIRECTIVES IN RANGE
                   </h3>
-                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8' }}>
-                    Post a new bounty using the quick bar above or reset filters.
+                  <p style={{ margin: '0 0 1.25rem', fontSize: '0.8rem', color: '#94a3b8' }}>
+                    Post a new bounty using the quick bar above or click below to launch your next mission.
                   </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      playAnimeSound('click');
+                      setIsDetailedModalOpen(true);
+                    }}
+                    className="persona-btn"
+                    style={{
+                      padding: '0.65rem 1.4rem',
+                      color: '#ffffff',
+                      fontFamily: 'Orbitron, sans-serif',
+                      fontSize: '0.78rem',
+                      fontWeight: 800,
+                      letterSpacing: '0.04em',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      border: 'none',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Plus size={16} /> + NEW MISSION
+                  </button>
                 </div>
               ) : (
                 filteredQuests.map((q) => {
@@ -1593,6 +1659,25 @@ export default function TaskBuilderPage() {
                               <span style={{ fontSize: '10px', fontFamily: 'monospace', color: '#FFD700', background: 'rgba(255, 215, 0, 0.1)', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(255, 215, 0, 0.2)' }}>
                                 +{q.expReward} EXP • {q.goldReward}G
                               </span>
+                              {q.targetDate && (
+                                <span
+                                  style={{
+                                    fontSize: '10px',
+                                    fontFamily: 'monospace',
+                                    color: q.targetDate === today() ? '#00FFA3' : '#38bdf8',
+                                    background: q.targetDate === today() ? 'rgba(0, 255, 163, 0.12)' : 'rgba(56, 189, 248, 0.12)',
+                                    padding: '2px 6px',
+                                    borderRadius: '4px',
+                                    border: `1px solid ${q.targetDate === today() ? 'rgba(0, 255, 163, 0.3)' : 'rgba(56, 189, 248, 0.3)'}`,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                  }}
+                                >
+                                  <Calendar size={10} />
+                                  {q.targetDate === today() ? 'TODAY' : q.targetDate}
+                                </span>
+                              )}
                               {isTarget && (
                                 <span style={{ fontSize: '10px', fontFamily: 'Orbitron, sans-serif', padding: '2px 6px', borderRadius: '4px', background: 'rgba(255, 42, 133, 0.2)', color: '#FF2A85', border: '1px solid rgba(255, 42, 133, 0.4)' }}>
                                   AWAKEN TARGET
@@ -1621,49 +1706,133 @@ export default function TaskBuilderPage() {
                             )}
 
                             {/* Subtasks */}
-                            {q.subtasks.length > 0 && (
-                              <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.06)', marginTop: '8px', paddingTop: '8px' }}>
-                                <div style={{ fontSize: '10px', fontFamily: 'monospace', color: '#94a3b8', marginBottom: '4px' }}>
-                                  Checkpoints: {completedSubs} / {q.subtasks.length}
-                                </div>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                  {q.subtasks.map((st) => (
-                                    <div
-                                      key={st.id}
-                                      onClick={() => handleSubtaskToggle(q.id, st.id, st.done)}
-                                      style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '6px',
-                                        fontSize: '0.75rem',
-                                        color: st.done ? '#64748b' : '#cbd5e1',
-                                        textDecoration: st.done ? 'line-through' : 'none',
-                                        cursor: 'pointer',
-                                      }}
-                                    >
-                                      <span
+                            <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.06)', marginTop: '8px', paddingTop: '8px' }}>
+                              {q.subtasks.length > 0 && (
+                                <>
+                                  <div style={{ fontSize: '10px', fontFamily: 'monospace', color: '#94a3b8', marginBottom: '4px' }}>
+                                    Checkpoints: {completedSubs} / {q.subtasks.length}
+                                  </div>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '6px' }}>
+                                    {q.subtasks.map((st) => (
+                                      <div
+                                        key={st.id}
+                                        onClick={() => handleSubtaskToggle(q.id, st.id, st.done)}
                                         style={{
-                                          width: '14px',
-                                          height: '14px',
-                                          borderRadius: '4px',
-                                          border: st.done ? 'none' : '1px solid rgba(255, 255, 255, 0.3)',
-                                          background: st.done ? '#00F0FF' : 'transparent',
-                                          color: '#000000',
                                           display: 'flex',
                                           alignItems: 'center',
-                                          justifyContent: 'center',
-                                          fontSize: '8px',
-                                          fontWeight: 800,
+                                          gap: '6px',
+                                          fontSize: '0.75rem',
+                                          color: st.done ? '#64748b' : '#cbd5e1',
+                                          textDecoration: st.done ? 'line-through' : 'none',
+                                          cursor: 'pointer',
                                         }}
                                       >
-                                        {st.done ? '✓' : ''}
-                                      </span>
-                                      <span>{st.title}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
+                                        <span
+                                          style={{
+                                            width: '14px',
+                                            height: '14px',
+                                            borderRadius: '4px',
+                                            border: st.done ? 'none' : '1px solid rgba(255, 255, 255, 0.3)',
+                                            background: st.done ? '#00F0FF' : 'transparent',
+                                            color: '#000000',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            fontSize: '8px',
+                                            fontWeight: 800,
+                                          }}
+                                        >
+                                          {st.done ? '✓' : ''}
+                                        </span>
+                                        <span>{st.title}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </>
+                              )}
+
+                              {addingSubtaskQuestId === q.id ? (
+                                <form
+                                  onSubmit={(e) => {
+                                    e.preventDefault();
+                                    if (q.realTaskId) handleAddSubtask(q.realTaskId);
+                                  }}
+                                  style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}
+                                >
+                                  <input
+                                    type="text"
+                                    autoFocus
+                                    value={newSubtaskText}
+                                    onChange={(e) => setNewSubtaskText(e.target.value)}
+                                    placeholder="Add checkpoint title..."
+                                    style={{
+                                      background: 'rgba(7, 10, 18, 0.9)',
+                                      border: '1px solid rgba(0, 240, 255, 0.4)',
+                                      borderRadius: '6px',
+                                      padding: '3px 8px',
+                                      fontSize: '0.72rem',
+                                      color: '#fff',
+                                      outline: 'none',
+                                      flex: 1,
+                                    }}
+                                  />
+                                  <button
+                                    type="submit"
+                                    style={{
+                                      background: '#00F0FF',
+                                      border: 'none',
+                                      borderRadius: '6px',
+                                      padding: '3px 8px',
+                                      fontSize: '0.72rem',
+                                      fontWeight: 700,
+                                      color: '#000',
+                                      cursor: 'pointer',
+                                    }}
+                                  >
+                                    Add
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setAddingSubtaskQuestId(null);
+                                      setNewSubtaskText('');
+                                    }}
+                                    style={{
+                                      background: 'transparent',
+                                      border: 'none',
+                                      color: '#94a3b8',
+                                      fontSize: '0.72rem',
+                                      cursor: 'pointer',
+                                    }}
+                                  >
+                                    ✕
+                                  </button>
+                                </form>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setAddingSubtaskQuestId(q.id);
+                                    setNewSubtaskText('');
+                                  }}
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    padding: 0,
+                                    color: '#00F0FF',
+                                    fontSize: '0.7rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '3px',
+                                    opacity: 0.85,
+                                  }}
+                                >
+                                  + Add Checkpoint
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
 
@@ -1690,6 +1859,26 @@ export default function TaskBuilderPage() {
                             }}
                           >
                             <Crosshair size={14} />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => openEditModal(q)}
+                            title="Edit Directive"
+                            style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '8px',
+                              border: '1px solid rgba(0, 240, 255, 0.3)',
+                              background: '#0C101F',
+                              color: '#00F0FF',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <Edit3 size={14} />
                           </button>
 
                           <button
@@ -2036,6 +2225,34 @@ export default function TaskBuilderPage() {
                 />
               </div>
 
+              <div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', color: '#00F0FF', marginBottom: '4px' }}>
+                  <Calendar size={12} color="#00F0FF" />
+                  Target Date / Operation Date (Linked to Home)
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={mDate}
+                  onChange={(e) => setMDate(e.target.value)}
+                  style={{
+                    width: '100%',
+                    background: '#070A12',
+                    border: '1px solid rgba(0, 240, 255, 0.4)',
+                    borderRadius: '10px',
+                    padding: '0.65rem 0.85rem',
+                    color: '#00F0FF',
+                    fontFamily: 'monospace',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    colorScheme: 'dark',
+                    cursor: 'pointer',
+                  }}
+                />
+              </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', color: '#94a3b8', marginBottom: '4px' }}>
@@ -2164,6 +2381,239 @@ export default function TaskBuilderPage() {
                   }}
                 >
                   DEPLOY MISSION
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: EDIT GUILD CONTRACT ────────────────────────────────────────── */}
+      {editingQuest && (
+        <div
+          onClick={() => setEditingQuest(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.82)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 50,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="anime-glass"
+            style={{
+              maxWidth: '520px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              borderRadius: '20px',
+              padding: '1.5rem',
+              border: '1px solid rgba(0, 240, 255, 0.5)',
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(0, 240, 255, 0.15)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '0.75rem', marginBottom: '1.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Edit3 size={16} color="#00F0FF" />
+                <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.9rem', fontWeight: 800, color: '#ffffff' }}>
+                  RECONFIGURE DIRECTIVE 任務変更
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingQuest(null)}
+                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', fontSize: '0.8rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', color: '#94a3b8', marginBottom: '4px' }}>
+                  Quest Title / Target Entity
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  style={{
+                    width: '100%',
+                    background: '#070A12',
+                    border: '1px solid rgba(0, 240, 255, 0.3)',
+                    borderRadius: '10px',
+                    padding: '0.65rem 0.85rem',
+                    color: '#ffffff',
+                    fontSize: '0.82rem',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', color: '#00F0FF', marginBottom: '4px' }}>
+                  <Calendar size={12} color="#00F0FF" />
+                  Target Date / Operation Date (Linked to Home)
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={editDate}
+                  onChange={(e) => setEditDate(e.target.value)}
+                  style={{
+                    width: '100%',
+                    background: '#070A12',
+                    border: '1px solid rgba(0, 240, 255, 0.4)',
+                    borderRadius: '10px',
+                    padding: '0.6rem 0.85rem',
+                    color: '#00F0FF',
+                    fontFamily: 'monospace',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    colorScheme: 'dark',
+                    cursor: 'pointer',
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', color: '#94a3b8', marginBottom: '4px' }}>
+                    Rank Tier
+                  </label>
+                  <select
+                    value={editRank}
+                    onChange={(e) => setEditRank(e.target.value as any)}
+                    style={{
+                      width: '100%',
+                      background: '#070A12',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '10px',
+                      padding: '0.55rem',
+                      color: '#ffffff',
+                      outline: 'none',
+                    }}
+                  >
+                    <option value="S">S-Rank (Boss)</option>
+                    <option value="A">A-Rank (Elite)</option>
+                    <option value="B">B-Rank (Major)</option>
+                    <option value="C">C-Rank (Minor)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', color: '#94a3b8', marginBottom: '4px' }}>
+                    Element
+                  </label>
+                  <select
+                    value={editElem}
+                    onChange={(e) => setEditElem(e.target.value as any)}
+                    style={{
+                      width: '100%',
+                      background: '#070A12',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '10px',
+                      padding: '0.55rem',
+                      color: '#ffffff',
+                      outline: 'none',
+                    }}
+                  >
+                    <option value="Void">Void (虚無)</option>
+                    <option value="Tech">Tech (機電)</option>
+                    <option value="Fire">Flame (劫火)</option>
+                    <option value="Shadow">Shadow (影法)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', color: '#94a3b8', marginBottom: '4px' }}>
+                    Est. Time
+                  </label>
+                  <select
+                    value={editDur}
+                    onChange={(e) => setEditDur(parseInt(e.target.value, 10))}
+                    style={{
+                      width: '100%',
+                      background: '#070A12',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '10px',
+                      padding: '0.55rem',
+                      color: '#ffffff',
+                      outline: 'none',
+                    }}
+                  >
+                    <option value="15">15 min</option>
+                    <option value="25">25 min</option>
+                    <option value="50">50 min</option>
+                    <option value="90">90 min</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', color: '#94a3b8', marginBottom: '4px' }}>
+                  Briefing / Tactical Notes
+                </label>
+                <textarea
+                  rows={3}
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  placeholder="Acceptance criteria, code links, or boss weak points..."
+                  style={{
+                    width: '100%',
+                    background: '#070A12',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '10px',
+                    padding: '0.65rem 0.85rem',
+                    color: '#ffffff',
+                    fontSize: '0.8rem',
+                    outline: 'none',
+                    resize: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '0.85rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setEditingQuest(null)}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    borderRadius: '10px',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: 'none',
+                    color: '#cbd5e1',
+                    cursor: 'pointer',
+                  }}
+                >
+                  CANCEL
+                </button>
+                <button
+                  type="submit"
+                  className="persona-btn"
+                  style={{
+                    padding: '0.55rem 1.35rem',
+                    color: '#ffffff',
+                    fontFamily: 'Orbitron, sans-serif',
+                    fontSize: '0.75rem',
+                    fontWeight: 800,
+                    letterSpacing: '0.04em',
+                    border: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  SAVE CHANGES
                 </button>
               </div>
             </form>

@@ -29,7 +29,7 @@ export default function AnimeFantasyDashboard({
 }: AnimeFantasyDashboardProps) {
   const {
     settings,
-    todaysTasks,
+    tasks,
     completeTask,
   } = useApp();
 
@@ -53,46 +53,55 @@ export default function AnimeFantasyDashboard({
     weekday: 'short',
   });
 
-  // Real or blended daily missions
+  // Current system date formatted to 'YYYY-MM-DD'
+  const todayDateStr = useMemo(() => {
+    const sysDate = new Date();
+    const y = sysDate.getFullYear();
+    const m = String(sysDate.getMonth() + 1).padStart(2, '0');
+    const d = String(sysDate.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }, []);
+
+  // Filter global task array: compare targetDate with current system date
   const todayMissions = useMemo(() => {
-    // If real tasks exist, use them
-    if (todaysTasks && todaysTasks.length > 0) {
-      return todaysTasks.map((t, idx) => {
-        const timeStamps = ['06:00 AM', '06:30 AM', '08:00 AM', '10:00 AM', '02:00 PM', '09:00 PM'];
-        const categories: ('Routine' | 'Daily' | 'One-time')[] = ['Routine', 'Daily', 'One-time', 'One-time', 'Daily'];
-        const icons = [<Sun size={15} />, <Dumbbell size={15} />, <BookOpen size={15} />, <Laptop size={15} />, <Moon size={15} />];
+    if (!tasks || tasks.length === 0) return [];
 
-        return {
-          id: t.id,
-          title: t.title,
-          time: t.plannedStartTime || timeStamps[idx % timeStamps.length],
-          category: (t.recurring === 'daily' ? 'Daily' : categories[idx % categories.length]) as 'Routine' | 'Daily' | 'One-time',
-          icon: icons[idx % icons.length],
-          isCompleted: t.status === 'completed',
-          realTask: t,
-        };
-      });
-    }
+    const filtered = tasks.filter((t) => {
+      if (t.isDeleted) return false;
+      // Compare task's targetDate (or fallback to dueDate) with current system date
+      const taskDate = (t.targetDate || t.dueDate || '').slice(0, 10);
+      return taskDate === todayDateStr;
+    });
 
-    // Default reference missions
-    return [
-      { id: 'm1', title: 'Wake up & Freshen up', time: '06:00 AM', category: 'Routine', icon: <Sun size={15} />, isCompleted: true },
-      { id: 'm2', title: 'Exercise for 30 mins', time: '06:30 AM', category: 'Daily', icon: <Dumbbell size={15} />, isCompleted: true },
-      { id: 'm3', title: 'Study React & Life OS', time: '08:00 AM', category: 'One-time', icon: <BookOpen size={15} />, isCompleted: false },
-      { id: 'm4', title: 'Finish Project Report', time: '10:00 AM', category: 'One-time', icon: <Laptop size={15} />, isCompleted: false },
-      { id: 'm5', title: 'Plan Tomorrow', time: '09:00 PM', category: 'Daily', icon: <Moon size={15} />, isCompleted: false },
-    ];
-  }, [todaysTasks]);
+    return filtered.map((t, idx) => {
+      const timeStamps = ['06:00 AM', '08:00 AM', '10:00 AM', '01:00 PM', '03:00 PM', '06:00 PM', '08:00 PM', '09:30 PM'];
+      const categories: ('Routine' | 'Daily' | 'One-time')[] = ['Routine', 'Daily', 'One-time', 'One-time', 'Daily'];
+      const icons = [
+        <Sun size={15} key="sun" />,
+        <Dumbbell size={15} key="db" />,
+        <BookOpen size={15} key="book" />,
+        <Laptop size={15} key="laptop" />,
+        <Moon size={15} key="moon" />,
+      ];
+
+      return {
+        id: t.id,
+        title: t.title,
+        time: t.plannedStartTime || timeStamps[idx % timeStamps.length],
+        category: (t.recurring === 'daily' ? 'Daily' : categories[idx % categories.length]) as 'Routine' | 'Daily' | 'One-time',
+        icon: icons[idx % icons.length],
+        isCompleted: t.status === 'completed',
+        realTask: t,
+      };
+    });
+  }, [tasks, todayDateStr]);
 
   const completedCount = todayMissions.filter((m) => m.isCompleted).length;
   const totalMissions = todayMissions.length;
 
   // Toggle mission completion with instant celebration
   const handleToggleMission = async (missionId: string, currentCompleted: boolean) => {
-    const realTask = todaysTasks.find((t) => t.id === missionId);
-    if (realTask) {
-      await completeTask(missionId);
-    }
+    await completeTask(missionId);
 
     if (!currentCompleted) {
       setCelebrationText('Task Completed! Great job! +10 XP');
@@ -180,6 +189,8 @@ export default function AnimeFantasyDashboard({
               flexDirection: 'column',
               gap: '1rem',
               boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+              minHeight: '220px',
+              transition: 'all 0.25s ease',
             }}
           >
             {/* Header */}
@@ -228,108 +239,168 @@ export default function AnimeFantasyDashboard({
 
             {/* Missions Timeline */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-              {todayMissions.map((m, idx) => {
-                const isRoutine = m.category === 'Routine';
-                const isDaily = m.category === 'Daily';
-
-                const badgeColor = isRoutine
-                  ? '#10b981'
-                  : isDaily
-                    ? '#06b6d4'
-                    : '#a855f7';
-
-                return (
+              {todayMissions.length === 0 ? (
+                <div
+                  style={{
+                    padding: '2rem 1.5rem',
+                    textAlign: 'center',
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    borderRadius: '16px',
+                    border: '1px dashed rgba(192, 132, 252, 0.25)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '10px',
+                  }}
+                >
                   <div
-                    key={m.id || idx}
                     style={{
+                      width: '42px',
+                      height: '42px',
+                      borderRadius: '50%',
+                      background: 'rgba(192, 132, 252, 0.12)',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '0.75rem 1rem',
-                      borderRadius: '14px',
-                      background: m.isCompleted
-                        ? 'rgba(16, 185, 129, 0.08)'
-                        : 'rgba(255, 255, 255, 0.03)',
-                      border: m.isCompleted
-                        ? '1px solid rgba(16, 185, 129, 0.25)'
-                        : '1px solid rgba(255, 255, 255, 0.06)',
-                      transition: 'all 0.2s ease',
+                      justifyContent: 'center',
+                      color: '#c084fc',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div
-                        style={{
-                          width: '32px',
-                          height: '32px',
-                          borderRadius: '8px',
-                          background: `${badgeColor}20`,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: badgeColor,
-                        }}
-                      >
-                        {m.icon}
-                      </div>
-
-                      <div>
-                        <div
-                          style={{
-                            fontSize: '0.88rem',
-                            fontWeight: 700,
-                            color: m.isCompleted ? '#94a3b8' : '#f8fafc',
-                            textDecoration: m.isCompleted ? 'line-through' : 'none',
-                          }}
-                        >
-                          {m.title}
-                        </div>
-                        <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
-                          {m.time}
-                        </div>
-                      </div>
+                    <Target size={20} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#f8fafc', marginBottom: '4px' }}>
+                      No Missions Scheduled
                     </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span
-                        style={{
-                          fontSize: '0.68rem',
-                          fontWeight: 700,
-                          padding: '2px 8px',
-                          borderRadius: '999px',
-                          background: `${badgeColor}18`,
-                          color: badgeColor,
-                          border: `1px solid ${badgeColor}33`,
-                        }}
-                      >
-                        {m.category}
-                      </span>
-
-                      <button
-                        type="button"
-                        onClick={() => handleToggleMission(m.id, m.isCompleted)}
-                        style={{
-                          width: '24px',
-                          height: '24px',
-                          borderRadius: '50%',
-                          border: m.isCompleted ? 'none' : '2px solid rgba(192, 132, 252, 0.4)',
-                          background: m.isCompleted ? '#10b981' : 'transparent',
-                          color: '#ffffff',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          cursor: 'pointer',
-                          flexShrink: 0,
-                          boxShadow: m.isCompleted ? '0 0 10px rgba(16, 185, 129, 0.5)' : 'none',
-                          transition: 'all 0.2s ease',
-                        }}
-                        aria-label={`Mark ${m.title} ${m.isCompleted ? 'incomplete' : 'complete'}`}
-                      >
-                        {m.isCompleted && <Check size={14} strokeWidth={3} />}
-                      </button>
+                    <div style={{ fontSize: '0.76rem', color: '#94a3b8', maxWidth: '280px', margin: '0 auto' }}>
+                      You have no pending missions for today. Add new tasks in the Task Builder to track your progress!
                     </div>
                   </div>
-                );
-              })}
+                  <button
+                    type="button"
+                    onClick={() => (onOpenTaskBuilder ? onOpenTaskBuilder() : onNavigateSection && onNavigateSection('tasks'))}
+                    style={{
+                      marginTop: '4px',
+                      background: 'linear-gradient(135deg, #ec4899, #8b5cf6)',
+                      border: 'none',
+                      borderRadius: '10px',
+                      padding: '7px 16px',
+                      fontWeight: 700,
+                      fontSize: '0.8rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      boxShadow: '0 0 16px rgba(236, 72, 153, 0.3)',
+                    }}
+                  >
+                    <Plus size={14} /> Add First Mission
+                  </button>
+                </div>
+              ) : (
+                todayMissions.map((m, idx) => {
+                  const isRoutine = m.category === 'Routine';
+                  const isDaily = m.category === 'Daily';
+
+                  const badgeColor = isRoutine
+                    ? '#10b981'
+                    : isDaily
+                      ? '#06b6d4'
+                      : '#a855f7';
+
+                  return (
+                    <div
+                      key={m.id || idx}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '0.75rem 1rem',
+                        borderRadius: '14px',
+                        background: m.isCompleted
+                          ? 'rgba(16, 185, 129, 0.08)'
+                          : 'rgba(255, 255, 255, 0.03)',
+                        border: m.isCompleted
+                          ? '1px solid rgba(16, 185, 129, 0.25)'
+                          : '1px solid rgba(255, 255, 255, 0.06)',
+                        transition: 'all 0.2s ease',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div
+                          style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '8px',
+                            background: `${badgeColor}20`,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: badgeColor,
+                          }}
+                        >
+                          {m.icon}
+                        </div>
+
+                        <div>
+                          <div
+                            style={{
+                              fontSize: '0.88rem',
+                              fontWeight: 700,
+                              color: m.isCompleted ? '#94a3b8' : '#f8fafc',
+                              textDecoration: m.isCompleted ? 'line-through' : 'none',
+                            }}
+                          >
+                            {m.title}
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                            {m.time}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span
+                          style={{
+                            fontSize: '0.68rem',
+                            fontWeight: 700,
+                            padding: '2px 8px',
+                            borderRadius: '999px',
+                            background: `${badgeColor}18`,
+                            color: badgeColor,
+                            border: `1px solid ${badgeColor}33`,
+                          }}
+                        >
+                          {m.category}
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={() => handleToggleMission(m.id, m.isCompleted)}
+                          style={{
+                            width: '24px',
+                            height: '24px',
+                            borderRadius: '50%',
+                            border: m.isCompleted ? 'none' : '2px solid rgba(192, 132, 252, 0.4)',
+                            background: m.isCompleted ? '#10b981' : 'transparent',
+                            color: '#ffffff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            flexShrink: 0,
+                            boxShadow: m.isCompleted ? '0 0 10px rgba(16, 185, 129, 0.5)' : 'none',
+                            transition: 'all 0.2s ease',
+                          }}
+                          aria-label={`Mark ${m.title} ${m.isCompleted ? 'incomplete' : 'complete'}`}
+                        >
+                          {m.isCompleted && <Check size={14} strokeWidth={3} />}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
 
             {/* Footer Counter */}
@@ -345,7 +416,7 @@ export default function AnimeFantasyDashboard({
               }}
             >
               <span style={{ fontWeight: 700, color: '#c084fc' }}>
-                ✦ {completedCount} of {totalMissions} done!
+                ✦ {totalMissions === 0 ? '0 missions' : `${completedCount} of ${totalMissions} done!`}
               </span>
 
               <button
