@@ -19,6 +19,7 @@ import { useApp } from '../../context/AppContext';
 import type { Task } from '../../types';
 import TimetableScheduledBadge from '../common/TimetableScheduledBadge';
 import { formatTimetableTime, getTimetableIcon } from '../timetable/DailyTimetable';
+import TaskRecycleBinModal from '../taskBuilder/TaskRecycleBinModal';
 
 interface AnimeFantasyDashboardProps {
   onNavigateSection?: (section: string) => void;
@@ -38,6 +39,9 @@ export default function AnimeFantasyDashboard({
     completeTask,
     updateTask,
     removeTask,
+    restoreTask,
+    permanentDeleteTask,
+    emptyRecycleBin,
   } = useApp();
 
   const rawWidgets = settings.personalization?.dashboardWidgets;
@@ -51,6 +55,9 @@ export default function AnimeFantasyDashboard({
 
   // Task Completion Celebration Banner State
   const [celebrationText, setCelebrationText] = useState<string | null>(null);
+
+  // Recycle Bin Modal Visibility State
+  const [isRecycleBinOpen, setIsRecycleBinOpen] = useState(false);
 
   // Set of mission IDs currently undergoing completion & auto-move to Recycle Bin
   const [movingToTrashIds, setMovingToTrashIds] = useState<Set<string>>(new Set());
@@ -194,6 +201,26 @@ export default function AnimeFantasyDashboard({
     setCelebrationText('Mission moved to Recycle Bin');
     setTimeout(() => setCelebrationText(null), 2500);
     await removeTask(taskId);
+  };
+
+  const handleRestoreFromRecycleBin = async (taskId: string) => {
+    await restoreTask(taskId);
+
+    // If task was marked completed, reset status to not-started so it reappears active in Today Missions
+    const target = deletedTasks.find((t) => t.id === taskId);
+    if (target && target.status === 'completed') {
+      await updateTask({
+        ...target,
+        isDeleted: false,
+        deletedAt: undefined,
+        status: 'not-started',
+        completedAt: undefined,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+
+    setCelebrationText(`Restored "${target?.title || 'task'}" to Today Missions!`);
+    setTimeout(() => setCelebrationText(null), 3000);
   };
 
   const handleOpenTimeModal = (t: Task) => {
@@ -348,30 +375,30 @@ export default function AnimeFantasyDashboard({
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                {deletedTasks.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => onNavigateSection && onNavigateSection('settings')}
-                    className="btn btn-ghost btn-sm"
-                    style={{
-                      color: '#f87171',
-                      fontSize: '0.76rem',
-                      fontWeight: 600,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      background: 'rgba(239, 68, 68, 0.1)',
-                      padding: '4px 8px',
-                      borderRadius: '8px',
-                      border: '1px solid rgba(239, 68, 68, 0.25)',
-                      cursor: 'pointer',
-                    }}
-                    title="View Recycle Bin in Settings"
-                  >
-                    <Trash2 size={12} color="#f87171" />
-                    <span>Recycle Bin ({deletedTasks.length})</span>
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setIsRecycleBinOpen(true)}
+                  className="btn btn-ghost btn-sm"
+                  style={{
+                    color: deletedTasks.length > 0 ? '#f87171' : '#94a3b8',
+                    fontSize: '0.76rem',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    background: deletedTasks.length > 0 ? 'rgba(239, 68, 68, 0.12)' : 'rgba(255, 255, 255, 0.04)',
+                    padding: '4px 9px',
+                    borderRadius: '8px',
+                    border: deletedTasks.length > 0 ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(255, 255, 255, 0.08)',
+                    cursor: 'pointer',
+                    boxShadow: deletedTasks.length > 0 ? '0 0 12px rgba(239, 68, 68, 0.2)' : 'none',
+                    transition: 'all 0.2s ease',
+                  }}
+                  title="View deleted & auto-recycled missions"
+                >
+                  <Trash2 size={13} color={deletedTasks.length > 0 ? '#f87171' : '#94a3b8'} />
+                  <span>Recycle Bin ({deletedTasks.length})</span>
+                </button>
 
                 <button
                   type="button"
@@ -947,6 +974,15 @@ export default function AnimeFantasyDashboard({
           </div>
         </div>
       )}
+      {/* Recycle Bin Modal: View, restore, or permanently purge deleted missions */}
+      <TaskRecycleBinModal
+        isOpen={isRecycleBinOpen}
+        onClose={() => setIsRecycleBinOpen(false)}
+        deletedTasks={deletedTasks}
+        onRestore={handleRestoreFromRecycleBin}
+        onPermanentDelete={permanentDeleteTask}
+        onEmptyRecycleBin={emptyRecycleBin}
+      />
     </div>
   );
 }
