@@ -48,21 +48,18 @@ function GroceryContent() {
     <div
       className="composite-page"
       style={{
-        padding: 'clamp(0.75rem, 2vw, 1.5rem)',
-        maxWidth: '1280px',
-        margin: '0 auto',
-        minHeight: '100vh',
-        boxSizing: 'border-box',
+        maxWidth: '100vw',
         overflowX: 'hidden',
+        boxSizing: 'border-box',
         width: '100%',
+        height: '100%',
       }}
     >
       {/* Top Header */}
       <header
         className="composite-header"
         style={{
-          marginBottom: '1.25rem',
-          paddingBottom: '0.65rem',
+          padding: '1.1rem clamp(0.75rem, 2vw, 1.5rem) 0.65rem',
           borderBottom: '1px solid rgba(16, 185, 129, 0.18)',
         }}
       >
@@ -92,17 +89,34 @@ function GroceryContent() {
         </div>
       </header>
 
-      {/* Lists Switcher, Metrics & Shopping Progress Header */}
-      <GroceryHeader
-        onOpenCreateListModal={() => setIsCreateListModalOpen(true)}
-        onOpenRenameListModal={() => setRenamingList(activeList || null)}
-      />
+      {/* Scrollable Content Container */}
+      <div
+        className="composite-content"
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          padding: 'clamp(0.75rem, 2vw, 1.5rem)',
+          paddingBottom: '6rem',
+          maxWidth: '1280px',
+          width: '100%',
+          margin: '0 auto',
+          boxSizing: 'border-box',
+          WebkitOverflowScrolling: 'touch',
+        }}
+      >
+        {/* Lists Switcher, Metrics & Shopping Progress Header */}
+        <GroceryHeader
+          onOpenCreateListModal={() => setIsCreateListModalOpen(true)}
+          onOpenRenameListModal={() => setRenamingList(activeList || null)}
+        />
 
-      {/* Quick Add Bar */}
-      <GroceryQuickAdd />
+        {/* Quick Add Bar */}
+        <GroceryQuickAdd />
 
-      {/* Category Filter & Search Chips */}
-      <GroceryCategoryFilter />
+        {/* Category Filter & Search Chips */}
+        <GroceryCategoryFilter />
 
       {/* Shopping Checklist Area */}
       {!hasAnyItemsInActiveList ? (
@@ -230,6 +244,7 @@ function GroceryContent() {
           )}
         </div>
       )}
+      </div>
 
       {/* Edit Item Modal */}
       <GroceryEditModal

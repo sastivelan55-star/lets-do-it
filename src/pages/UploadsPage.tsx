@@ -132,7 +132,16 @@ export default function UploadsPage({ hideTitle = false }: UploadsPageProps) {
   ];
 
   return (
-    <div className="page-container pb-safe" style={{ padding: hideTitle ? '0.25rem 0' : undefined }}>
+    <div
+      className="page-container pb-safe"
+      style={{
+        padding: hideTitle ? '0.25rem 0' : undefined,
+        overflowY: hideTitle ? 'visible' : undefined,
+        height: hideTitle ? 'auto' : undefined,
+        minHeight: hideTitle ? 'auto' : undefined,
+        maxHeight: hideTitle ? 'none' : undefined,
+      }}
+    >
       <style>{`
         .uploads-cat-scroll::-webkit-scrollbar {
           display: none;
