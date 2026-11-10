@@ -17,6 +17,7 @@ import {
   AlertCircle,
   Globe,
   FileBox,
+  ShoppingCart,
 } from 'lucide-react';
 import type { NavSection } from '../../App';
 import { useAuth } from '../../context/AuthContext';
@@ -36,6 +37,7 @@ const NAV_ITEMS: { id: NavSection; label: string; icon: React.ReactNode; color: 
   { id: 'pulse',      label: 'News',       icon: <Globe size={18} />,           color: '#38bdf8' },
   { id: 'notes',      label: 'Notes',      icon: <FileText size={18} />,        color: '#a855f7' },
   { id: 'vault',      label: 'Vault',      icon: <FileBox size={18} />,         color: '#c084fc' },
+  { id: 'groceries',  label: 'Grocery List', icon: <ShoppingCart size={18} />,  color: '#10b981' },
   { id: 'calendar',   label: 'Calendar',   icon: <Calendar size={18} />,        color: '#38bdf8' },
   { id: 'projects',   label: 'Projects',   icon: <FolderKanban size={18} />,    color: '#ec4899' },
   { id: 'roadmap',    label: 'Roadmap',    icon: <Rocket size={18} />,          color: '#f59e0b' },

@@ -14,6 +14,7 @@ import {
   User,
   Globe,
   FileBox,
+  ShoppingCart,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import type { NavSection } from '../../App';
@@ -36,6 +37,7 @@ const MORE_NAV: { id: NavSection; label: string; icon: React.ReactNode; color: s
   { id: 'pulse',      label: 'News',                icon: <Globe size={20} />,        color: '#38bdf8' },
   { id: 'notes',      label: 'Notes',               icon: <FileText size={20} />,     color: '#c084fc' },
   { id: 'vault',      label: 'Digital Vault',       icon: <FileBox size={20} />,      color: '#38bdf8' },
+  { id: 'groceries',  label: 'Grocery List',        icon: <ShoppingCart size={20} />, color: '#10b981' },
   { id: 'roadmap',    label: 'Roadmap & Goals',     icon: <Rocket size={20} />,       color: '#f59e0b' },
   { id: 'reflection', label: 'Weekly Reflection',   icon: <Heart size={20} />,        color: '#10b981' },
   { id: 'settings',   label: 'Anime & Settings',    icon: <Settings size={20} />,     color: '#ec4899' },
@@ -45,6 +47,7 @@ const MORE_SECTION_IDS: NavSection[] = [
   'pulse',
   'notes',
   'vault',
+  'groceries',
   'uploads',
   'roadmap',
   'reflection',

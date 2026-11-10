@@ -42,6 +42,7 @@ const SECTION_LABELS: Record<NavSection, string> = {
   review: 'Review & Settings',
   vault: 'Digital Vault — Personal Resource Library',
   uploads: 'Media Vault & Uploads',
+  groceries: 'Grocery List — Smart Shopping Command',
 };
 
 export default function TopBar({

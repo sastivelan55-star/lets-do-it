@@ -16,6 +16,7 @@ import KnowledgePage from './pages/KnowledgePage';
 import ReviewSettingsPage from './pages/ReviewSettingsPage';
 import PulseFlowPage from './pages/PulseFlowPage';
 import VaultPage from './pages/VaultPage';
+import GroceryPage from './pages/GroceryPage';
 import TopBar from './components/layout/TopBar';
 import UniversalSearchModal from './components/search/UniversalSearchModal';
 import QuickCaptureModal from './components/quickCapture/QuickCaptureModal';
@@ -26,6 +27,8 @@ export type NavSection =
   | 'tasks'
   | 'pulse'
   | 'notes'
+  | 'vault'
+  | 'groceries'
   | 'calendar'
   | 'projects'
   | 'roadmap'
@@ -36,7 +39,6 @@ export type NavSection =
   | 'knowledge'
   | 'explore'
   | 'review'
-  | 'vault'
   | 'uploads';
 
 function LoadingScreen() {
@@ -179,6 +181,7 @@ function AppContent() {
     review:     <ReviewSettingsPage initialTab="personalization" />,
     vault:      <VaultPage initialTab="uploads" />,
     uploads:    <VaultPage initialTab="uploads" />,
+    groceries:  <GroceryPage />,
   };
 
   return (

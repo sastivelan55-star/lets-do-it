@@ -13,6 +13,7 @@ import {
   Sparkles,
   Globe,
   FileBox,
+  ShoppingCart,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import type { NavSection } from '../../App';
@@ -153,6 +154,17 @@ export default function UniversalSearchModal({
       destination: 'vault',
       badge: 'Destination',
       action: () => { onNavigate('vault'); onClose(); },
+    },
+    {
+      id: 'nav-groceries',
+      type: 'navigation',
+      title: 'Grocery List & Shopping',
+      subtitle: 'Shopping checklists, items by category, quantities, units & estimated budget',
+      icon: <ShoppingCart size={15} color="#10b981" />,
+      color: '#10b981',
+      destination: 'groceries',
+      badge: 'Destination',
+      action: () => { onNavigate('groceries'); onClose(); },
     },
     {
       id: 'nav-explore',
