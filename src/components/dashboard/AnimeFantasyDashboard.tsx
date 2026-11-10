@@ -1,7 +1,7 @@
 // Life OS — Productivity Dashboard
 // Clean, streamlined missions timeline, milestones, celebrations & quote
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Target,
   Trophy,
@@ -13,6 +13,7 @@ import {
   Clock,
   MoreVertical,
   X,
+  Trash2,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import type { Task } from '../../types';
@@ -33,8 +34,10 @@ export default function AnimeFantasyDashboard({
   const {
     settings,
     tasks,
+    deletedTasks,
     completeTask,
     updateTask,
+    removeTask,
   } = useApp();
 
   const rawWidgets = settings.personalization?.dashboardWidgets;
@@ -48,6 +51,10 @@ export default function AnimeFantasyDashboard({
 
   // Task Completion Celebration Banner State
   const [celebrationText, setCelebrationText] = useState<string | null>(null);
+
+  // Set of mission IDs currently undergoing completion & auto-move to Recycle Bin
+  const [movingToTrashIds, setMovingToTrashIds] = useState<Set<string>>(new Set());
+  const autoMovedIdsRef = useRef<Set<string>>(new Set());
 
   // Dynamic Date Formatting
   const now = new Date();
@@ -66,6 +73,28 @@ export default function AnimeFantasyDashboard({
     return `${y}-${m}-${d}`;
   }, []);
 
+  // Automatically move any completed today missions to the Recycle Bin on load / background
+  useEffect(() => {
+    if (!tasks || tasks.length === 0) return;
+
+    const completedToday = tasks.filter((t) => {
+      if (t.isDeleted) return false;
+      if (t.status !== 'completed') return false;
+      if (autoMovedIdsRef.current.has(t.id)) return false;
+      const taskDate = (t.scheduledDate || t.targetDate || t.dueDate || '').slice(0, 10);
+      return taskDate === todayDateStr;
+    });
+
+    if (completedToday.length > 0) {
+      completedToday.forEach((t) => {
+        autoMovedIdsRef.current.add(t.id);
+        removeTask(t.id).catch((err) => {
+          console.error('Failed to auto-move completed task to recycle bin:', err);
+        });
+      });
+    }
+  }, [tasks, todayDateStr, removeTask]);
+
   // Scheduling modal state
   const [timeModalTask, setTimeModalTask] = useState<Task | null>(null);
   const [timeModalStart, setTimeModalStart] = useState('08:00');
@@ -73,11 +102,14 @@ export default function AnimeFantasyDashboard({
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
   // Filter global task array: compare targetDate / scheduledDate / dueDate with current system date
+  // Exclude completed missions unless currently in the middle of celebratory fade-out to Recycle Bin
   const todayMissions = useMemo(() => {
     if (!tasks || tasks.length === 0) return [];
 
     const filtered = tasks.filter((t) => {
       if (t.isDeleted) return false;
+      // If already completed and not in active completion transition, hide from active missions list
+      if (t.status === 'completed' && !movingToTrashIds.has(t.id)) return false;
       const taskDate = (t.scheduledDate || t.targetDate || t.dueDate || '').slice(0, 10);
       return taskDate === todayDateStr;
     });
@@ -87,6 +119,7 @@ export default function AnimeFantasyDashboard({
       const rawTime = t.startTime || t.plannedStartTime;
       const formattedTime = isScheduled ? formatTimetableTime(rawTime) : undefined;
       const icon = getTimetableIcon(t.title, t.lifeArea);
+      const isMoving = movingToTrashIds.has(t.id);
 
       return {
         id: t.id,
@@ -95,23 +128,72 @@ export default function AnimeFantasyDashboard({
         isScheduled,
         category: (t.recurring === 'daily' ? 'Daily' : t.lifeArea === 'routine' ? 'Routine' : 'Daily') as 'Routine' | 'Daily' | 'One-time',
         icon,
-        isCompleted: t.status === 'completed',
+        isCompleted: t.status === 'completed' || isMoving,
+        isMovingToTrash: isMoving,
         realTask: t,
       };
     });
-  }, [tasks, todayDateStr]);
+  }, [tasks, todayDateStr, movingToTrashIds]);
 
-  const completedCount = todayMissions.filter((m) => m.isCompleted).length;
+  // Compute total completed tasks for today (active + those moved to recycle bin so user milestone is preserved!)
+  const completedCount = useMemo(() => {
+    const fromActive = tasks.filter((t) => {
+      const taskDate = (t.scheduledDate || t.targetDate || t.dueDate || '').slice(0, 10);
+      return (taskDate === todayDateStr && t.status === 'completed') || (t.completedAt && t.completedAt.slice(0, 10) === todayDateStr);
+    }).length;
+
+    const fromDeleted = deletedTasks.filter((t) => {
+      const taskDate = (t.scheduledDate || t.targetDate || t.dueDate || '').slice(0, 10);
+      const deletedDate = (t.deletedAt || '').slice(0, 10);
+      return (taskDate === todayDateStr && (t.status === 'completed' || deletedDate === todayDateStr)) || (t.completedAt && t.completedAt.slice(0, 10) === todayDateStr);
+    }).length;
+
+    return fromActive + fromDeleted;
+  }, [tasks, deletedTasks, todayDateStr]);
+
   const totalMissions = todayMissions.length;
 
-  // Toggle mission completion with instant celebration
+  // Toggle mission completion with instant celebration and auto-move to Recycle Bin
   const handleToggleMission = async (missionId: string, currentCompleted: boolean) => {
-    await completeTask(missionId);
-
     if (!currentCompleted) {
-      setCelebrationText('Task Completed! Great job! +10 XP');
+      // 1. Mark in moving state so checkmark immediately turns green
+      setMovingToTrashIds((prev) => new Set([...prev, missionId]));
+      setCelebrationText('Mission Completed! Moved to Recycle Bin (+10 XP)');
+
+      // 2. Mark complete in DB so completedAt is saved
+      try {
+        await completeTask(missionId);
+      } catch (err) {
+        console.error('Failed to complete task:', err);
+      }
+
+      // 3. Automatically soft-delete / move to Recycle Bin after brief celebratory animation
+      setTimeout(async () => {
+        try {
+          await removeTask(missionId);
+        } catch (err) {
+          console.error('Failed to move task to recycle bin:', err);
+        } finally {
+          setMovingToTrashIds((prev) => {
+            const next = new Set(prev);
+            next.delete(missionId);
+            return next;
+          });
+        }
+      }, 700);
+
       setTimeout(() => setCelebrationText(null), 3500);
+    } else {
+      // If already marked, move directly to recycle bin
+      await removeTask(missionId);
     }
+  };
+
+  const handleMoveToRecycleBin = async (taskId: string) => {
+    setActiveMenuId(null);
+    setCelebrationText('Mission moved to Recycle Bin');
+    setTimeout(() => setCelebrationText(null), 2500);
+    await removeTask(taskId);
   };
 
   const handleOpenTimeModal = (t: Task) => {
@@ -256,13 +338,41 @@ export default function AnimeFantasyDashboard({
                   <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#f8fafc' }}>
                     Today Missions
                   </h3>
-                  <p style={{ margin: '2px 0 0', fontSize: '0.74rem', color: '#94a3b8' }}>
-                    Your plan for today • {formattedDate}
+                  <p style={{ margin: '2px 0 0', fontSize: '0.74rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                    <span>Your plan for today • {formattedDate}</span>
+                    <span style={{ fontSize: '0.68rem', color: '#34d399', background: 'rgba(16, 185, 129, 0.12)', padding: '1px 6px', borderRadius: '4px' }}>
+                      ⚡ Auto-Recycle Completed
+                    </span>
                   </p>
                 </div>
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {deletedTasks.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => onNavigateSection && onNavigateSection('settings')}
+                    className="btn btn-ghost btn-sm"
+                    style={{
+                      color: '#f87171',
+                      fontSize: '0.76rem',
+                      fontWeight: 600,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      background: 'rgba(239, 68, 68, 0.1)',
+                      padding: '4px 8px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(239, 68, 68, 0.25)',
+                      cursor: 'pointer',
+                    }}
+                    title="View Recycle Bin in Settings"
+                  >
+                    <Trash2 size={12} color="#f87171" />
+                    <span>Recycle Bin ({deletedTasks.length})</span>
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={() => (onOpenTimetable ? onOpenTimetable() : onNavigateSection && onNavigateSection('timeline'))}
@@ -383,12 +493,14 @@ export default function AnimeFantasyDashboard({
                         padding: '0.75rem 1rem',
                         borderRadius: '14px',
                         background: m.isCompleted
-                          ? 'rgba(16, 185, 129, 0.08)'
+                          ? 'rgba(16, 185, 129, 0.12)'
                           : 'rgba(255, 255, 255, 0.03)',
                         border: m.isCompleted
-                          ? '1px solid rgba(16, 185, 129, 0.25)'
+                          ? '1px solid rgba(16, 185, 129, 0.35)'
                           : '1px solid rgba(255, 255, 255, 0.06)',
-                        transition: 'all 0.2s ease',
+                        transition: 'all 0.3s ease',
+                        opacity: m.isMovingToTrash ? 0.6 : 1,
+                        transform: m.isMovingToTrash ? 'scale(0.98)' : 'scale(1)',
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -422,6 +534,23 @@ export default function AnimeFantasyDashboard({
                           >
                             <span>{m.title}</span>
                             {m.isScheduled && <TimetableScheduledBadge time={m.time} />}
+                            {m.isMovingToTrash && (
+                              <span
+                                style={{
+                                  fontSize: '0.66rem',
+                                  color: '#34d399',
+                                  background: 'rgba(16, 185, 129, 0.15)',
+                                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                                  padding: '1px 6px',
+                                  borderRadius: '4px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                }}
+                              >
+                                <Trash2 size={10} /> Moving to Recycle Bin...
+                              </span>
+                            )}
                           </div>
                           <div style={{ fontSize: '0.72rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
                             {m.isScheduled ? (
@@ -543,6 +672,26 @@ export default function AnimeFantasyDashboard({
                                   <X size={12} color="#f87171" /> Remove from Timetable
                                 </button>
                               )}
+
+                              <button
+                                type="button"
+                                onClick={() => handleMoveToRecycleBin(m.realTask.id)}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  color: '#f87171',
+                                  padding: '6px 8px',
+                                  borderRadius: '6px',
+                                  fontSize: '0.76rem',
+                                  cursor: 'pointer',
+                                  textAlign: 'left',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                }}
+                              >
+                                <Trash2 size={12} color="#f87171" /> Move to Recycle Bin
+                              </button>
                             </div>
                           )}
                         </div>

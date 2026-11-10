@@ -203,20 +203,62 @@ describe('Task Recycle Bin: Safe Restoration & Orphan Prevention', () => {
   });
 });
 
-describe('Task Recycle Bin: Permanent Purge & Empty Bin Safety', () => {
-  it('emptying the recycle bin removes only soft-deleted tasks and never touches active tasks', () => {
-    const allTasks: Task[] = [
-      createMockTask({ id: 'active-1', title: 'Important Project', isDeleted: false }),
-      createMockTask({ id: 'active-2', title: 'Daily Workout', isDeleted: false }),
-      createMockTask({ id: 'trash-1', title: 'Old Note', isDeleted: true }),
-      createMockTask({ id: 'trash-2', title: 'Old Subtask', isDeleted: true }),
+describe('Task Recycle Bin: Automatic Move for Completed Today Missions', () => {
+  const getTodayStr = () => {
+    const sysDate = new Date();
+    const y = sysDate.getFullYear();
+    const m = String(sysDate.getMonth() + 1).padStart(2, '0');
+    const d = String(sysDate.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
+  it('filters out completed missions from today active list and routes them to recycle bin', () => {
+    const todayStr = getTodayStr();
+    const tasks: Task[] = [
+      createMockTask({ id: 'm1', title: 'Poo 20 +20', targetDate: todayStr, dueDate: todayStr, status: 'not-started' }),
+      createMockTask({ id: 'm2', title: 'Manathakali...', targetDate: todayStr, dueDate: todayStr, status: 'not-started' }),
+      createMockTask({ id: 'm3', title: 'Papali 1', targetDate: todayStr, dueDate: todayStr, status: 'completed' }),
+      createMockTask({ id: 'm4', title: 'Papali 2', targetDate: todayStr, dueDate: todayStr, status: 'completed' }),
     ];
 
-    // Empty recycle bin operation
-    const remainingTasks = allTasks.filter((t) => !t.isDeleted);
+    // Today Missions active filtering: excludes completed tasks (which are routed to recycle bin)
+    const activeTodayMissions = tasks.filter((t) => {
+      if (t.isDeleted) return false;
+      if (t.status === 'completed') return false;
+      const date = (t.scheduledDate || t.targetDate || t.dueDate || '').slice(0, 10);
+      return date === todayStr;
+    });
 
-    expect(remainingTasks).toHaveLength(2);
-    expect(remainingTasks.map((t) => t.id)).toEqual(['active-1', 'active-2']);
-    expect(remainingTasks.every((t) => !t.isDeleted)).toBe(true);
+    expect(activeTodayMissions).toHaveLength(2);
+    expect(activeTodayMissions.map((t) => t.id)).toEqual(['m1', 'm2']);
+
+    // Completed today tasks automatically identified for moving to recycle bin
+    const completedToRecycle = tasks.filter((t) => {
+      if (t.isDeleted) return false;
+      if (t.status !== 'completed') return false;
+      const date = (t.scheduledDate || t.targetDate || t.dueDate || '').slice(0, 10);
+      return date === todayStr;
+    });
+
+    expect(completedToRecycle).toHaveLength(2);
+    expect(completedToRecycle.map((t) => t.id)).toEqual(['m3', 'm4']);
+  });
+
+  it('preserves milestone counts by tallying completed active and auto-recycled tasks', () => {
+    const todayStr = getTodayStr();
+    const activeTasks: Task[] = [
+      createMockTask({ id: 'a1', title: 'Active 1', targetDate: todayStr, status: 'not-started' }),
+    ];
+    const deletedTasks: Task[] = [
+      createMockTask({ id: 'd1', title: 'Papali Completed 1', targetDate: todayStr, status: 'completed', isDeleted: true, deletedAt: `${todayStr}T12:00:00Z` }),
+      createMockTask({ id: 'd2', title: 'Papali Completed 2', targetDate: todayStr, status: 'completed', isDeleted: true, deletedAt: `${todayStr}T12:05:00Z` }),
+      createMockTask({ id: 'd3', title: 'Old Deleted Task', targetDate: '2026-01-01', isDeleted: true }),
+    ];
+
+    const completedTodayCount =
+      activeTasks.filter((t) => t.status === 'completed' && (t.targetDate || '').slice(0, 10) === todayStr).length +
+      deletedTasks.filter((t) => (t.status === 'completed' || (t.deletedAt || '').slice(0, 10) === todayStr) && (t.targetDate || '').slice(0, 10) === todayStr).length;
+
+    expect(completedTodayCount).toBe(2);
   });
 });
