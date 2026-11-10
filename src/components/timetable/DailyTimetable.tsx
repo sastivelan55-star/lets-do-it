@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Clock,
   Plus,
@@ -26,9 +26,22 @@ import {
   X,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
 import type { Task, LifeArea, TaskPriority } from '../../types';
 import { today, formatDate } from '../../utils/dates';
 import TimetableScheduledBadge from '../common/TimetableScheduledBadge';
+import {
+  loadDraft,
+  loadLocalDraft,
+  saveDraft,
+  saveLocalDraft,
+  clearAllDrafts,
+  hasDraftContent,
+  DEFAULT_DRAFT_START_TIME,
+  DEFAULT_DRAFT_AREA,
+  DEFAULT_DRAFT_PRIORITY,
+  type TimetableMissionDraft,
+} from '../../services/timetableDraftService';
 
 // Helper to format time into "04:00 AM"
 export function formatTimetableTime(timeStr?: string): string {
@@ -133,6 +146,7 @@ interface DailyTimetableProps {
 
 export default function DailyTimetable({ onNavigateSection: _onNavigateSection }: DailyTimetableProps) {
   const { tasks, addTask, updateTask, completeTask, removeTask } = useApp();
+  const { user } = useAuth();
 
   // Selected date defaults to today
   const [selectedDate, setSelectedDate] = useState<string>(today());
@@ -149,11 +163,142 @@ export default function DailyTimetable({ onNavigateSection: _onNavigateSection }
 
   // Form states for Add / Edit
   const [modalTitle, setModalTitle] = useState('');
-  const [modalStartTime, setModalStartTime] = useState('08:00');
+  const [modalStartTime, setModalStartTime] = useState(DEFAULT_DRAFT_START_TIME);
   const [modalEndTime, setModalEndTime] = useState('');
-  const [modalArea, setModalArea] = useState<LifeArea>('growth');
-  const [modalPriority, setModalPriority] = useState<TaskPriority>('medium');
+  const [modalArea, setModalArea] = useState<LifeArea>(DEFAULT_DRAFT_AREA);
+  const [modalPriority, setModalPriority] = useState<TaskPriority>(DEFAULT_DRAFT_PRIORITY);
   const [modalNotes, setModalNotes] = useState('');
+
+  // Draft auto-save and recovery state
+  const [draftStatus, setDraftStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [hasActiveDraft, setHasActiveDraft] = useState(false);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isInitialMountRef = useRef(true);
+
+  // Synchronous and asynchronous draft recovery on mount or user change
+  useEffect(() => {
+    let isCancelled = false;
+
+    // 1. Instant local storage recovery
+    const local = loadLocalDraft(user?.id);
+    if (local && hasDraftContent(local) && !editingTask) {
+      setModalTitle((prev) => (prev ? prev : local.title || ''));
+      setModalStartTime((prev) => (prev !== DEFAULT_DRAFT_START_TIME ? prev : local.startTime || DEFAULT_DRAFT_START_TIME));
+      setModalEndTime((prev) => (prev ? prev : local.endTime || ''));
+      setModalArea((prev) => (prev !== DEFAULT_DRAFT_AREA ? prev : local.area || DEFAULT_DRAFT_AREA));
+      setModalPriority((prev) => (prev !== DEFAULT_DRAFT_PRIORITY ? prev : local.priority || DEFAULT_DRAFT_PRIORITY));
+      setModalNotes((prev) => (prev ? prev : local.notes || ''));
+      setHasActiveDraft(true);
+      setDraftStatus('saved');
+    }
+
+    // 2. Cloud recovery for authenticated users (across devices / after login)
+    if (user?.id) {
+      loadDraft(user.id)
+        .then((draft) => {
+          if (isCancelled || !draft || !hasDraftContent(draft) || editingTask) return;
+          setModalTitle(draft.title || '');
+          setModalStartTime(draft.startTime || DEFAULT_DRAFT_START_TIME);
+          setModalEndTime(draft.endTime || '');
+          setModalArea(draft.area || DEFAULT_DRAFT_AREA);
+          setModalPriority(draft.priority || DEFAULT_DRAFT_PRIORITY);
+          setModalNotes(draft.notes || '');
+          setHasActiveDraft(true);
+          setDraftStatus('saved');
+        })
+        .catch(() => {});
+    }
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [user?.id, editingTask]);
+
+  // Auto-save draft on form field changes with debounce
+  useEffect(() => {
+    // Never overwrite or auto-save draft while user is editing an existing task
+    if (editingTask) return;
+
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      return;
+    }
+
+    const currentDraft: TimetableMissionDraft = {
+      title: modalTitle,
+      startTime: modalStartTime,
+      endTime: modalEndTime,
+      area: modalArea,
+      priority: modalPriority,
+      notes: modalNotes,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const hasContent = hasDraftContent(currentDraft);
+
+    if (hasContent) {
+      setHasActiveDraft(true);
+      setDraftStatus('saving');
+
+      // 1. Immediately save to localStorage (zero latency, resilient against instant close/refresh)
+      saveLocalDraft(currentDraft, user?.id);
+
+      // 2. Debounce cloud persistence (~750ms)
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = setTimeout(async () => {
+        try {
+          const res = await saveDraft(currentDraft, user?.id);
+          if (res.cloudSynced || !user) {
+            setDraftStatus('saved');
+          } else if (res.error) {
+            setDraftStatus('error');
+          } else {
+            setDraftStatus('saved');
+          }
+        } catch {
+          setDraftStatus('error');
+        }
+      }, 750);
+    } else {
+      if (hasActiveDraft) {
+        if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+        clearAllDrafts(user?.id);
+        setHasActiveDraft(false);
+        setDraftStatus('idle');
+      }
+    }
+
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    };
+  }, [modalTitle, modalStartTime, modalEndTime, modalArea, modalPriority, modalNotes, editingTask, user?.id]);
+
+  // Window beforeunload / pagehide listener: ensure immediate synchronous local flush
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (!editingTask) {
+        const currentDraft: TimetableMissionDraft = {
+          title: modalTitle,
+          startTime: modalStartTime,
+          endTime: modalEndTime,
+          area: modalArea,
+          priority: modalPriority,
+          notes: modalNotes,
+          updatedAt: new Date().toISOString(),
+        };
+        if (hasDraftContent(currentDraft)) {
+          saveLocalDraft(currentDraft, user?.id);
+        }
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('pagehide', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('pagehide', handleBeforeUnload);
+    };
+  }, [modalTitle, modalStartTime, modalEndTime, modalArea, modalPriority, modalNotes, editingTask, user?.id]);
 
   // Update current time every minute
   useEffect(() => {
@@ -244,15 +389,47 @@ export default function DailyTimetable({ onNavigateSection: _onNavigateSection }
     await completeTask(taskId);
   };
 
-  // Open modal to add a brand new mission
-  const handleOpenAddModal = () => {
-    setModalTitle('');
-    setModalStartTime('08:00');
-    setModalEndTime('');
-    setModalArea('growth');
-    setModalPriority('medium');
-    setModalNotes('');
+  // Open modal to add a brand new mission (restoring any existing draft)
+  const handleOpenAddModal = async () => {
     setEditingTask(null);
+
+    // Check if we have an active draft in memory
+    const current = {
+      title: modalTitle,
+      startTime: modalStartTime,
+      endTime: modalEndTime,
+      area: modalArea,
+      priority: modalPriority,
+      notes: modalNotes,
+    };
+
+    if (hasDraftContent(current)) {
+      setHasActiveDraft(true);
+      setDraftStatus('saved');
+    } else {
+      // Check storage / cloud
+      const draft = await loadDraft(user?.id);
+      if (draft && hasDraftContent(draft)) {
+        setModalTitle(draft.title || '');
+        setModalStartTime(draft.startTime || DEFAULT_DRAFT_START_TIME);
+        setModalEndTime(draft.endTime || '');
+        setModalArea(draft.area || DEFAULT_DRAFT_AREA);
+        setModalPriority(draft.priority || DEFAULT_DRAFT_PRIORITY);
+        setModalNotes(draft.notes || '');
+        setHasActiveDraft(true);
+        setDraftStatus('saved');
+      } else {
+        setModalTitle('');
+        setModalStartTime(DEFAULT_DRAFT_START_TIME);
+        setModalEndTime('');
+        setModalArea(DEFAULT_DRAFT_AREA);
+        setModalPriority(DEFAULT_DRAFT_PRIORITY);
+        setModalNotes('');
+        setHasActiveDraft(false);
+        setDraftStatus('idle');
+      }
+    }
+
     setIsAddModalOpen(true);
   };
 
@@ -260,13 +437,29 @@ export default function DailyTimetable({ onNavigateSection: _onNavigateSection }
   const handleOpenEditModal = (t: Task) => {
     setEditingTask(t);
     setModalTitle(t.title);
-    setModalStartTime(t.startTime || t.plannedStartTime || '08:00');
+    setModalStartTime(t.startTime || t.plannedStartTime || DEFAULT_DRAFT_START_TIME);
     setModalEndTime(t.endTime || '');
-    setModalArea(t.lifeArea || 'growth');
-    setModalPriority(t.priority || 'medium');
+    setModalArea(t.lifeArea || DEFAULT_DRAFT_AREA);
+    setModalPriority(t.priority || DEFAULT_DRAFT_PRIORITY);
     setModalNotes(t.notes || t.description || '');
     setIsAddModalOpen(true);
     setActiveMenuTaskId(null);
+  };
+
+  // Explicitly discard the current draft and reset fields
+  const handleDiscardDraft = async () => {
+    if (window.confirm('Discard this draft and clear the entered information?')) {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      await clearAllDrafts(user?.id);
+      setModalTitle('');
+      setModalStartTime(DEFAULT_DRAFT_START_TIME);
+      setModalEndTime('');
+      setModalArea(DEFAULT_DRAFT_AREA);
+      setModalPriority(DEFAULT_DRAFT_PRIORITY);
+      setModalNotes('');
+      setHasActiveDraft(false);
+      setDraftStatus('idle');
+    }
   };
 
   // Save add or edit
@@ -288,24 +481,45 @@ export default function DailyTimetable({ onNavigateSection: _onNavigateSection }
         dueDate: selectedDate,
         scheduledDate: selectedDate,
       });
+      setIsAddModalOpen(false);
+      setEditingTask(null);
     } else {
-      await addTask({
-        title: modalTitle.trim(),
-        startTime: modalStartTime || undefined,
-        plannedStartTime: modalStartTime || undefined,
-        endTime: modalEndTime || undefined,
-        lifeArea: modalArea,
-        priority: modalPriority,
-        status: 'not-started',
-        notes: modalNotes.trim() || undefined,
-        targetDate: selectedDate,
-        dueDate: selectedDate,
-        scheduledDate: selectedDate,
-      });
-    }
+      // Create new mission — if creation fails, error is caught and draft is retained!
+      try {
+        await addTask({
+          title: modalTitle.trim(),
+          startTime: modalStartTime || undefined,
+          plannedStartTime: modalStartTime || undefined,
+          endTime: modalEndTime || undefined,
+          lifeArea: modalArea,
+          priority: modalPriority,
+          status: 'not-started',
+          notes: modalNotes.trim() || undefined,
+          targetDate: selectedDate,
+          dueDate: selectedDate,
+          scheduledDate: selectedDate,
+        });
 
-    setIsAddModalOpen(false);
-    setEditingTask(null);
+        // Mission successfully created: now clear the draft!
+        if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+        await clearAllDrafts(user?.id);
+        setModalTitle('');
+        setModalStartTime(DEFAULT_DRAFT_START_TIME);
+        setModalEndTime('');
+        setModalArea(DEFAULT_DRAFT_AREA);
+        setModalPriority(DEFAULT_DRAFT_PRIORITY);
+        setModalNotes('');
+        setHasActiveDraft(false);
+        setDraftStatus('idle');
+
+        setIsAddModalOpen(false);
+        setEditingTask(null);
+      } catch (err) {
+        // Mission creation failed! Keep draft intact so the user can retry
+        console.error('Failed to create mission from draft', err);
+        alert('Failed to create mission. Your draft has been retained so you can retry.');
+      }
+    }
   };
 
   // Remove from timetable without deleting the mission (clears scheduling fields)
@@ -1377,12 +1591,48 @@ export default function DailyTimetable({ onNavigateSection: _onNavigateSection }
             }}
           >
             {/* Modal Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                 <Clock size={20} color="#c084fc" />
                 <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: '#f8fafc' }}>
                   {editingTask ? 'Edit Timetable Mission' : 'Add Timetable Mission'}
                 </h3>
+                {!editingTask && hasActiveDraft && (
+                  <span
+                    style={{
+                      fontSize: '0.7rem',
+                      fontWeight: 600,
+                      padding: '2px 8px',
+                      borderRadius: '6px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      background:
+                        draftStatus === 'saving'
+                          ? 'rgba(148, 163, 184, 0.15)'
+                          : draftStatus === 'error'
+                          ? 'rgba(239, 68, 68, 0.15)'
+                          : 'rgba(52, 211, 153, 0.15)',
+                      color:
+                        draftStatus === 'saving'
+                          ? '#94a3b8'
+                          : draftStatus === 'error'
+                          ? '#f87171'
+                          : '#34d399',
+                      border: `1px solid ${
+                        draftStatus === 'saving'
+                          ? 'rgba(148, 163, 184, 0.3)'
+                          : draftStatus === 'error'
+                          ? 'rgba(239, 68, 68, 0.3)'
+                          : 'rgba(52, 211, 153, 0.3)'
+                      }`,
+                    }}
+                  >
+                    {draftStatus === 'saving' && 'Saving...'}
+                    {draftStatus === 'saved' && 'Draft saved'}
+                    {draftStatus === 'error' && 'Failed to save (saved locally)'}
+                  </span>
+                )}
               </div>
               <button
                 type="button"
@@ -1554,40 +1804,64 @@ export default function DailyTimetable({ onNavigateSection: _onNavigateSection }
               </div>
 
               {/* Submit Buttons */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '6px' }}>
-                <button
-                  type="button"
-                  onClick={() => setIsAddModalOpen(false)}
-                  style={{
-                    background: 'none',
-                    border: '1px solid rgba(255, 255, 255, 0.2)',
-                    borderRadius: '10px',
-                    padding: '8px 16px',
-                    color: '#94a3b8',
-                    fontWeight: 600,
-                    fontSize: '0.82rem',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Cancel
-                </button>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginTop: '6px' }}>
+                <div>
+                  {!editingTask && hasActiveDraft && (
+                    <button
+                      type="button"
+                      onClick={handleDiscardDraft}
+                      style={{
+                        background: 'none',
+                        border: '1px solid rgba(239, 68, 68, 0.35)',
+                        borderRadius: '10px',
+                        padding: '8px 14px',
+                        color: '#f87171',
+                        fontWeight: 600,
+                        fontSize: '0.82rem',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                      }}
+                    >
+                      Discard Draft
+                    </button>
+                  )}
+                </div>
 
-                <button
-                  type="submit"
-                  style={{
-                    background: 'linear-gradient(135deg, #a855f7, #6366f1)',
-                    border: 'none',
-                    borderRadius: '10px',
-                    padding: '8px 20px',
-                    color: '#fff',
-                    fontWeight: 700,
-                    fontSize: '0.82rem',
-                    cursor: 'pointer',
-                    boxShadow: '0 0 16px rgba(168, 85, 247, 0.4)',
-                  }}
-                >
-                  {editingTask ? 'Save Changes' : 'Create Mission'}
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddModalOpen(false)}
+                    style={{
+                      background: 'none',
+                      border: '1px solid rgba(255, 255, 255, 0.2)',
+                      borderRadius: '10px',
+                      padding: '8px 16px',
+                      color: '#94a3b8',
+                      fontWeight: 600,
+                      fontSize: '0.82rem',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    style={{
+                      background: 'linear-gradient(135deg, #a855f7, #6366f1)',
+                      border: 'none',
+                      borderRadius: '10px',
+                      padding: '8px 20px',
+                      color: '#fff',
+                      fontWeight: 700,
+                      fontSize: '0.82rem',
+                      cursor: 'pointer',
+                      boxShadow: '0 0 16px rgba(168, 85, 247, 0.4)',
+                    }}
+                  >
+                    {editingTask ? 'Save Changes' : 'Create Mission'}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
