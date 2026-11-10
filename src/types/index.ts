@@ -495,4 +495,6 @@ export interface AppData {
   weeklyReviews: WeeklyReview[];
 }
 
+export * from './vault';
+
 

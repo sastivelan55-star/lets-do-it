@@ -16,6 +16,7 @@ import {
   RefreshCw,
   AlertCircle,
   Globe,
+  FileBox,
 } from 'lucide-react';
 import type { NavSection } from '../../App';
 import { useAuth } from '../../context/AuthContext';
@@ -34,6 +35,7 @@ const NAV_ITEMS: { id: NavSection; label: string; icon: React.ReactNode; color: 
   { id: 'tasks',      label: 'Tasks',      icon: <ListTree size={18} />,        color: '#38bdf8' },
   { id: 'pulse',      label: 'News',       icon: <Globe size={18} />,           color: '#38bdf8' },
   { id: 'notes',      label: 'Notes',      icon: <FileText size={18} />,        color: '#a855f7' },
+  { id: 'vault',      label: 'Vault',      icon: <FileBox size={18} />,         color: '#c084fc' },
   { id: 'calendar',   label: 'Calendar',   icon: <Calendar size={18} />,        color: '#38bdf8' },
   { id: 'projects',   label: 'Projects',   icon: <FolderKanban size={18} />,    color: '#ec4899' },
   { id: 'roadmap',    label: 'Roadmap',    icon: <Rocket size={18} />,          color: '#f59e0b' },
@@ -52,6 +54,7 @@ export default function Sidebar({ active, onNavigate, collapsed, onToggle }: Sid
     if (id === 'projects' && active === 'journey') return true;
     if (id === 'reflection' && active === 'personal') return true;
     if (id === 'notes' && active === 'knowledge') return true;
+    if (id === 'vault' && active === 'uploads') return true;
     if (id === 'settings' && active === 'review') return true;
     return false;
   };

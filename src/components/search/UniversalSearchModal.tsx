@@ -12,6 +12,7 @@ import {
   Layers,
   Sparkles,
   Globe,
+  FileBox,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import type { NavSection } from '../../App';
@@ -141,6 +142,17 @@ export default function UniversalSearchModal({
       destination: 'knowledge',
       badge: 'Destination',
       action: () => { onNavigate('knowledge'); onClose(); },
+    },
+    {
+      id: 'nav-vault',
+      type: 'navigation',
+      title: 'Digital Vault (Resource Library)',
+      subtitle: 'Bookmarks, YouTube videos, files, documents, code snippets & inspirations',
+      icon: <FileBox size={15} color="#c084fc" />,
+      color: '#c084fc',
+      destination: 'vault',
+      badge: 'Destination',
+      action: () => { onNavigate('vault'); onClose(); },
     },
     {
       id: 'nav-explore',

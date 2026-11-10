@@ -1,13 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   FileText,
   BookOpen,
-  UploadCloud,
 } from 'lucide-react';
 import NotesPage from './NotesPage';
-import UploadsPage from './UploadsPage';
 
-export type KnowledgeTab = 'notes' | 'knowledge' | 'uploads';
+export type KnowledgeTab = 'notes' | 'knowledge';
 
 interface KnowledgePageProps {
   initialTab?: KnowledgeTab;
@@ -16,10 +14,13 @@ interface KnowledgePageProps {
 export default function KnowledgePage({ initialTab = 'notes' }: KnowledgePageProps) {
   const [activeTab, setActiveTab] = useState<KnowledgeTab>(initialTab);
 
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
+
   const TABS: { id: KnowledgeTab; label: string; icon: React.ReactNode; color: string }[] = [
     { id: 'notes', label: 'Notes', icon: <FileText size={15} />, color: '#c084fc' },
     { id: 'knowledge', label: 'Knowledge Base', icon: <BookOpen size={15} />, color: '#a855f7' },
-    { id: 'uploads', label: 'Files & Uploads', icon: <UploadCloud size={15} />, color: '#38bdf8' },
   ];
 
   return (
@@ -32,7 +33,7 @@ export default function KnowledgePage({ initialTab = 'notes' }: KnowledgePagePro
               <span style={{ color: '#c084fc' }}>✦</span> Notes & Knowledge
             </h1>
             <p className="composite-subtitle">
-              Personal knowledge management, technical insights, media vault & documents
+              Personal knowledge management, technical insights & DSA patterns
             </p>
           </div>
 
@@ -57,9 +58,8 @@ export default function KnowledgePage({ initialTab = 'notes' }: KnowledgePagePro
 
       {/* Content Area */}
       <div className="composite-content">
-        {activeTab === 'notes' && <NotesPage key="notes" mode="notes" />}
+        {activeTab === 'notes' && <NotesPage key="notes" mode="all" />}
         {activeTab === 'knowledge' && <NotesPage key="knowledge" mode="knowledge" />}
-        {activeTab === 'uploads' && <UploadsPage />}
       </div>
     </div>
   );

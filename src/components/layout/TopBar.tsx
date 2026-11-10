@@ -40,6 +40,8 @@ const SECTION_LABELS: Record<NavSection, string> = {
   knowledge: 'Knowledge Base',
   explore: 'News — Live Intelligence Feeds',
   review: 'Review & Settings',
+  vault: 'Digital Vault — Personal Resource Library',
+  uploads: 'Media Vault & Uploads',
 };
 
 export default function TopBar({

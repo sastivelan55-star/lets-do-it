@@ -6,7 +6,6 @@ import Sidebar from './components/layout/Sidebar';
 import MobileNav from './components/layout/MobileNav';
 import HomePage from './pages/HomePage';
 import TaskBuilderPage from './pages/TaskBuilderPage';
-import NotesPage from './pages/NotesPage';
 import PlannerPage from './pages/PlannerPage';
 import ProjectsPage from './pages/ProjectsPage';
 import RoadmapPage from './pages/RoadmapPage';
@@ -16,6 +15,7 @@ import PersonalLifePage from './pages/PersonalLifePage';
 import KnowledgePage from './pages/KnowledgePage';
 import ReviewSettingsPage from './pages/ReviewSettingsPage';
 import PulseFlowPage from './pages/PulseFlowPage';
+import VaultPage from './pages/VaultPage';
 import TopBar from './components/layout/TopBar';
 import UniversalSearchModal from './components/search/UniversalSearchModal';
 import QuickCaptureModal from './components/quickCapture/QuickCaptureModal';
@@ -35,7 +35,9 @@ export type NavSection =
   | 'personal'
   | 'knowledge'
   | 'explore'
-  | 'review';
+  | 'review'
+  | 'vault'
+  | 'uploads';
 
 function LoadingScreen() {
   return (
@@ -164,7 +166,7 @@ function AppContent() {
     home:       <HomePage onNavigateSection={(sec) => setSection(sec as NavSection)} />,
     tasks:      <TaskBuilderPage />,
     pulse:      <PulseFlowPage />,
-    notes:      <NotesPage />,
+    notes:      <KnowledgePage initialTab="notes" />,
     calendar:   <PlannerPage />,
     projects:   <ProjectsPage />,
     roadmap:    <RoadmapPage />,
@@ -172,9 +174,11 @@ function AppContent() {
     settings:   <ReviewSettingsPage initialTab="personalization" />,
     journey:    <MyJourneyPage />,
     personal:   <PersonalLifePage />,
-    knowledge:  <KnowledgePage />,
+    knowledge:  <KnowledgePage initialTab="knowledge" />,
     explore:    <PulseFlowPage />,
     review:     <ReviewSettingsPage initialTab="personalization" />,
+    vault:      <VaultPage initialTab="uploads" />,
+    uploads:    <VaultPage initialTab="uploads" />,
   };
 
   return (
