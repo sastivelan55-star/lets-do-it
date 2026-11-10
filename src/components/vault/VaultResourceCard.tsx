@@ -252,16 +252,16 @@ export default function VaultResourceCard({ resource, viewMode }: VaultResourceC
         setIsMenuOpen(false);
       }}
       style={{
-        borderRadius: '18px',
+        borderRadius: '14px',
         background: isHovered
           ? 'linear-gradient(180deg, rgba(28, 20, 58, 0.8) 0%, rgba(16, 12, 34, 0.75) 100%)'
           : 'linear-gradient(180deg, rgba(18, 14, 38, 0.65) 0%, rgba(12, 9, 26, 0.6) 100%)',
         border: `1px solid ${isHovered ? 'rgba(168, 85, 247, 0.45)' : 'rgba(168, 85, 247, 0.16)'}`,
         boxShadow: isHovered
-          ? '0 14px 34px rgba(0, 0, 0, 0.45), 0 0 20px rgba(168, 85, 247, 0.18)'
-          : '0 8px 24px rgba(0, 0, 0, 0.3)',
+          ? '0 10px 28px rgba(0, 0, 0, 0.4), 0 0 16px rgba(168, 85, 247, 0.16)'
+          : '0 4px 16px rgba(0, 0, 0, 0.25)',
         transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-        transform: isHovered ? 'translateY(-3px)' : 'translateY(0)',
+        transform: isHovered ? 'translateY(-2px)' : 'translateY(0)',
         cursor: 'pointer',
         overflow: 'hidden',
         position: 'relative',
@@ -275,7 +275,8 @@ export default function VaultResourceCard({ resource, viewMode }: VaultResourceC
           style={{
             position: 'relative',
             width: '100%',
-            aspectRatio: resource.resourceType === 'youtube' || resource.resourceType === 'video' ? '16/9' : '16/10',
+            height: '140px',
+            maxHeight: '140px',
             overflow: 'hidden',
             background: '#090616',
           }}
@@ -308,19 +309,19 @@ export default function VaultResourceCard({ resource, viewMode }: VaultResourceC
             >
               <div
                 style={{
-                  width: '46px',
-                  height: '46px',
+                  width: '38px',
+                  height: '38px',
                   borderRadius: '50%',
                   background: 'linear-gradient(135deg, #ef4444, #dc2626)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  boxShadow: '0 0 24px rgba(239, 68, 68, 0.65)',
-                  transform: isHovered ? 'scale(1.12)' : 'scale(1)',
+                  boxShadow: '0 0 20px rgba(239, 68, 68, 0.65)',
+                  transform: isHovered ? 'scale(1.1)' : 'scale(1)',
                   transition: 'transform 0.2s ease',
                 }}
               >
-                <Play size={20} color="#ffffff" fill="#ffffff" style={{ marginLeft: '3px' }} />
+                <Play size={16} color="#ffffff" fill="#ffffff" style={{ marginLeft: '2px' }} />
               </div>
             </div>
           )}
@@ -329,22 +330,22 @@ export default function VaultResourceCard({ resource, viewMode }: VaultResourceC
           <div
             style={{
               position: 'absolute',
-              top: '10px',
-              left: '10px',
+              top: '8px',
+              left: '8px',
               display: 'flex',
               alignItems: 'center',
-              gap: '0.4rem',
+              gap: '0.35rem',
             }}
           >
             <span
               style={{
-                padding: '0.2rem 0.55rem',
-                borderRadius: '8px',
+                padding: '0.15rem 0.45rem',
+                borderRadius: '6px',
                 background: 'rgba(10, 7, 24, 0.85)',
                 backdropFilter: 'blur(8px)',
                 border: `1px solid ${typeConfig.border}`,
                 color: typeConfig.color,
-                fontSize: '0.72rem',
+                fontSize: '0.68rem',
                 fontWeight: 700,
                 letterSpacing: '0.03em',
               }}
@@ -358,13 +359,13 @@ export default function VaultResourceCard({ resource, viewMode }: VaultResourceC
         <div
           style={{
             background: '#090616',
-            padding: '0.85rem',
+            padding: '0.75rem',
             borderBottom: '1px solid rgba(168, 85, 247, 0.15)',
             fontFamily: 'Fira Code, monospace',
-            fontSize: '0.75rem',
+            fontSize: '0.72rem',
             color: '#a7f3d0',
             position: 'relative',
-            maxHeight: '140px',
+            maxHeight: '110px',
             overflow: 'hidden',
           }}
         >
@@ -373,9 +374,9 @@ export default function VaultResourceCard({ resource, viewMode }: VaultResourceC
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              marginBottom: '0.4rem',
+              marginBottom: '0.35rem',
               color: '#34d399',
-              fontSize: '0.7rem',
+              fontSize: '0.68rem',
               fontWeight: 600,
             }}
           >
@@ -386,23 +387,23 @@ export default function VaultResourceCard({ resource, viewMode }: VaultResourceC
               style={{
                 background: 'rgba(255,255,255,0.08)',
                 border: 'none',
-                borderRadius: '6px',
-                padding: '2px 6px',
+                borderRadius: '5px',
+                padding: '2px 5px',
                 color: copiedCode ? '#34d399' : '#e2e8f0',
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '4px',
-                fontSize: '0.68rem',
+                gap: '3px',
+                fontSize: '0.65rem',
               }}
             >
-              {copiedCode ? <Check size={11} /> : <Copy size={11} />}
+              {copiedCode ? <Check size={10} /> : <Copy size={10} />}
               <span>{copiedCode ? 'Copied' : 'Copy'}</span>
             </button>
           </div>
-          <pre style={{ margin: 0, whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>
-            {resource.codeContent.slice(0, 180)}
-            {resource.codeContent.length > 180 ? '...' : ''}
+          <pre style={{ margin: 0, whiteSpace: 'pre-wrap', lineHeight: 1.35 }}>
+            {resource.codeContent.slice(0, 160)}
+            {resource.codeContent.length > 160 ? '...' : ''}
           </pre>
         </div>
       ) : resource.resourceType === 'note' && resource.notes ? (
@@ -410,38 +411,38 @@ export default function VaultResourceCard({ resource, viewMode }: VaultResourceC
         <div
           style={{
             background: 'rgba(234, 179, 8, 0.06)',
-            padding: '1rem',
+            padding: '0.75rem',
             borderBottom: '1px solid rgba(234, 179, 8, 0.2)',
             color: '#fef08a',
-            fontSize: '0.8rem',
-            maxHeight: '110px',
+            fontSize: '0.76rem',
+            maxHeight: '85px',
             overflow: 'hidden',
             fontStyle: 'italic',
-            lineHeight: 1.5,
+            lineHeight: 1.4,
           }}
         >
-          "{resource.notes.slice(0, 140)}
-          {resource.notes.length > 140 ? '...' : ''}"
+          "{resource.notes.slice(0, 120)}
+          {resource.notes.length > 120 ? '...' : ''}"
         </div>
       ) : null}
 
       {/* Card Body */}
-      <div style={{ padding: '1rem', flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: '0.75rem 0.85rem', flex: 1, display: 'flex', flexDirection: 'column' }}>
         {/* Top Meta: Favicon / Domain / Actions */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            marginBottom: '0.6rem',
+            marginBottom: '0.45rem',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: 0 }}>
             {resource.faviconUrl ? (
               <img
                 src={resource.faviconUrl}
                 alt=""
-                style={{ width: '16px', height: '16px', borderRadius: '4px', objectFit: 'contain' }}
+                style={{ width: '15px', height: '15px', borderRadius: '3px', objectFit: 'contain' }}
                 onError={(e) => {
                   e.currentTarget.style.display = 'none';
                 }}
@@ -451,7 +452,7 @@ export default function VaultResourceCard({ resource, viewMode }: VaultResourceC
             {resource.domain ? (
               <span
                 style={{
-                  fontSize: '0.74rem',
+                  fontSize: '0.72rem',
                   fontWeight: 600,
                   color: '#94a3b8',
                   whiteSpace: 'nowrap',
@@ -464,11 +465,11 @@ export default function VaultResourceCard({ resource, viewMode }: VaultResourceC
             ) : (
               <span
                 style={{
-                  padding: '0.15rem 0.45rem',
-                  borderRadius: '6px',
+                  padding: '0.12rem 0.4rem',
+                  borderRadius: '5px',
                   background: typeConfig.bg,
                   color: typeConfig.color,
-                  fontSize: '0.7rem',
+                  fontSize: '0.68rem',
                   fontWeight: 700,
                 }}
               >
@@ -478,7 +479,7 @@ export default function VaultResourceCard({ resource, viewMode }: VaultResourceC
           </div>
 
           {/* Action Icons */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', position: 'relative' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem', position: 'relative' }}>
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -489,7 +490,7 @@ export default function VaultResourceCard({ resource, viewMode }: VaultResourceC
                 background: 'transparent',
                 border: 'none',
                 cursor: 'pointer',
-                padding: '4px',
+                padding: '3px',
                 display: 'flex',
                 color: resource.isFavourite ? '#facc15' : 'rgba(255,255,255,0.3)',
                 transition: 'transform 0.15s ease',
@@ -498,7 +499,7 @@ export default function VaultResourceCard({ resource, viewMode }: VaultResourceC
               onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
             >
               <Star
-                size={16}
+                size={14}
                 color={resource.isFavourite ? '#facc15' : 'rgba(255,255,255,0.35)'}
                 fill={resource.isFavourite ? '#facc15' : 'transparent'}
               />
@@ -516,13 +517,13 @@ export default function VaultResourceCard({ resource, viewMode }: VaultResourceC
                   border: 'none',
                   color: 'rgba(255,255,255,0.4)',
                   cursor: 'pointer',
-                  padding: '4px',
+                  padding: '3px',
                   display: 'flex',
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.color = '#c084fc')}
                 onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.4)')}
               >
-                <ExternalLink size={15} />
+                <ExternalLink size={14} />
               </a>
             )}
 
@@ -537,11 +538,11 @@ export default function VaultResourceCard({ resource, viewMode }: VaultResourceC
                 border: 'none',
                 color: 'rgba(255,255,255,0.45)',
                 cursor: 'pointer',
-                padding: '4px',
+                padding: '3px',
                 display: 'flex',
               }}
             >
-              <MoreVertical size={15} />
+              <MoreVertical size={14} />
             </button>
 
             {/* Card Popover Menu */}
@@ -662,11 +663,11 @@ export default function VaultResourceCard({ resource, viewMode }: VaultResourceC
         {/* Title */}
         <h3
           style={{
-            margin: '0 0 0.4rem 0',
-            fontSize: '0.98rem',
+            margin: '0 0 0.35rem 0',
+            fontSize: '0.88rem',
             fontWeight: 700,
             color: '#f8fafc',
-            lineHeight: 1.4,
+            lineHeight: 1.35,
             display: '-webkit-box',
             WebkitLineClamp: 2,
             WebkitBoxOrient: 'vertical',
@@ -680,10 +681,10 @@ export default function VaultResourceCard({ resource, viewMode }: VaultResourceC
         {resource.description && (
           <p
             style={{
-              margin: '0 0 0.85rem 0',
+              margin: '0 0 0.55rem 0',
               color: 'rgba(203, 213, 225, 0.72)',
-              fontSize: '0.82rem',
-              lineHeight: 1.45,
+              fontSize: '0.78rem',
+              lineHeight: 1.35,
               display: '-webkit-box',
               WebkitLineClamp: 2,
               WebkitBoxOrient: 'vertical',
@@ -701,9 +702,9 @@ export default function VaultResourceCard({ resource, viewMode }: VaultResourceC
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.35rem',
+                gap: '0.25rem',
                 flexWrap: 'wrap',
-                marginBottom: '0.75rem',
+                marginBottom: '0.55rem',
               }}
             >
               {resource.tags.slice(0, 3).map((tag) => (
@@ -716,12 +717,12 @@ export default function VaultResourceCard({ resource, viewMode }: VaultResourceC
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '0.2rem',
-                    padding: '0.15rem 0.5rem',
-                    borderRadius: '6px',
+                    gap: '0.15rem',
+                    padding: '0.1rem 0.4rem',
+                    borderRadius: '5px',
                     background: 'rgba(255, 255, 255, 0.05)',
                     color: 'rgba(226, 232, 240, 0.75)',
-                    fontSize: '0.72rem',
+                    fontSize: '0.68rem',
                     fontWeight: 500,
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
@@ -735,12 +736,12 @@ export default function VaultResourceCard({ resource, viewMode }: VaultResourceC
                     e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
                   }}
                 >
-                  <Tag size={10} />
+                  <Tag size={9} />
                   <span>{tag}</span>
                 </span>
               ))}
               {resource.tags.length > 3 && (
-                <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>
+                <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.4)' }}>
                   +{resource.tags.length - 3}
                 </span>
               )}
@@ -753,9 +754,9 @@ export default function VaultResourceCard({ resource, viewMode }: VaultResourceC
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              paddingTop: '0.6rem',
+              paddingTop: '0.5rem',
               borderTop: '1px solid rgba(255, 255, 255, 0.06)',
-              fontSize: '0.74rem',
+              fontSize: '0.72rem',
               color: 'rgba(148, 163, 184, 0.7)',
             }}
           >
@@ -764,12 +765,12 @@ export default function VaultResourceCard({ resource, viewMode }: VaultResourceC
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '0.3rem',
+                  gap: '0.25rem',
                   color: collection.color,
                   fontWeight: 600,
                 }}
               >
-                <Folder size={11} />
+                <Folder size={10} />
                 <span>{collection.name}</span>
               </span>
             ) : resource.fileSize ? (
@@ -778,8 +779,8 @@ export default function VaultResourceCard({ resource, viewMode }: VaultResourceC
               <span />
             )}
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-              <Eye size={12} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              <Eye size={11} />
               <span>{resource.viewCount || 0}</span>
             </div>
           </div>

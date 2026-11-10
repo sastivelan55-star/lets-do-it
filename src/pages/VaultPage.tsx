@@ -64,17 +64,17 @@ function VaultResourcesContent() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-            gap: '1.25rem',
-            marginTop: '1rem',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))',
+            gap: '1rem',
+            marginTop: '0.75rem',
           }}
         >
-          {[1, 2, 3, 4, 5, 6].map((i) => (
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
             <div
               key={i}
               style={{
-                height: '240px',
-                borderRadius: '18px',
+                height: '220px',
+                borderRadius: '14px',
                 background: 'rgba(255, 255, 255, 0.03)',
                 border: '1px solid rgba(255, 255, 255, 0.06)',
                 animation: 'pulse 1.8s ease infinite',
@@ -93,8 +93,8 @@ function VaultResourcesContent() {
       ) : viewMode === 'masonry' ? (
         <div
           style={{
-            columns: '3 290px',
-            columnGap: '1.25rem',
+            columns: 'auto 230px',
+            columnGap: '1rem',
           }}
         >
           {filteredResources.map((res) => (
@@ -102,7 +102,7 @@ function VaultResourcesContent() {
               key={res.id}
               style={{
                 breakInside: 'avoid',
-                marginBottom: '1.25rem',
+                marginBottom: '1rem',
               }}
             >
               <VaultResourceCard resource={res} viewMode="masonry" />
@@ -113,8 +113,8 @@ function VaultResourcesContent() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))',
-            gap: '1.25rem',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))',
+            gap: '1rem',
           }}
         >
           {filteredResources.map((res) => (
@@ -149,15 +149,15 @@ export default function VaultPage({ initialTab = 'uploads' }: VaultPageProps) {
   const TABS: { id: VaultTab; label: string; icon: React.ReactNode; color: string; count?: number }[] = [
     {
       id: 'uploads',
-      label: 'Media Vault & Uploads',
-      icon: <UploadCloud size={15} />,
+      label: 'Media Vault',
+      icon: <UploadCloud size={14} />,
       color: '#38bdf8',
       count: uploads.length,
     },
     {
       id: 'resources',
-      label: 'Digital Resource Library',
-      icon: <FileBox size={15} />,
+      label: 'Digital Library',
+      icon: <FileBox size={14} />,
       color: '#c084fc',
     },
   ];
@@ -166,19 +166,21 @@ export default function VaultPage({ initialTab = 'uploads' }: VaultPageProps) {
     <div
       className="composite-page"
       style={{
-        padding: 'clamp(1rem, 2.5vw, 2rem)',
+        padding: 'clamp(0.75rem, 2vw, 1.5rem)',
         maxWidth: '1440px',
         margin: '0 auto',
         minHeight: '100vh',
         boxSizing: 'border-box',
+        overflowX: 'hidden',
+        width: '100%',
       }}
     >
       {/* Top Header with Tab Switcher */}
       <header
         className="composite-header"
         style={{
-          marginBottom: '1.5rem',
-          paddingBottom: '0.75rem',
+          marginBottom: '1rem',
+          paddingBottom: '0.65rem',
           borderBottom: '1px solid rgba(168, 85, 247, 0.15)',
         }}
       >
@@ -189,20 +191,25 @@ export default function VaultPage({ initialTab = 'uploads' }: VaultPageProps) {
             alignItems: 'center',
             justifyContent: 'space-between',
             flexWrap: 'wrap',
-            gap: '1rem',
+            gap: '0.75rem',
           }}
         >
           <div>
-            <h1 className="composite-title" style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800 }}>
+            <h1 className="composite-title" style={{ margin: 0, fontSize: '1.35rem', fontWeight: 800 }}>
               <span style={{ color: '#38bdf8' }}>✦</span> Personal Digital Vault
             </h1>
-            <p className="composite-subtitle" style={{ margin: '0.25rem 0 0 0', color: '#94a3b8', fontSize: '0.85rem' }}>
+            <p className="composite-subtitle" style={{ margin: '0.15rem 0 0 0', color: '#94a3b8', fontSize: '0.8rem' }}>
               Encrypted cloud files, media storage, bookmarks, and digital resource library
             </p>
           </div>
 
           {/* Subtab Switcher */}
-          <div className="section-tabs" role="tablist" aria-label="Vault sections" style={{ display: 'flex', gap: '0.5rem' }}>
+          <div
+            className="section-tabs"
+            role="tablist"
+            aria-label="Vault sections"
+            style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}
+          >
             {TABS.map((tab) => (
               <button
                 key={tab.id}
@@ -213,17 +220,18 @@ export default function VaultPage({ initialTab = 'uploads' }: VaultPageProps) {
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '0.45rem',
-                  padding: '0.5rem 1rem',
-                  borderRadius: '12px',
+                  gap: '0.35rem',
+                  padding: '0.4rem 0.85rem',
+                  borderRadius: '11px',
                   background: activeTab === tab.id ? 'rgba(56, 189, 248, 0.18)' : 'rgba(255, 255, 255, 0.04)',
                   border: activeTab === tab.id ? `1px solid ${tab.color}` : '1px solid rgba(255, 255, 255, 0.08)',
                   color: activeTab === tab.id ? '#ffffff' : 'rgba(226, 232, 240, 0.75)',
-                  fontSize: '0.85rem',
+                  fontSize: '0.82rem',
                   fontWeight: activeTab === tab.id ? 700 : 500,
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
-                  boxShadow: activeTab === tab.id ? `0 0 16px ${tab.color}35` : 'none',
+                  boxShadow: activeTab === tab.id ? `0 0 14px ${tab.color}35` : 'none',
+                  whiteSpace: 'nowrap',
                 }}
               >
                 <span style={{ color: activeTab === tab.id ? tab.color : 'inherit', display: 'flex' }}>
@@ -233,11 +241,11 @@ export default function VaultPage({ initialTab = 'uploads' }: VaultPageProps) {
                 {typeof tab.count === 'number' && (
                   <span
                     style={{
-                      fontSize: '0.72rem',
-                      padding: '0.1rem 0.45rem',
+                      fontSize: '0.7rem',
+                      padding: '0.08rem 0.4rem',
                       borderRadius: '999px',
                       background: 'rgba(255, 255, 255, 0.12)',
-                      marginLeft: '0.2rem',
+                      marginLeft: '0.15rem',
                     }}
                   >
                     {tab.count}
@@ -251,7 +259,7 @@ export default function VaultPage({ initialTab = 'uploads' }: VaultPageProps) {
 
       {/* Content Area */}
       {activeTab === 'uploads' ? (
-        <UploadsPage />
+        <UploadsPage hideTitle />
       ) : (
         <VaultProvider>
           <VaultResourcesContent />

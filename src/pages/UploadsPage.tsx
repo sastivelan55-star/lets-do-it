@@ -25,7 +25,11 @@ import { formatSafeErrorMessage } from '../utils/errorUtils';
 
 type SortOption = 'newest' | 'oldest' | 'largest' | 'smallest' | 'name';
 
-export default function UploadsPage() {
+interface UploadsPageProps {
+  hideTitle?: boolean;
+}
+
+export default function UploadsPage({ hideTitle = false }: UploadsPageProps) {
   const { uploads, uploadFile, removeUpload, updateUpload, error } = useApp();
   const { user, isGuest } = useAuth();
   const displayError = error ? (typeof error === 'string' && error !== '[object Object]' ? error : formatSafeErrorMessage(error)) : null;
@@ -128,26 +132,34 @@ export default function UploadsPage() {
   ];
 
   return (
-    <div className="page-container pb-safe">
+    <div className="page-container pb-safe" style={{ padding: hideTitle ? '0.25rem 0' : undefined }}>
+      <style>{`
+        .uploads-cat-scroll::-webkit-scrollbar {
+          display: none;
+          height: 0px;
+        }
+      `}</style>
       {/* Header */}
       <div
         style={{
           display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: '1.25rem',
+          justifyContent: hideTitle ? 'flex-end' : 'space-between',
+          alignItems: 'center',
+          marginBottom: '1rem',
           flexWrap: 'wrap',
           gap: '0.75rem',
         }}
       >
-        <div>
-          <h1 style={{ fontSize: '1.6rem', fontWeight: 800, marginBottom: '0.25rem' }}>
-            📁 <span className="gradient-text">Media Vault & Uploads</span>
-          </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-            Encrypted personal progress storage: project attachments, study notes, audio memos, and recordings.
-          </p>
-        </div>
+        {!hideTitle && (
+          <div>
+            <h1 style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: '0.2rem' }}>
+              📁 <span className="gradient-text">Media Vault & Uploads</span>
+            </h1>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
+              Encrypted personal progress storage: project attachments, study notes, audio memos, and recordings.
+            </p>
+          </div>
+        )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <button
@@ -358,12 +370,15 @@ export default function UploadsPage() {
 
         {/* Category Pills */}
         <div
+          className="uploads-cat-scroll"
           style={{
             display: 'flex',
             gap: '0.5rem',
             overflowX: 'auto',
             paddingBottom: '4px',
             WebkitOverflowScrolling: 'touch',
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
           }}
         >
           {CATEGORIES.map((cat) => (

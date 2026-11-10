@@ -52,35 +52,41 @@ export default function VaultFilterBar() {
       style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: '0.85rem',
-        marginBottom: '1.5rem',
+        gap: '0.65rem',
+        marginBottom: '1rem',
       }}
     >
+      <style>{`
+        .vault-types-scroll::-webkit-scrollbar {
+          display: none;
+          height: 0px;
+        }
+      `}</style>
       {/* Top Controls: Search Input + Sort Dropdown + View Mode */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: '0.85rem',
+          gap: '0.65rem',
           flexWrap: 'wrap',
         }}
       >
         {/* Search Bar */}
         <div
           style={{
-            flex: '1 1 260px',
+            flex: '1 1 240px',
             position: 'relative',
             display: 'flex',
             alignItems: 'center',
             background: 'rgba(15, 11, 32, 0.7)',
-            borderRadius: '14px',
+            borderRadius: '12px',
             border: '1px solid rgba(168, 85, 247, 0.22)',
-            padding: '0.45rem 0.85rem',
+            padding: '0.38rem 0.75rem',
             boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
           }}
         >
-          <Search size={16} color="#c084fc" style={{ marginRight: '0.5rem', flexShrink: 0 }} />
+          <Search size={15} color="#c084fc" style={{ marginRight: '0.45rem', flexShrink: 0 }} />
           <input
             type="text"
             placeholder="Search by title, domain, tags, notes, code..."
@@ -92,7 +98,7 @@ export default function VaultFilterBar() {
               border: 'none',
               outline: 'none',
               color: '#f8fafc',
-              fontSize: '0.86rem',
+              fontSize: '0.82rem',
               fontFamily: 'inherit',
             }}
           />
@@ -260,10 +266,11 @@ export default function VaultFilterBar() {
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '0.45rem',
+          gap: '0.4rem',
           overflowX: 'auto',
           paddingBottom: '0.2rem',
           scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
         }}
       >
         {TYPE_FILTER_BUTTONS.map((btn) => {
