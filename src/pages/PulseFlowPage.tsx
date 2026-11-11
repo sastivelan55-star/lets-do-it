@@ -4,10 +4,8 @@ import {
   Bookmark,
   Share2,
   ChevronRight,
-  TrendingUp,
-  Flame,
+  ChevronLeft,
   Globe,
-  Zap,
   Briefcase,
   Landmark,
   Trophy,
@@ -16,15 +14,21 @@ import {
   X,
   RefreshCw,
   CheckCircle2,
-  Layers,
-  Radio,
-  MapPin,
   Tv,
+  HelpCircle,
+  Settings,
+  CloudSun,
+  MapPin,
+  Sparkles,
+  Film,
+  FlaskConical,
+  HeartPulse,
 } from 'lucide-react';
 import {
   fetchBackendNews,
   checkBackendHealth,
   fetchDailyBriefing,
+  fetchNewsDataLatest,
   formatTimeAgo,
   type AiBriefingResponse,
 } from '../services/newsService';
@@ -36,927 +40,1287 @@ export interface NewsArticleItem {
   title: string;
   description: string;
   content: string;
-  category:
-    | 'Breaking'
-    | 'Technology'
-    | 'Business'
-    | 'Politics'
-    | 'Sports'
-    | 'World'
-    | 'Local'
-    | 'Regional'
-    | 'National'
-    | string;
+  category: string;
   source: string;
   sourceIcon?: string;
   publishedAt: string;
   timestamp: number;
   imageUrl: string;
   url?: string;
+  author?: string;
   readsCount?: string;
   isNew?: boolean;
 }
 
-// ── HIGH-RESOLUTION CURATED STORIES (STARTER / FALLBACK) ─────────────────────
-const INITIAL_ARTICLES: NewsArticleItem[] = [
+// ── INITIAL CURATED STORIES (MATCHING GOOGLE NEWS REFERENCE) ───────────────────
+const INITIAL_TOP_STORY: NewsArticleItem = {
+  id: 'top-1',
+  title: 'U.S. Republicans derail bid to impeach Hegseth',
+  description:
+    'House lawmakers halted proceedings in a high-stakes legislative confrontation regarding the Defense Secretary nomination.',
+  content:
+    'In a dramatic floor confrontation, House leadership successfully blocked an impeachment initiative, signaling unified party alignment ahead of committee hearings.',
+  category: 'World',
+  source: 'The Hindu',
+  sourceIcon: 'https://www.thehindu.com/favicon.ico',
+  publishedAt: '3 hours ago',
+  timestamp: Date.now() - 3 * 3600 * 1000,
+  imageUrl:
+    'https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=1200&auto=format&fit=crop&q=80',
+};
+
+const INITIAL_PERSPECTIVES: NewsArticleItem[] = [
   {
-    id: 'art-1',
-    title: 'AI Revolution: New Breakthrough Brings Smarter Solutions',
-    description:
-      'Researchers unveil a major advancement in artificial intelligence, promising more human-like and helpful AI systems with sub-second execution.',
-    content:
-      'A multi-institutional consortium of AI laboratories has detailed a foundational shift in transformer reasoning architectures. By integrating real-time hierarchical search alongside speculative neural decoders, the next generation of generative assistants can evaluate complex logic trees prior to emitting output tokens.',
-    category: 'Technology',
-    source: 'TechCrunch',
-    publishedAt: 'Just now',
-    timestamp: Date.now() - 3 * 60 * 1000,
-    imageUrl:
-      'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80',
-    isNew: true,
-    readsCount: '95K reads',
+    id: 'persp-1',
+    title: 'US House blocks Hegseth impeachment effort as Iran denies talks',
+    description: 'Bipartisan lawmakers navigate diplomatic tensions amid Capitol Hill budget and nomination debates.',
+    content: 'Congressional leaders underscored foreign policy continuity following the decisive floor tally.',
+    category: 'World',
+    source: 'Al Jazeera',
+    sourceIcon: 'https://www.aljazeera.com/favicon.ico',
+    publishedAt: '30 minutes ago',
+    timestamp: Date.now() - 30 * 60 * 1000,
+    imageUrl: 'https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?w=600&auto=format&fit=crop&q=80',
   },
   {
-    id: 'art-2',
-    title: 'Chennai Metro Phase 2 Tunneling Milestone Reached Along Corridor 4',
-    description:
-      'Tunnel boring machines have completed critical underground transit linkages connecting Light House to Poonamallee Bypass ahead of schedule.',
-    content:
-      'Chennai Metro Rail Limited (CMRL) engineers celebrated the breakthrough of the third tunnel boring machine beneath Corridor 4 today. The milestone connects key arterial transit nodes across Chennai, drastically reducing anticipated commuter transit intervals.',
+    id: 'persp-2',
+    title: 'US House blocks bid to impeach war secretary Pete Hegseth',
+    description: 'Floor tally reflects procedural maneuverings as defense authorizations approach year-end deadlines.',
+    content: 'The vote concluded along strict party lines after hours of procedural wrangling on Capitol Hill.',
+    category: 'National',
+    source: 'The Times of India',
+    sourceIcon: 'https://timesofindia.indiatimes.com/favicon.ico',
+    publishedAt: '3 hours ago',
+    timestamp: Date.now() - 3 * 3600 * 1000,
+    imageUrl: 'https://images.unsplash.com/photo-1495020689067-958852a7765e?w=600&auto=format&fit=crop&q=80',
+  },
+  {
+    id: 'persp-3',
+    title: 'Analysis: Hegseth fights for his political life with appeal to Trump',
+    description: 'Inside the strategy and high-stakes cabinet maneuvering behind the Washington confirmation battles.',
+    content: 'White House insiders detail closed-door consultations with Senate and House committee leaders.',
+    category: 'World',
+    source: 'BBC News',
+    sourceIcon: 'https://www.bbc.co.uk/favicon.ico',
+    publishedAt: '9 hours ago',
+    author: 'Gary O\'Donoghue',
+    timestamp: Date.now() - 9 * 3600 * 1000,
+    imageUrl: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=600&auto=format&fit=crop&q=80',
+  },
+];
+
+const INITIAL_LOCAL_STORIES: NewsArticleItem[] = [
+  {
+    id: 'local-1',
+    title: 'Chennai police arrest 36 persons in citywide crackdown on ‘rowdies’',
+    description: 'Law enforcement conducts coordinated pre-dawn operations across north and south Chennai divisions.',
+    content: 'Special task force units recovered illicit contraband and secured preventive detentions across 12 zones.',
     category: 'Local',
-    source: 'The Hindu (Chennai)',
-    publishedAt: '15m ago',
-    timestamp: Date.now() - 15 * 60 * 1000,
-    imageUrl:
-      'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?w=600&auto=format&fit=crop&q=80',
-    isNew: true,
-    readsCount: '48K reads',
+    source: 'The Hindu',
+    sourceIcon: 'https://www.thehindu.com/favicon.ico',
+    publishedAt: '16 hours ago',
+    timestamp: Date.now() - 16 * 3600 * 1000,
+    imageUrl: 'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?w=400&auto=format&fit=crop&q=80',
   },
   {
-    id: 'art-3',
-    title: 'Stock Markets Rally as Tech Shares Soar',
-    description:
-      'Global markets saw strong gains today, led by technology stocks and renewed investor confidence in enterprise software and silicon hardware.',
-    content:
-      'Equity markets across New York, London, and Tokyo recorded broad-based surges following robust quarterly balance sheets from semiconductor fabricators and cloud providers.',
-    category: 'Business',
-    source: 'Bloomberg',
-    publishedAt: '25m ago',
-    timestamp: Date.now() - 25 * 60 * 1000,
-    imageUrl:
-      'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=600&auto=format&fit=crop&q=80',
-    isNew: true,
-    readsCount: '72K reads',
+    id: 'local-2',
+    title: 'Women engineers take the helm at Chennai Metrowater',
+    description: 'Pioneering supervisory teams oversee smart metering, desal plants, and lake replenishment systems.',
+    content: 'CMWSSB officials highlighted significant operational efficiencies in wastewater recycling and supply grids.',
+    category: 'Local',
+    source: 'The Hindu',
+    sourceIcon: 'https://www.thehindu.com/favicon.ico',
+    publishedAt: 'Yesterday',
+    timestamp: Date.now() - 24 * 3600 * 1000,
+    imageUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&auto=format&fit=crop&q=80',
   },
   {
-    id: 'art-4',
-    title: 'Tamil Nadu Launches Advanced Semiconductor & Green Tech Corridor',
-    description:
-      'State administration formalizes new industrial parks near Coimbatore and Sriperumbudur, projecting 45,000 high-tech engineering jobs.',
-    content:
-      'The Tamil Nadu state government has signed multilateral memoranda with international electronics manufacturers to establish an integrated semiconductor packaging hub with specialized cleanroom infrastructure.',
-    category: 'Regional',
-    source: 'The Hindu (Tamil Nadu)',
-    publishedAt: '1h ago',
-    timestamp: Date.now() - 60 * 60 * 1000,
-    imageUrl:
-      'https://images.unsplash.com/photo-1609137144813-7d9921338f24?w=600&auto=format&fit=crop&q=80',
-    isNew: false,
-    readsCount: '84K reads',
-  },
-  {
-    id: 'art-5',
-    title: 'Global Leaders Agree on New Climate Action Plan',
-    description:
-      'World leaders have reached a historic agreement to accelerate climate action and achieve net-zero emissions by 2050 with joint financing.',
-    content:
-      'Delegates from 195 nations finalized a landmark accord pledging cross-border clean tech transitions, cryogenic hydrogen transport pipelines, and automated carbon verification registries.',
-    category: 'Breaking',
-    source: 'BBC News',
-    publishedAt: '2h ago',
-    timestamp: Date.now() - 120 * 60 * 1000,
-    imageUrl:
-      'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1200&auto=format&fit=crop&q=80',
-    isNew: false,
-    readsCount: '128K reads',
+    id: 'local-3',
+    title: 'Nearly 18 lakh left Chennai for Deepavali, return rush chokes GST Road',
+    description: 'Special buses and suburban transit lines mobilized as post-festival passenger influx surges.',
+    content: 'Traffic police activated arterial diversions at Perungalathur and Tambaram to ease vehicular gridlocks.',
+    category: 'Local',
+    source: 'The New Indian Express',
+    sourceIcon: 'https://www.newindianexpress.com/favicon.ico',
+    publishedAt: 'Nov 10',
+    timestamp: Date.now() - 36 * 3600 * 1000,
+    imageUrl: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=400&auto=format&fit=crop&q=80',
   },
 ];
 
-// ── FEATURED HERO HEADLINES (BREAKING NEWS CAROUSEL) ─────────────────────────
-const HERO_BREAKING_STORIES = [
-  {
-    id: 'hero-1',
-    tag: 'BREAKING INTELLIGENCE',
-    title: 'Chennai & Tamil Nadu Infrastructure Expands: New Rapid Transit Corridors Open',
-    subtitle:
-      'Key developmental corridors and smart city networks in Chennai and Tamil Nadu reach operational readiness.',
-    source: 'The Hindu (Chennai)',
-    publishedAt: 'Just now',
-    imageUrl:
-      'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?w=1200&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 'hero-2',
-    tag: 'TECH BREAKTHROUGH',
-    title: 'Frontier AI Reasoning Models Achieve Zero-Shot Software Verification',
-    subtitle:
-      'New algorithmic advances allow autonomous neural agents to detect and refactor vulnerabilities across enterprise codebases in real time.',
-    source: 'TechCrunch',
-    publishedAt: '5m ago',
-    imageUrl:
-      'https://images.unsplash.com/photo-1677442136019-21780efad99a?w=1200&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 'hero-3',
-    tag: 'GLOBAL DIPLOMACY',
-    title: 'Historic Diplomatic Accord Signed at Multilateral Assembly',
-    subtitle:
-      'Delegates ratify international digital trade frameworks, securing supply corridors and open cryptographic communication.',
-    source: 'BBC News',
-    publishedAt: '20m ago',
-    imageUrl:
-      'https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=1200&auto=format&fit=crop&q=80',
-  },
+// ── GOOGLE NEWS SUBNAV TABS ──────────────────────────────────────────────────
+const PRIMARY_NAV_TABS = [
+  { id: 'home', label: 'Home' },
+  { id: 'for_you', label: 'For you' },
+  { id: 'following', label: 'Following' },
+  { id: 'showcase', label: 'News Showcase' },
 ];
 
-// ── TRENDING NOW LIST ────────────────────────────────────────────────────────
-const TRENDING_TOPICS = [
-  { rank: 1, title: 'Chennai Metro', reads: '142K reads', filterKey: 'Chennai' },
-  { rank: 2, title: 'Tamil Nadu Growth', reads: '98K reads', filterKey: 'Tamil Nadu' },
-  { rank: 3, title: 'AI Frontier Models', reads: '95K reads', filterKey: 'AI' },
-  { rank: 4, title: 'Stock Market Surge', reads: '72K reads', filterKey: 'Market' },
-  { rank: 5, title: 'Global Diplomacy', reads: '49K reads', filterKey: 'Diplomatic' },
-];
-
-// ── OPEN REAL-TIME CHANNELS DIRECTORY ───────────────────────────────────────
-const OPEN_CHANNELS = [
-  { name: 'All Channels', icon: '🌐' },
-  { name: 'The Hindu', icon: '📰' },
-  { name: 'NDTV', icon: '🔴' },
-  { name: 'Times of India', icon: '🇮🇳' },
-  { name: 'BBC News', icon: '🌍' },
-  { name: 'Al Jazeera', icon: '⚡' },
-  { name: 'New York Times', icon: '🗽' },
-  { name: 'Hacker News', icon: '🟧' },
-  { name: 'Dev.to', icon: '👩‍💻' },
+const CATEGORY_NAV_TABS = [
+  { id: 'India', label: 'India', icon: <Landmark size={14} /> },
+  { id: 'World', label: 'World', icon: <Globe size={14} /> },
+  { id: 'Local', label: 'Local', icon: <MapPin size={14} /> },
+  { id: 'Business', label: 'Business', icon: <Briefcase size={14} /> },
+  { id: 'Technology', label: 'Technology', icon: <Cpu size={14} /> },
+  { id: 'Entertainment', label: 'Entertainment', icon: <Film size={14} /> },
+  { id: 'Sports', label: 'Sports', icon: <Trophy size={14} /> },
+  { id: 'Science', label: 'Science', icon: <FlaskConical size={14} /> },
+  { id: 'Health', label: 'Health', icon: <HeartPulse size={14} /> },
 ];
 
 export default function PulseFlowPage() {
-  const [articles, setArticles] = useState<NewsArticleItem[]>(() => {
-    try {
-      const saved = localStorage.getItem('lifeos_news_page_cache_v3');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch {}
-    return INITIAL_ARTICLES;
-  });
-
-  const [activeCategory, setActiveCategory] = useState<string>('All News');
-  const [selectedChannel, setSelectedChannel] = useState<string>('All Channels');
+  const [activeNavTab, setActiveNavTab] = useState<string>('Home');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [activeHeroIndex, setActiveHeroIndex] = useState<number>(0);
   const [isLiveFetching, setIsLiveFetching] = useState<boolean>(false);
   const [selectedArticle, setSelectedArticle] = useState<NewsArticleItem | null>(null);
 
-  // Live TV player toggle
+  // Live TV & AI Briefing toggles
   const [showLiveTv, setShowLiveTv] = useState<boolean>(false);
-
-  // AI Briefing state
+  const [showAiBriefing, setShowAiBriefing] = useState<boolean>(false);
   const [briefing, setBriefing] = useState<AiBriefingResponse | null>(null);
   const [isBriefingLoading, setIsBriefingLoading] = useState<boolean>(false);
 
-  // Backend telemetry status
+  // Core articles state
+  const [topStory, setTopStory] = useState<NewsArticleItem>(INITIAL_TOP_STORY);
+  const [perspectives, setPerspectives] = useState<NewsArticleItem[]>(INITIAL_PERSPECTIVES);
+  const [localStories, setLocalStories] = useState<NewsArticleItem[]>(INITIAL_LOCAL_STORIES);
+  const [feedArticles, setFeedArticles] = useState<NewsArticleItem[]>([]);
+
+  // Backend telemetry
   const [backendStatus, setBackendStatus] = useState<{
     isOnline: boolean;
     totalArticles: number;
     dbStatus: string;
-  }>({
-    isOnline: false,
-    totalArticles: 0,
-    dbStatus: 'checking',
-  });
+  }>({ isOnline: false, totalArticles: 0, dbStatus: 'checking' });
 
-  // Saved Bookmarks Set
+  // Bookmarks
   const [savedBookmarks, setSavedBookmarks] = useState<Set<string>>(() => {
     try {
-      const saved = localStorage.getItem('newspro_saved_bookmarks_v2');
-      if (saved) {
-        return new Set(JSON.parse(saved));
-      }
+      const saved = localStorage.getItem('lifeos_google_news_bookmarks');
+      if (saved) return new Set(JSON.parse(saved));
     } catch {}
     return new Set<string>();
   });
 
-  // Filter mode: 'all' | 'bookmarks'
-  const [showBookmarksOnly, setShowBookmarksOnly] = useState<boolean>(false);
-
-  // Toast feedback
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  // ── FETCH AI BRIEFING ───────────────────────────────────────────────────────
-  const loadBriefing = useCallback(async () => {
-    setIsBriefingLoading(true);
+  // Live formatted date for "Your briefing"
+  const formattedToday = useMemo(() => {
+    const now = new Date();
+    return now.toLocaleDateString('en-US', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+    });
+  }, []);
+
+  // ── LOAD NEWS FEEDS (BACKEND + NEWSDATA.IO) ─────────────────────────────────
+  const loadAllNews = useCallback(async () => {
+    setIsLiveFetching(true);
     try {
-      const result = await fetchDailyBriefing();
-      setBriefing(result);
+      // 1. Check Python backend status
+      const health = await checkBackendHealth();
+      setBackendStatus(health);
+
+      // 2. Fetch parallel from Python Backend AND user's NewsData.io API
+      const [backendRes, newsDataRes] = await Promise.allSettled([
+        fetchBackendNews({
+          category: activeNavTab !== 'Home' && activeNavTab !== 'For you' && activeNavTab !== 'Following' && activeNavTab !== 'News Showcase'
+            ? activeNavTab
+            : undefined,
+          search: searchQuery || undefined,
+          limit: 60,
+        }),
+        fetchNewsDataLatest({
+          country: 'in',
+          category: activeNavTab !== 'Home' ? activeNavTab : undefined,
+          q: searchQuery || undefined,
+        }),
+      ]);
+
+      const gatheredArticles: NewsArticleItem[] = [];
+
+      // Process NewsData.io results
+      if (newsDataRes.status === 'fulfilled' && newsDataRes.value.length > 0) {
+        newsDataRes.value.forEach((item) => {
+          gatheredArticles.push({
+            id: item.id,
+            title: item.title,
+            description: item.description,
+            content: item.description,
+            category: item.category || 'National',
+            source: item.source || 'NewsData',
+            publishedAt: formatTimeAgo(item.published_at),
+            timestamp: new Date(item.published_at).getTime(),
+            imageUrl: item.image_url || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=600&auto=format&fit=crop&q=80',
+            url: item.url,
+            isNew: true,
+          });
+        });
+      }
+
+      // Process Backend SQLite results
+      if (backendRes.status === 'fulfilled' && backendRes.value.articles.length > 0) {
+        backendRes.value.articles.forEach((item) => {
+          gatheredArticles.push({
+            id: item.id,
+            title: item.title,
+            description: item.description,
+            content: `${item.description} Reported by ${item.source}. Click below to read full publisher reporting.`,
+            category: item.category,
+            source: item.source,
+            publishedAt: formatTimeAgo(item.published_at),
+            timestamp: new Date(item.published_at).getTime(),
+            imageUrl: item.image_url || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=600&auto=format&fit=crop&q=80',
+            url: item.url,
+            isNew: false,
+          });
+        });
+      }
+
+      if (gatheredArticles.length > 0) {
+        // Sort newest first
+        gatheredArticles.sort((a, b) => b.timestamp - a.timestamp);
+
+        // Find best top story
+        const primeStory = gatheredArticles.find((a) => a.imageUrl && a.title.length > 25) || gatheredArticles[0];
+        setTopStory(primeStory);
+
+        // Find perspectives (different sources than top story)
+        const perspectiveCandidates = gatheredArticles.filter(
+          (a) => a.id !== primeStory.id && a.source !== primeStory.source
+        );
+        setPerspectives(perspectiveCandidates.slice(0, 3));
+
+        // Find local Chennai / Tamil Nadu stories
+        const localCandidates = gatheredArticles.filter(
+          (a) =>
+            a.category.toLowerCase().includes('local') ||
+            a.category.toLowerCase().includes('regional') ||
+            a.source.toLowerCase().includes('chennai') ||
+            a.title.toLowerCase().includes('chennai') ||
+            a.title.toLowerCase().includes('tamil nadu')
+        );
+        if (localCandidates.length > 0) {
+          setLocalStories(localCandidates.slice(0, 4));
+        }
+
+        // Remaining feed articles
+        const usedIds = new Set([
+          primeStory.id,
+          ...perspectiveCandidates.slice(0, 3).map((p) => p.id),
+          ...localCandidates.slice(0, 4).map((l) => l.id),
+        ]);
+        setFeedArticles(gatheredArticles.filter((a) => !usedIds.has(a.id)));
+
+        showToast(`Google News synced with ${gatheredArticles.length} live stories!`);
+      }
+    } catch {
+      showToast('Serving verified local news cache');
+    } finally {
+      setIsLiveFetching(false);
+    }
+  }, [activeNavTab, searchQuery]);
+
+  // Initial load
+  useEffect(() => {
+    loadAllNews();
+  }, [loadAllNews]);
+
+  // Auto-refresh every 5 minutes
+  useEffect(() => {
+    const timer = setInterval(() => loadAllNews(), 5 * 60 * 1000);
+    return () => clearInterval(timer);
+  }, [loadAllNews]);
+
+  // Load AI briefing on request or startup
+  const handleLoadBriefing = async () => {
+    setIsBriefingLoading(true);
+    setShowAiBriefing(true);
+    try {
+      const res = await fetchDailyBriefing();
+      setBriefing(res);
     } catch {
       setBriefing(null);
     } finally {
       setIsBriefingLoading(false);
     }
-  }, []);
+  };
 
-  // ── CORE BACKEND / OPEN FEED SYNC ──────────────────────────────────────────
-  const handleFetchNews = useCallback(async () => {
-    setIsLiveFetching(true);
-    try {
-      // 1. Check Backend Health
-      const health = await checkBackendHealth();
-      setBackendStatus(health);
-
-      // 2. Map category filter for backend
-      let categoryFilter: string | undefined = undefined;
-      if (activeCategory === 'Local (Chennai)') categoryFilter = 'Local';
-      else if (activeCategory === 'Tamil Nadu') categoryFilter = 'Regional';
-      else if (activeCategory === 'National') categoryFilter = 'National';
-      else if (activeCategory !== 'All News') categoryFilter = activeCategory;
-
-      // 3. Query backend
-      const resp = await fetchBackendNews({
-        category: categoryFilter,
-        search: searchQuery || undefined,
-        limit: 80,
-      });
-
-      if (resp.articles && resp.articles.length > 0) {
-        const mapped: NewsArticleItem[] = resp.articles.map((a, idx) => {
-          let cat = a.category;
-          if (cat === 'Local') cat = 'Local (Chennai)';
-          else if (cat === 'Regional') cat = 'Tamil Nadu';
-
-          return {
-            id: a.id,
-            title: a.title,
-            description: a.description || a.title,
-            content: `${a.description} Published by ${a.source}. To read complete editorial coverage and media, use the direct publisher link below.`,
-            category: cat,
-            source: a.source,
-            publishedAt: formatTimeAgo(a.published_at),
-            timestamp: a.published_at ? new Date(a.published_at).getTime() : Date.now(),
-            imageUrl:
-              a.image_url ||
-              INITIAL_ARTICLES[idx % INITIAL_ARTICLES.length].imageUrl,
-            url: a.url,
-            isNew: idx < 6,
-            readsCount: `${Math.floor(Math.random() * 50) + 20}K reads`,
-          };
-        });
-
-        setArticles(mapped);
-        try {
-          localStorage.setItem('lifeos_news_page_cache_v3', JSON.stringify(mapped));
-        } catch {}
-
-        if (resp.isOffline) {
-          showToast('Serving verified local news cache (Backend offline)');
-        } else {
-          showToast(`Synced ${mapped.length} real-time news stories!`);
-        }
-      } else {
-        showToast('All news channels are up to date.');
-      }
-    } catch {
-      showToast('Network error: Serving offline verified articles.');
-    } finally {
-      setIsLiveFetching(false);
-    }
-  }, [activeCategory, searchQuery]);
-
-  // Initial load on mount + load AI briefing
-  useEffect(() => {
-    handleFetchNews();
-    loadBriefing();
-  }, [handleFetchNews, loadBriefing]);
-
-  // Auto-refresh every 5 minutes per requirements
-  useEffect(() => {
-    const interval = setInterval(() => {
-      handleFetchNews();
-    }, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [handleFetchNews]);
-
-  // Auto carousel cycle for Hero Breaking News banner
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setActiveHeroIndex((prev) => (prev + 1) % HERO_BREAKING_STORIES.length);
-    }, 6000);
-    return () => clearInterval(timer);
-  }, []);
-
-  // Bookmark Toggle
   const toggleBookmark = (id: string) => {
     setSavedBookmarks((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
         next.delete(id);
-        showToast('Removed from bookmarks');
+        showToast('Removed from reading list');
       } else {
         next.add(id);
-        showToast('Article saved to bookmarks!');
+        showToast('Saved to reading list!');
       }
       try {
-        localStorage.setItem('newspro_saved_bookmarks_v2', JSON.stringify(Array.from(next)));
+        localStorage.setItem('lifeos_google_news_bookmarks', JSON.stringify(Array.from(next)));
       } catch {}
       return next;
     });
   };
 
-  // Share Article
   const handleShare = (art: NewsArticleItem) => {
-    const shareUrl = art.url || window.location.href;
-    navigator.clipboard.writeText(`${art.title} — ${shareUrl}`);
-    showToast('Article link copied to clipboard!');
+    navigator.clipboard.writeText(`${art.title} — ${art.url || window.location.href}`);
+    showToast('Story link copied to clipboard!');
   };
-
-  // Filtered Articles Computation
-  const filteredArticles = useMemo(() => {
-    return articles.filter((art) => {
-      if (showBookmarksOnly && !savedBookmarks.has(art.id)) {
-        return false;
-      }
-      if (activeCategory !== 'All News') {
-        const artCatLower = art.category.toLowerCase();
-        const activeCatLower = activeCategory.toLowerCase();
-        if (
-          !artCatLower.includes(activeCatLower) &&
-          !activeCatLower.includes(artCatLower)
-        ) {
-          return false;
-        }
-      }
-      if (selectedChannel !== 'All Channels') {
-        if (!art.source.toLowerCase().includes(selectedChannel.toLowerCase())) {
-          return false;
-        }
-      }
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchesTitle = art.title.toLowerCase().includes(q);
-        const matchesDesc = art.description.toLowerCase().includes(q);
-        const matchesSource = art.source.toLowerCase().includes(q);
-        if (!matchesTitle && !matchesDesc && !matchesSource) {
-          return false;
-        }
-      }
-      return true;
-    });
-  }, [articles, activeCategory, selectedChannel, searchQuery, showBookmarksOnly, savedBookmarks]);
-
-  const currentHero = HERO_BREAKING_STORIES[activeHeroIndex];
 
   return (
     <div
-      className="page-container pb-safe"
       style={{
-        background: '#0a0d16',
-        color: '#ffffff',
+        background: '#171717',
+        color: '#e8eaed',
         minHeight: '100%',
-        flex: 1,
-        fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
-        padding: 'clamp(1rem, 2vw, 1.75rem)',
+        width: '100%',
+        boxSizing: 'border-box',
+        fontFamily: "'Google Sans', Roboto, system-ui, -apple-system, sans-serif",
         overflowY: 'auto',
       }}
     >
-      {/* ── TOP SEARCH & CONTROLS BAR ────────────────────────────────────── */}
-      <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
-        {/* Search Bar matching image */}
-        <div className="relative flex-1 max-w-2xl">
-          <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+      {/* ═══════════════════════════════════════════════════════════════════════
+          GOOGLE NEWS TOP APP BAR (EXACT REPLICA OF SCREENSHOT)
+          ═══════════════════════════════════════════════════════════════════════ */}
+      <header
+        style={{
+          background: '#202124',
+          borderBottom: '1px solid #3c4043',
+          padding: '0.65rem 1.25rem',
+          position: 'sticky',
+          top: 0,
+          zIndex: 40,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '1rem',
+          flexWrap: 'wrap',
+        }}
+      >
+        {/* Google News Brand Logo */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+          <span style={{ fontSize: '1.45rem', fontWeight: 800, letterSpacing: '-0.03em', display: 'flex', alignItems: 'center' }}>
+            <span style={{ color: '#4285F4' }}>G</span>
+            <span style={{ color: '#EA4335' }}>o</span>
+            <span style={{ color: '#FBBC05' }}>o</span>
+            <span style={{ color: '#4285F4' }}>g</span>
+            <span style={{ color: '#34A853' }}>l</span>
+            <span style={{ color: '#EA4335' }}>e</span>
+            <span style={{ color: '#e8eaed', fontWeight: 400, marginLeft: '6px' }}>News</span>
+          </span>
+          <span
+            style={{
+              fontSize: '0.65rem',
+              fontWeight: 700,
+              padding: '2px 6px',
+              borderRadius: '6px',
+              background: '#303134',
+              color: '#8ab4f8',
+              border: '1px solid #3c4043',
+            }}
+          >
+            Life OS
+          </span>
+        </div>
+
+        {/* Central Search Bar */}
+        <div
+          style={{
+            flex: 1,
+            maxWidth: '680px',
+            position: 'relative',
+            background: '#303134',
+            borderRadius: '24px',
+            border: '1px solid #5f6368',
+            display: 'flex',
+            alignItems: 'center',
+            padding: '0.4rem 1rem',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+          }}
+        >
+          <Search size={18} color="#9aa0a6" style={{ marginRight: '10px', flexShrink: 0 }} />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search news by title, keywords or publisher..."
-            className="w-full bg-[#131622] border border-white/[0.08] focus:border-blue-500 rounded-full pl-11 pr-10 py-2.5 text-sm text-white placeholder-slate-400 focus:outline-none transition-all shadow-inner"
+            placeholder="Search for topics, locations & sources"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              outline: 'none',
+              color: '#ffffff',
+              fontSize: '0.92rem',
+              width: '100%',
+              fontFamily: 'inherit',
+            }}
           />
           {searchQuery && (
             <button
               type="button"
               onClick={() => setSearchQuery('')}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+              style={{ background: 'none', border: 'none', color: '#9aa0a6', cursor: 'pointer', padding: '2px' }}
             >
-              <X className="w-4 h-4" />
+              <X size={16} />
             </button>
           )}
         </div>
 
-        {/* Real Channel Controls & Live TV Toggle */}
-        <div className="flex items-center gap-2.5 flex-wrap">
+        {/* Top Right Action Icons */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           {/* Live TV Button */}
           <button
             type="button"
             onClick={() => setShowLiveTv((v) => !v)}
-            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold transition-all cursor-pointer border ${
-              showLiveTv
-                ? 'bg-red-600 text-white border-red-500 shadow-lg shadow-red-600/30'
-                : 'bg-[#181d2e] text-slate-200 border-white/[0.08] hover:bg-[#222942]'
-            }`}
-            title="Watch 24/7 Official Live TV Streams"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '0.35rem 0.85rem',
+              borderRadius: '18px',
+              background: showLiveTv ? '#c5221f' : '#303134',
+              border: '1px solid #3c4043',
+              color: '#ffffff',
+              fontSize: '0.78rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
           >
-            <Tv className="w-3.5 h-3.5 text-red-400" />
+            <Tv size={14} color="#f28b82" />
             <span>{showLiveTv ? 'Close Live TV' : 'Live TV (6 Streams)'}</span>
           </button>
 
-          {/* Refresh Feeds Button */}
+          {/* AI Briefing Button */}
           <button
             type="button"
-            onClick={handleFetchNews}
+            onClick={handleLoadBriefing}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '0.35rem 0.85rem',
+              borderRadius: '18px',
+              background: showAiBriefing ? '#8ab4f8' : '#303134',
+              border: '1px solid #3c4043',
+              color: showAiBriefing ? '#202124' : '#8ab4f8',
+              fontSize: '0.78rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            <Sparkles size={14} />
+            <span>Jarvis Briefing</span>
+          </button>
+
+          {/* Refresh Button & Backend Telemetry */}
+          <button
+            type="button"
+            onClick={loadAllNews}
             disabled={isLiveFetching}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold bg-[#1a1f33] hover:bg-[#232a45] text-blue-400 border border-blue-500/30 transition-all cursor-pointer shadow-md active:scale-95 disabled:opacity-50"
-            title="Refresh Live Feeds"
+            title={
+              backendStatus.isOnline
+                ? `Backend Online (${backendStatus.totalArticles} articles stored in SQLite)`
+                : 'Live Direct Feeds Active (Backend offline or disconnected)'
+            }
+            style={{
+              background: 'none',
+              border: 'none',
+              color: backendStatus.isOnline ? '#81c995' : '#9aa0a6',
+              cursor: 'pointer',
+              padding: '6px',
+              borderRadius: '50%',
+              display: 'inline-flex',
+              alignItems: 'center',
+              position: 'relative',
+            }}
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLiveFetching ? 'animate-spin' : ''}`} />
-            <span>{isLiveFetching ? 'Fetching…' : 'Sync Feeds'}</span>
+            <RefreshCw size={18} className={isLiveFetching ? 'animate-spin' : ''} />
+            {backendStatus.isOnline && (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '4px',
+                  right: '4px',
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  background: '#81c995',
+                }}
+              />
+            )}
           </button>
 
-          {/* Bookmarks Toggle Pill */}
-          <button
-            type="button"
-            onClick={() => setShowBookmarksOnly(!showBookmarksOnly)}
-            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold transition-all cursor-pointer border ${
-              showBookmarksOnly
-                ? 'bg-blue-600 text-white border-blue-500'
-                : 'bg-[#131622] text-slate-300 border-white/[0.08] hover:bg-[#1a1f33]'
-            }`}
+          <HelpCircle size={18} color="#9aa0a6" style={{ cursor: 'pointer' }} />
+          <Settings size={18} color="#9aa0a6" style={{ cursor: 'pointer' }} />
+
+          {/* User Avatar Circle */}
+          <div
+            style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              background: '#ea580c',
+              color: '#ffffff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              marginLeft: '4px',
+            }}
           >
-            <Bookmark className="w-3.5 h-3.5" />
-            <span>Saved ({savedBookmarks.size})</span>
-          </button>
+            S
+          </div>
         </div>
-      </div>
+      </header>
 
-      {/* ── BACKEND TELEMETRY BANNER ───────────────────────────────────────── */}
-      <div className="flex items-center justify-between text-xs mb-5 px-3 py-1.5 rounded-xl bg-white/[0.02] border border-white/[0.05] text-slate-400 flex-wrap gap-2">
-        <div className="flex items-center gap-2">
-          <span
-            className={`w-2 h-2 rounded-full ${
-              backendStatus.isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'
-            }`}
+      {/* ═══════════════════════════════════════════════════════════════════════
+          GOOGLE NEWS SUB-NAV BAR (HOME, FOR YOU ... | INDIA, WORLD, LOCAL...)
+          ═══════════════════════════════════════════════════════════════════════ */}
+      <nav
+        style={{
+          background: '#202124',
+          borderBottom: '1px solid #3c4043',
+          padding: '0 1.25rem',
+          display: 'flex',
+          alignItems: 'center',
+          overflowX: 'auto',
+          scrollbarWidth: 'none',
+          whiteSpace: 'nowrap',
+          gap: '0.25rem',
+        }}
+      >
+        {/* Left primary tabs */}
+        {PRIMARY_NAV_TABS.map((tab) => {
+          const isActive = activeNavTab === tab.label;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveNavTab(tab.label)}
+              style={{
+                background: 'none',
+                border: 'none',
+                borderBottom: isActive ? '3px solid #8ab4f8' : '3px solid transparent',
+                color: isActive ? '#8ab4f8' : '#9aa0a6',
+                padding: '0.75rem 0.9rem',
+                fontSize: '0.86rem',
+                fontWeight: isActive ? 600 : 500,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+
+        {/* Vertical Separator */}
+        <div style={{ width: '1px', height: '18px', background: '#3c4043', margin: '0 0.5rem' }} />
+
+        {/* Right category tabs */}
+        {CATEGORY_NAV_TABS.map((tab) => {
+          const isActive = activeNavTab === tab.label;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveNavTab(tab.label)}
+              style={{
+                background: 'none',
+                border: 'none',
+                borderBottom: isActive ? '3px solid #8ab4f8' : '3px solid transparent',
+                color: isActive ? '#8ab4f8' : '#e8eaed',
+                padding: '0.75rem 0.9rem',
+                fontSize: '0.86rem',
+                fontWeight: isActive ? 600 : 500,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* ═══════════════════════════════════════════════════════════════════════
+          MAIN CONTENT CONTAINER
+          ═══════════════════════════════════════════════════════════════════════ */}
+      <main style={{ maxWidth: '1280px', margin: '0 auto', padding: '1.25rem' }}>
+        {/* Live TV Section (Collapsible) */}
+        {showLiveTv && <LiveTvSection onClose={() => setShowLiveTv(false)} />}
+
+        {/* Jarvis AI Briefing Card (Collapsible) */}
+        {showAiBriefing && (
+          <JarvisAiBriefingCard
+            briefing={briefing}
+            isLoading={isBriefingLoading}
+            onRefresh={handleLoadBriefing}
           />
-          <span>
-            {backendStatus.isOnline
-              ? `Jarvis Backend Online • ${backendStatus.totalArticles} articles stored in SQLite • Auto-sync every 5m`
-              : 'Backend Offline • Serving verified cached news & open developer channels'}
-          </span>
-        </div>
-        <span className="text-[11px] text-slate-500">
-          Sources: The Hindu, NDTV, BBC, NYT, DW, Al Jazeera, France 24, Dinamalar
-        </span>
-      </div>
+        )}
 
-      {/* ── PHASE 4: JARVIS AI DAILY BRIEFING CARD (TOP OF PAGE) ───────────── */}
-      <JarvisAiBriefingCard
-        briefing={briefing}
-        isLoading={isBriefingLoading}
-        onRefresh={loadBriefing}
-      />
-
-      {/* ── PHASE 3: LIVE TV EMBED SECTION ─────────────────────────────────── */}
-      {showLiveTv && <LiveTvSection onClose={() => setShowLiveTv(false)} />}
-
-      {/* ── FEATURED BREAKING NEWS HERO BANNER (MATCHES REFERENCE IMAGE) ──── */}
-      {!showBookmarksOnly && (
+        {/* ── "YOUR BRIEFING" HEADER & WEATHER WIDGET (MATCHES SCREENSHOT) ── */}
         <section
-          onClick={() => {
-            const heroArt = articles[0] || INITIAL_ARTICLES[0];
-            setSelectedArticle(heroArt);
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '1.25rem',
+            flexWrap: 'wrap',
+            gap: '1rem',
           }}
-          className="relative w-full rounded-2xl overflow-hidden mb-6 cursor-pointer group shadow-2xl border border-white/[0.08]"
-          style={{ minHeight: '260px' }}
         >
-          {/* Background Photography Image */}
-          <img
-            src={currentHero.imageUrl}
-            alt={currentHero.title}
-            className="absolute inset-0 w-full h-full object-cover object-center transform group-hover:scale-105 transition-transform duration-700 brightness-75"
-          />
+          <div>
+            <h1
+              style={{
+                margin: 0,
+                fontSize: '1.85rem',
+                fontWeight: 400,
+                color: '#e8eaed',
+                letterSpacing: '-0.02em',
+              }}
+            >
+              Your briefing
+            </h1>
+            <p style={{ margin: '0.2rem 0 0', fontSize: '0.88rem', color: '#9aa0a6' }}>
+              {formattedToday}
+            </p>
+          </div>
 
-          {/* Gradient Dark Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0b0e18] via-[#0b0e18]/60 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#0b0e18] via-[#0b0e18]/80 to-transparent" />
+          {/* Google Weather Widget (Exact replica from user screenshot!) */}
+          <div
+            style={{
+              background: '#202124',
+              border: '1px solid #3c4043',
+              borderRadius: '16px',
+              padding: '0.55rem 0.9rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+            }}
+          >
+            <ChevronLeft size={16} color="#9aa0a6" style={{ cursor: 'pointer' }} />
 
-          {/* Banner Content */}
-          <div className="relative z-10 p-6 sm:p-8 flex flex-col justify-end h-full max-w-3xl">
-            {/* Red Pill Badge */}
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold bg-red-600 text-white tracking-wide uppercase mb-3 shadow-lg shadow-red-600/30 w-fit">
-              <Zap className="w-3 h-3 fill-white" />
-              <span>{currentHero.tag}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div
+                style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '50%',
+                  background: 'rgba(251, 188, 4, 0.12)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#fbbc04',
+                }}
+              >
+                <CloudSun size={22} />
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem', color: '#9aa0a6' }}>
+                  <span>Tamil Nadu</span>
+                  <MapPin size={10} color="#8ab4f8" />
+                </div>
+                <div style={{ fontSize: '1.15rem', fontWeight: 700, color: '#e8eaed' }}>
+                  29°C
+                </div>
+                <div style={{ fontSize: '0.68rem', color: '#8ab4f8' }}>
+                  Google Weather
+                </div>
+              </div>
             </div>
 
-            {/* Headline */}
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white leading-tight tracking-tight mb-2 group-hover:text-blue-300 transition-colors">
-              {currentHero.title}
-            </h1>
+            <ChevronRight size={16} color="#9aa0a6" style={{ cursor: 'pointer' }} />
+          </div>
+        </section>
 
-            {/* Subtitle */}
-            <p className="text-sm sm:text-base text-slate-300 line-clamp-2 mb-4 leading-relaxed max-w-2xl">
-              {currentHero.subtitle}
-            </p>
-
-            {/* Source & Timestamp */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs text-slate-400 font-medium">
-                <span className="flex items-center gap-1.5 text-white">
-                  <Globe className="w-3.5 h-3.5 text-blue-400" />
-                  {currentHero.source}
-                </span>
-                <span>•</span>
-                <span>{currentHero.publishedAt}</span>
+        {/* ═════════════════════════════════════════════════════════════════════
+            2-COLUMN GRID: "TOP STORIES" (65%) & "LOCAL NEWS" (35%)
+            ═════════════════════════════════════════════════════════════════════ */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
+          {/* ── LEFT COLUMN: TOP STORIES ── */}
+          <div
+            style={{
+              gridColumn: 'span 2',
+              minWidth: 0,
+            }}
+            className="top-stories-column"
+          >
+            <div
+              style={{
+                background: '#202124',
+                borderRadius: '16px',
+                border: '1px solid #3c4043',
+                padding: '1.25rem',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+              }}
+            >
+              {/* Section Header */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '1rem', cursor: 'pointer' }}>
+                <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 600, color: '#8ab4f8' }}>
+                  Top stories
+                </h2>
+                <ChevronRight size={18} color="#8ab4f8" />
               </div>
 
-              {/* Carousel Pagination Dots */}
-              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                {HERO_BREAKING_STORIES.map((_, dotIdx) => (
-                  <button
-                    key={dotIdx}
-                    type="button"
-                    onClick={() => setActiveHeroIndex(dotIdx)}
-                    className={`h-2 rounded-full transition-all cursor-pointer ${
-                      dotIdx === activeHeroIndex ? 'w-6 bg-blue-500' : 'w-2 bg-slate-600 hover:bg-slate-400'
-                    }`}
-                    aria-label={`Go to slide ${dotIdx + 1}`}
-                  />
+              {/* 2-Pane Split: Left Lead Story + Right Perspectives */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                  gap: '1.25rem',
+                  alignItems: 'start',
+                }}
+              >
+                {/* Left: Lead Primary Story */}
+                <div
+                  onClick={() => setSelectedArticle(topStory)}
+                  style={{ cursor: 'pointer' }}
+                  className="group"
+                >
+                  <div
+                    style={{
+                      width: '100%',
+                      height: '200px',
+                      borderRadius: '12px',
+                      overflow: 'hidden',
+                      marginBottom: '0.75rem',
+                      background: '#303134',
+                    }}
+                  >
+                    <img
+                      src={topStory.imageUrl}
+                      alt={topStory.title}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      className="group-hover:scale-105 transition-transform duration-300"
+                    />
+                  </div>
+
+                  {/* Source Favicon & Name */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '0.4rem' }}>
+                    <div
+                      style={{
+                        width: '16px',
+                        height: '16px',
+                        borderRadius: '3px',
+                        background: '#3c4043',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '9px',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {topStory.source.charAt(0)}
+                    </div>
+                    <span style={{ fontSize: '0.75rem', color: '#9aa0a6', fontWeight: 500 }}>
+                      {topStory.source}
+                    </span>
+                  </div>
+
+                  {/* Headline */}
+                  <h3
+                    style={{
+                      margin: '0 0 0.4rem',
+                      fontSize: '1.05rem',
+                      fontWeight: 600,
+                      color: '#e8eaed',
+                      lineHeight: 1.35,
+                    }}
+                    className="hover:underline"
+                  >
+                    {topStory.title}
+                  </h3>
+
+                  <div style={{ fontSize: '0.75rem', color: '#9aa0a6' }}>
+                    {topStory.publishedAt}
+                  </div>
+                </div>
+
+                {/* Right: Perspectives Coverage List */}
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  {perspectives.map((persp, idx) => (
+                    <div
+                      key={persp.id || idx}
+                      onClick={() => setSelectedArticle(persp)}
+                      style={{
+                        padding: idx === 0 ? '0 0 0.85rem' : '0.85rem 0',
+                        borderBottom: idx < perspectives.length - 1 ? '1px solid #303134' : 'none',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '0.35rem' }}>
+                        <div
+                          style={{
+                            width: '16px',
+                            height: '16px',
+                            borderRadius: '3px',
+                            background: '#3c4043',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '9px',
+                            fontWeight: 700,
+                            color: '#8ab4f8',
+                          }}
+                        >
+                          {persp.source.charAt(0)}
+                        </div>
+                        <span style={{ fontSize: '0.75rem', color: '#9aa0a6', fontWeight: 500 }}>
+                          {persp.source}
+                        </span>
+                      </div>
+
+                      <h4
+                        style={{
+                          margin: '0 0 0.35rem',
+                          fontSize: '0.92rem',
+                          fontWeight: 500,
+                          color: '#e8eaed',
+                          lineHeight: 1.35,
+                        }}
+                        className="hover:underline"
+                      >
+                        {persp.title}
+                      </h4>
+
+                      <div style={{ fontSize: '0.74rem', color: '#9aa0a6' }}>
+                        {persp.publishedAt}
+                        {persp.author && <span> • By {persp.author}</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Bottom footer link */}
+              <div
+                style={{
+                  marginTop: '1rem',
+                  paddingTop: '0.75rem',
+                  borderTop: '1px solid #303134',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  color: '#8ab4f8',
+                  fontSize: '0.82rem',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                }}
+              >
+                <Globe size={15} />
+                <span>See more headlines and perspectives</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ── RIGHT COLUMN: LOCAL NEWS (CHENNAI & TAMIL NADU) ── */}
+          <div style={{ minWidth: 0 }}>
+            <div
+              style={{
+                background: '#202124',
+                borderRadius: '16px',
+                border: '1px solid #3c4043',
+                padding: '1.25rem',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+                height: '100%',
+                boxSizing: 'border-box',
+              }}
+            >
+              {/* Header */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '1rem', cursor: 'pointer' }}>
+                <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 600, color: '#8ab4f8' }}>
+                  Local news
+                </h2>
+                <ChevronRight size={18} color="#8ab4f8" />
+              </div>
+
+              {/* Local News List with Right Thumbnail */}
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {localStories.map((local, idx) => (
+                  <div
+                    key={local.id || idx}
+                    onClick={() => setSelectedArticle(local)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      justifyContent: 'space-between',
+                      gap: '12px',
+                      padding: idx === 0 ? '0 0 0.85rem' : '0.85rem 0',
+                      borderBottom: idx < localStories.length - 1 ? '1px solid #303134' : 'none',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '0.35rem' }}>
+                        <div
+                          style={{
+                            width: '16px',
+                            height: '16px',
+                            borderRadius: '3px',
+                            background: '#3c4043',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '9px',
+                            fontWeight: 700,
+                            color: '#34d399',
+                          }}
+                        >
+                          {local.source.charAt(0)}
+                        </div>
+                        <span style={{ fontSize: '0.74rem', color: '#9aa0a6', fontWeight: 500 }}>
+                          {local.source}
+                        </span>
+                      </div>
+
+                      <h4
+                        style={{
+                          margin: '0 0 0.35rem',
+                          fontSize: '0.88rem',
+                          fontWeight: 500,
+                          color: '#e8eaed',
+                          lineHeight: 1.35,
+                        }}
+                        className="hover:underline"
+                      >
+                        {local.title}
+                      </h4>
+
+                      <div style={{ fontSize: '0.72rem', color: '#9aa0a6' }}>
+                        {local.publishedAt}
+                      </div>
+                    </div>
+
+                    {/* Right Thumbnail Image (72x72) */}
+                    <div
+                      style={{
+                        width: '72px',
+                        height: '72px',
+                        borderRadius: '8px',
+                        overflow: 'hidden',
+                        background: '#303134',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <img
+                        src={local.imageUrl}
+                        alt={local.title}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>
           </div>
-        </section>
-      )}
+        </div>
 
-      {/* ── CATEGORY PILLS STRIP (LOCAL, REGIONAL, NATIONAL, GLOBAL) ───────── */}
-      <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-1 text-xs no-scrollbar">
-        {[
-          { label: 'All News', icon: <Layers className="w-3.5 h-3.5" /> },
-          { label: 'Local (Chennai)', icon: <MapPin className="w-3.5 h-3.5 text-emerald-400" /> },
-          { label: 'Tamil Nadu', icon: <Flame className="w-3.5 h-3.5 text-orange-400" /> },
-          { label: 'National', icon: <Landmark className="w-3.5 h-3.5 text-amber-400" /> },
-          { label: 'World', icon: <Globe className="w-3.5 h-3.5 text-blue-400" /> },
-          { label: 'Technology', icon: <Cpu className="w-3.5 h-3.5 text-cyan-400" /> },
-          { label: 'Business', icon: <Briefcase className="w-3.5 h-3.5 text-emerald-400" /> },
-          { label: 'Politics', icon: <Landmark className="w-3.5 h-3.5 text-purple-400" /> },
-          { label: 'Sports', icon: <Trophy className="w-3.5 h-3.5 text-yellow-400" /> },
-          { label: 'Breaking', icon: <Zap className="w-3.5 h-3.5 text-red-400" /> },
-        ].map((cat) => {
-          const isSelected = activeCategory === cat.label && !showBookmarksOnly;
-          return (
-            <button
-              key={cat.label}
-              type="button"
-              onClick={() => {
-                setShowBookmarksOnly(false);
-                setActiveCategory(cat.label);
-              }}
-              className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-full font-semibold transition-all cursor-pointer whitespace-nowrap border ${
-                isSelected
-                  ? 'bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-600/30'
-                  : 'bg-[#131622] text-slate-300 border-white/[0.06] hover:bg-[#1a1f33]'
-              }`}
-            >
-              {cat.icon}
-              <span>{cat.label}</span>
-            </button>
-          );
-        })}
-      </div>
+        {/* ═════════════════════════════════════════════════════════════════════
+            ADDITIONAL GOOGLE NEWS STORIES GRID (PICKS FOR YOU & SPOTLIGHT)
+            ═════════════════════════════════════════════════════════════════════ */}
+        <section style={{ marginTop: '2rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+            <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600, color: '#e8eaed' }}>
+              {activeNavTab === 'Home' ? 'Picks for you' : `${activeNavTab} news`}
+            </h2>
+            <div style={{ fontSize: '0.78rem', color: '#9aa0a6' }}>
+              Showing {feedArticles.length} stories
+            </div>
+          </div>
 
-      {/* ── MAIN CONTENT GRID: NEWS LIST + RIGHT REAL FEATURES PANEL ─────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* ── LEFT/CENTER COLUMN: VERTICAL NEWS CARDS (Approx 68% / 8 cols) ── */}
-        <div className="lg:col-span-8 flex flex-col gap-4">
-          {filteredArticles.length > 0 ? (
-            filteredArticles.map((art) => {
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))',
+              gap: '1rem',
+            }}
+          >
+            {feedArticles.map((art) => {
               const isBookmarked = savedBookmarks.has(art.id);
-
               return (
                 <article
                   key={art.id}
                   onClick={() => setSelectedArticle(art)}
-                  className="bg-[#131622] hover:bg-[#171b2b] border border-white/[0.07] hover:border-blue-500/40 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row gap-4 sm:gap-5 items-stretch sm:items-center justify-between transition-all duration-200 cursor-pointer group shadow-md"
+                  style={{
+                    background: '#202124',
+                    border: '1px solid #3c4043',
+                    borderRadius: '16px',
+                    padding: '1rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                    transition: 'border 0.2s ease',
+                  }}
+                  className="hover:border-[#8ab4f8]"
                 >
-                  {/* Thumbnail Image on the Left */}
-                  <div className="relative w-full sm:w-44 h-40 sm:h-28 rounded-xl overflow-hidden shrink-0 bg-slate-800">
-                    <img
-                      src={art.imageUrl}
-                      alt={art.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                    {art.isNew && (
-                      <span className="absolute top-2 left-2 px-2 py-0.5 rounded text-[9px] font-extrabold bg-blue-600 text-white uppercase tracking-wider shadow">
-                        NEW
-                      </span>
+                  <div>
+                    {/* Top Source attribution + action buttons */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div
+                          style={{
+                            width: '16px',
+                            height: '16px',
+                            borderRadius: '3px',
+                            background: '#3c4043',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '9px',
+                            fontWeight: 700,
+                            color: '#8ab4f8',
+                          }}
+                        >
+                          {art.source.charAt(0)}
+                        </div>
+                        <span style={{ fontSize: '0.74rem', color: '#9aa0a6', fontWeight: 500 }}>
+                          {art.source}
+                        </span>
+                        <span style={{ fontSize: '0.72rem', color: '#5f6368' }}>•</span>
+                        <span style={{ fontSize: '0.72rem', color: '#9aa0a6' }}>{art.publishedAt}</span>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleBookmark(art.id);
+                          }}
+                          style={{ background: 'none', border: 'none', color: isBookmarked ? '#fbbc04' : '#9aa0a6', cursor: 'pointer', padding: '4px' }}
+                          title="Save story"
+                        >
+                          <Bookmark size={15} fill={isBookmarked ? '#fbbc04' : 'none'} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleShare(art);
+                          }}
+                          style={{ background: 'none', border: 'none', color: '#9aa0a6', cursor: 'pointer', padding: '4px' }}
+                          title="Share story"
+                        >
+                          <Share2 size={15} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Headline and thumbnail layout */}
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                      <h3
+                        style={{
+                          margin: 0,
+                          fontSize: '0.94rem',
+                          fontWeight: 500,
+                          color: '#e8eaed',
+                          lineHeight: 1.35,
+                          flex: 1,
+                        }}
+                      >
+                        {art.title}
+                      </h3>
+
+                      {art.imageUrl && (
+                        <div
+                          style={{
+                            width: '76px',
+                            height: '76px',
+                            borderRadius: '8px',
+                            overflow: 'hidden',
+                            background: '#303134',
+                            flexShrink: 0,
+                          }}
+                        >
+                          <img
+                            src={art.imageUrl}
+                            alt={art.title}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {art.description && (
+                      <p style={{ margin: '0 0 0.5rem', fontSize: '0.78rem', color: '#9aa0a6', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                        {art.description}
+                      </p>
                     )}
                   </div>
 
-                  {/* Middle Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                      <span className="text-[11px] font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">
-                        {art.category}
-                      </span>
-                      <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
-                        <span>•</span>
-                        <span className="text-white font-semibold">{art.source}</span>
-                        <span>•</span>
-                        <span>{art.publishedAt}</span>
-                      </span>
-                    </div>
-
-                    <h2 className="text-sm sm:text-base font-bold text-white group-hover:text-blue-300 transition-colors line-clamp-2 leading-snug mb-1.5">
-                      {art.title}
-                    </h2>
-
-                    <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
-                      {art.description}
-                    </p>
-                  </div>
-
-                  {/* Action Icons on the Right */}
-                  <div className="flex sm:flex-col items-center justify-end sm:justify-center gap-2 shrink-0 border-t sm:border-t-0 sm:border-l border-white/[0.06] pt-3 sm:pt-0 sm:pl-3">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleBookmark(art.id);
+                  {/* Category tag */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid #303134' }}>
+                    <span
+                      style={{
+                        fontSize: '0.68rem',
+                        fontWeight: 600,
+                        color: '#8ab4f8',
+                        background: 'rgba(138, 180, 248, 0.1)',
+                        padding: '2px 8px',
+                        borderRadius: '999px',
                       }}
-                      className={`p-2 rounded-full transition-all cursor-pointer ${
-                        isBookmarked
-                          ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'
-                          : 'bg-white/[0.04] hover:bg-white/[0.08] text-slate-400 hover:text-white'
-                      }`}
-                      title={isBookmarked ? 'Remove Bookmark' : 'Save Article'}
                     >
-                      <Bookmark className={`w-4 h-4 ${isBookmarked ? 'fill-amber-400' : ''}`} />
-                    </button>
+                      {art.category}
+                    </span>
 
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleShare(art);
-                      }}
-                      className="p-2 rounded-full bg-white/[0.04] hover:bg-white/[0.08] text-slate-400 hover:text-white transition-all cursor-pointer"
-                      title="Share Article"
-                    >
-                      <Share2 className="w-4 h-4" />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setSelectedArticle(art)}
-                      className="p-2 rounded-full bg-white/[0.04] group-hover:bg-blue-600 text-slate-400 group-hover:text-white transition-all cursor-pointer hidden sm:flex items-center justify-center"
-                      title="Read Article"
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
+                    {art.url && (
+                      <a
+                        href={art.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#8ab4f8', fontSize: '0.72rem', textDecoration: 'none' }}
+                      >
+                        <span>Full story</span>
+                        <ExternalLink size={11} />
+                      </a>
+                    )}
                   </div>
                 </article>
               );
-            })
-          ) : (
-            <div className="bg-[#131622] rounded-2xl p-12 text-center border border-white/[0.06]">
-              <Radio className="w-10 h-10 text-slate-500 mx-auto mb-3" />
-              <h3 className="text-base font-bold text-white mb-1">No articles match your criteria</h3>
-              <p className="text-xs text-slate-400 mb-4 max-w-sm mx-auto">
-                {showBookmarksOnly
-                  ? 'You have not bookmarked any articles yet. Click the bookmark icon on any card to save it.'
-                  : 'Try selecting All News, clearing your search query, or refreshing live feeds.'}
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchQuery('');
-                  setActiveCategory('All News');
-                  setSelectedChannel('All Channels');
-                  setShowBookmarksOnly(false);
-                }}
-                className="px-4 py-2 rounded-full text-xs font-semibold bg-blue-600 text-white hover:bg-blue-500 transition-colors cursor-pointer"
-              >
-                Reset All Filters
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* ── RIGHT COLUMN: REAL FEATURES (Approx 32% / 4 cols) ─────────────── */}
-        <div className="lg:col-span-4 flex flex-col gap-6">
-          {/* 1. TRENDING NOW CARD */}
-          <div className="bg-[#131622] border border-white/[0.07] rounded-2xl p-5 shadow-lg">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Flame className="w-4 h-4 text-orange-400 fill-orange-400/20" />
-                <h3 className="text-sm font-bold text-white">Trending Now</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveCategory('Breaking');
-                  setShowBookmarksOnly(false);
-                }}
-                className="text-xs font-semibold text-blue-400 hover:text-blue-300 transition-colors cursor-pointer flex items-center gap-0.5"
-              >
-                <span>See all</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            {/* Ranked 1 to 5 Trending List */}
-            <div className="flex flex-col divide-y divide-white/[0.06]">
-              {TRENDING_TOPICS.map((topic) => (
-                <div
-                  key={topic.rank}
-                  onClick={() => {
-                    setSearchQuery(topic.filterKey);
-                    setShowBookmarksOnly(false);
-                  }}
-                  className="py-3 flex items-center justify-between gap-3 hover:bg-white/[0.03] px-2 rounded-xl transition-colors cursor-pointer group"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-6 h-6 rounded-full bg-orange-500/20 text-orange-400 font-bold text-xs flex items-center justify-center shrink-0 border border-orange-500/30">
-                      {topic.rank}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold text-white group-hover:text-blue-400 transition-colors truncate">
-                        {topic.title}
-                      </p>
-                      <p className="text-[11px] text-slate-400 font-mono">{topic.reads}</p>
-                    </div>
-                  </div>
-
-                  <TrendingUp className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                </div>
-              ))}
-            </div>
+            })}
           </div>
+        </section>
+      </main>
 
-          {/* 2. REAL-TIME CHANNELS SWITCHER */}
-          <div className="bg-[#131622] border border-white/[0.07] rounded-2xl p-5 shadow-lg">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Radio className="w-4 h-4 text-cyan-400" />
-                <h3 className="text-sm font-bold text-white">Verified Publishers</h3>
-              </div>
-              <span className="text-[11px] text-slate-400">17 feeds</span>
-            </div>
-            <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-              Real-time dispatches from Chennai, Tamil Nadu, India, and global journalism bureaus.
-            </p>
-
-            {/* Channels Pill Grid */}
-            <div className="flex flex-wrap gap-2">
-              {OPEN_CHANNELS.map((ch) => {
-                const isSelected = selectedChannel === ch.name;
-                return (
-                  <button
-                    key={ch.name}
-                    type="button"
-                    onClick={() => {
-                      setSelectedChannel(ch.name);
-                      setShowBookmarksOnly(false);
-                    }}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer border ${
-                      isSelected
-                        ? 'bg-blue-600 text-white border-blue-500 shadow-md'
-                        : 'bg-[#181d2e] text-slate-300 border-white/[0.06] hover:bg-[#20273d]'
-                    }`}
-                  >
-                    <span>{ch.icon}</span>
-                    <span>{ch.name}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* 3. READING LIST STATUS */}
-          <div className="bg-[#131622] border border-white/[0.07] rounded-2xl p-5 shadow-lg">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <Bookmark className="w-4 h-4 text-amber-400 fill-amber-400/20" />
-                <h3 className="text-sm font-bold text-white">Your Reading List</h3>
-              </div>
-              <span className="text-xs font-mono text-amber-400 font-bold">
-                {savedBookmarks.size} saved
-              </span>
-            </div>
-            <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-              Saved articles are stored offline in your browser database so you can read anytime.
-            </p>
-            <button
-              type="button"
-              onClick={() => setShowBookmarksOnly(!showBookmarksOnly)}
-              className="w-full py-2.5 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white transition-all cursor-pointer shadow-md"
-            >
-              {showBookmarksOnly ? 'Show All News Feed' : 'View Saved Reading List'}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* ── SLIDE-OVER ARTICLE READER MODAL (FULL STORY VIEW) ─────────────── */}
+      {/* ═══════════════════════════════════════════════════════════════════════
+          ARTICLE READING MODAL
+          ═══════════════════════════════════════════════════════════════════════ */}
       {selectedArticle && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-          {/* Backdrop */}
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(6px)',
+          }}
+          onClick={() => setSelectedArticle(null)}
+        >
           <div
-            onClick={() => setSelectedArticle(null)}
-            className="fixed inset-0 bg-black/80 backdrop-blur-md transition-opacity"
-          />
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#202124',
+              border: '1px solid #3c4043',
+              borderRadius: '20px',
+              maxWidth: '680px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            {selectedArticle.imageUrl && (
+              <div style={{ width: '100%', height: '260px', overflow: 'hidden', position: 'relative' }}>
+                <img
+                  src={selectedArticle.imageUrl}
+                  alt={selectedArticle.title}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setSelectedArticle(null)}
+                  style={{
+                    position: 'absolute',
+                    top: '12px',
+                    right: '12px',
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    background: 'rgba(0,0,0,0.6)',
+                    color: '#ffffff',
+                    border: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            )}
 
-          {/* Modal Card */}
-          <div className="relative z-10 w-full max-w-3xl max-h-[90vh] bg-[#121524] border border-white/[0.12] rounded-2xl shadow-2xl overflow-y-auto flex flex-col">
-            {/* Modal Header Image */}
-            <div className="relative w-full h-56 sm:h-72 overflow-hidden shrink-0 bg-slate-900">
-              <img
-                src={selectedArticle.imageUrl}
-                alt={selectedArticle.title}
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#121524] via-transparent to-black/40" />
-
-              <button
-                type="button"
-                onClick={() => setSelectedArticle(null)}
-                className="absolute top-4 right-4 p-2 rounded-full bg-black/60 hover:bg-black/90 text-white transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-
-              <div className="absolute bottom-4 left-6 right-6 flex items-center justify-between">
-                <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-600 text-white shadow">
-                  {selectedArticle.category}
+            <div style={{ padding: '1.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.75rem' }}>
+                <span style={{ fontSize: '0.78rem', color: '#8ab4f8', fontWeight: 600 }}>
+                  {selectedArticle.source}
                 </span>
-                <span className="text-xs text-slate-300 font-medium bg-black/50 px-2.5 py-1 rounded-full backdrop-blur-sm">
+                <span style={{ color: '#5f6368' }}>•</span>
+                <span style={{ fontSize: '0.78rem', color: '#9aa0a6' }}>
                   {selectedArticle.publishedAt}
                 </span>
               </div>
-            </div>
 
-            {/* Modal Body */}
-            <div className="p-6 sm:p-8 flex-1 flex flex-col justify-between">
-              <div>
-                {/* Source attribution */}
-                <div className="flex items-center gap-2 text-xs text-slate-400 mb-3">
-                  <div className="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 font-bold flex items-center justify-center text-[10px]">
-                    {selectedArticle.source.charAt(0)}
-                  </div>
-                  <span className="font-semibold text-white">{selectedArticle.source}</span>
-                  {selectedArticle.readsCount && <span>• {selectedArticle.readsCount}</span>}
-                </div>
+              <h2 style={{ margin: '0 0 1rem', fontSize: '1.35rem', fontWeight: 600, color: '#e8eaed', lineHeight: 1.35 }}>
+                {selectedArticle.title}
+              </h2>
 
-                {/* Article Headline */}
-                <h1 className="text-xl sm:text-2xl font-extrabold text-white leading-snug mb-4">
-                  {selectedArticle.title}
-                </h1>
+              <p style={{ fontSize: '0.92rem', color: '#bdc1c6', lineHeight: 1.6, marginBottom: '1.5rem' }}>
+                {selectedArticle.content || selectedArticle.description}
+              </p>
 
-                {/* Lead Summary */}
-                <p className="text-sm text-slate-300 font-medium leading-relaxed pb-4 border-b border-white/[0.08] mb-4">
-                  {selectedArticle.description}
-                </p>
-
-                {/* Full Article Text / Excerpt */}
-                <div className="text-sm text-slate-300 leading-relaxed space-y-4">
-                  <p>{selectedArticle.content}</p>
-                </div>
-              </div>
-
-              {/* Modal Footer Actions */}
-              <div className="mt-8 pt-5 border-t border-white/[0.08] flex items-center justify-between flex-wrap gap-3">
-                <div className="flex items-center gap-3">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid #3c4043', paddingTop: '1rem' }}>
+                <div style={{ display: 'flex', gap: '8px' }}>
                   <button
                     type="button"
                     onClick={() => toggleBookmark(selectedArticle.id)}
-                    className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer border ${
-                      savedBookmarks.has(selectedArticle.id)
-                        ? 'bg-amber-500/20 text-amber-400 border-amber-500/40'
-                        : 'bg-white/[0.06] text-white border-white/[0.1] hover:bg-white/[0.12]'
-                    }`}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '0.45rem 0.9rem',
+                      borderRadius: '8px',
+                      background: '#303134',
+                      border: '1px solid #3c4043',
+                      color: savedBookmarks.has(selectedArticle.id) ? '#fbbc04' : '#e8eaed',
+                      fontSize: '0.82rem',
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                    }}
                   >
-                    <Bookmark className="w-4 h-4" />
-                    <span>{savedBookmarks.has(selectedArticle.id) ? 'Saved' : 'Save Article'}</span>
+                    <Bookmark size={15} fill={savedBookmarks.has(selectedArticle.id) ? '#fbbc04' : 'none'} />
+                    <span>{savedBookmarks.has(selectedArticle.id) ? 'Saved' : 'Save'}</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => handleShare(selectedArticle)}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-white/[0.06] text-white hover:bg-white/[0.12] border border-white/[0.1] transition-colors cursor-pointer"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '0.45rem 0.9rem',
+                      borderRadius: '8px',
+                      background: '#303134',
+                      border: '1px solid #3c4043',
+                      color: '#e8eaed',
+                      fontSize: '0.82rem',
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                    }}
                   >
-                    <Share2 className="w-4 h-4" />
+                    <Share2 size={15} />
                     <span>Share</span>
                   </button>
                 </div>
@@ -966,10 +1330,21 @@ export default function PulseFlowPage() {
                     href={selectedArticle.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white transition-colors cursor-pointer shadow-md"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '0.5rem 1rem',
+                      borderRadius: '8px',
+                      background: '#8ab4f8',
+                      color: '#202124',
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      textDecoration: 'none',
+                    }}
                   >
-                    <span>Read Full Story on {selectedArticle.source}</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>Read on {selectedArticle.source}</span>
+                    <ExternalLink size={14} />
                   </a>
                 )}
               </div>
@@ -978,11 +1353,29 @@ export default function PulseFlowPage() {
         </div>
       )}
 
-      {/* ── TOAST NOTIFICATION ───────────────────────────────────────────── */}
+      {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-[#1a1f33] border border-blue-500/40 text-white shadow-2xl transition-all">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span className="text-xs font-medium">{toastMessage}</span>
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            right: '24px',
+            background: '#303134',
+            border: '1px solid #5f6368',
+            color: '#e8eaed',
+            padding: '0.75rem 1.25rem',
+            borderRadius: '12px',
+            fontSize: '0.82rem',
+            fontWeight: 500,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+            zIndex: 10000,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}
+        >
+          <CheckCircle2 size={16} color="#81c995" />
+          <span>{toastMessage}</span>
         </div>
       )}
     </div>

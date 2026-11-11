@@ -269,7 +269,7 @@ def fetch_newsdata_api(client: httpx.Client, existing_titles: List[str]) -> int:
         return 0
     name = "NewsData.io (API)"
     try:
-        url = "https://newsdata.io/api/1/news"
+        url = "https://newsdata.io/api/1/latest"
         params = {"apikey": NEWSDATA_KEY, "country": "in", "language": "en,ta"}
         resp = client.get(url, params=params, timeout=REQUEST_TIMEOUT)
         if resp.status_code != 200:

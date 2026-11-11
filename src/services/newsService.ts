@@ -248,6 +248,58 @@ export async function fetchDailyBriefing(): Promise<AiBriefingResponse> {
   };
 }
 
+export const NEWSDATA_API_KEY = 'pub_0dbe00b0c806495bb3f9ca2a235b487c';
+
+export async function fetchNewsDataLatest(params?: {
+  country?: string;
+  category?: string;
+  q?: string;
+  language?: string;
+}): Promise<BackendArticle[]> {
+  try {
+    const query = new URLSearchParams();
+    query.set('apikey', NEWSDATA_API_KEY);
+    query.set('country', params?.country || 'in');
+    if (params?.language) query.set('language', params.language);
+    if (params?.category && params.category !== 'All' && params.category !== 'All News') {
+      const cat = params.category.toLowerCase();
+      // map standard categories to NewsData values
+      if (['business', 'technology', 'entertainment', 'sports', 'science', 'health', 'politics', 'world', 'top'].includes(cat)) {
+        query.set('category', cat);
+      }
+    }
+    if (params?.q) query.set('q', params.q);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+    const res = await fetch(`https://newsdata.io/api/1/latest?${query.toString()}`, {
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data.results)) {
+        return data.results.map((r: any) => ({
+          id: r.article_id || `nd-${Math.random()}`,
+          title: r.title || 'Untitled',
+          description: r.description || r.title || '',
+          url: r.link || '',
+          source: r.source_name || r.source_id || 'NewsData',
+          category: Array.isArray(r.category) ? r.category[0] : (r.category || 'National'),
+          published_at: r.pubDate || new Date().toISOString(),
+          fetched_at: new Date().toISOString(),
+          image_url: r.image_url || undefined,
+        }));
+      }
+    }
+  } catch (e) {
+    console.warn('NewsData.io direct fetch notice:', e);
+  }
+  return [];
+}
+
 // ── COMPATIBILITY EXPORT: fetchNewsArticles ──────────────────────────────────
 export async function fetchNewsArticles(
   forceRefresh = false
