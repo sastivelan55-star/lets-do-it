@@ -10,6 +10,7 @@ export function getSupabase(): SupabaseClient | null {
   if (!supabaseClient) {
     supabaseClient = createClient(ENV.supabaseUrl, ENV.supabaseAnonKey, {
       auth: {
+        storageKey: 'lifeos_supabase_auth_token',
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,

@@ -188,10 +188,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     let isMounted = true;
 
-    // 2. Restore active session
+    // 2. Restore active session with automatic refresh token fallback
     supabase.auth
       .getSession()
-      .then(({ data: { session }, error }) => {
+      .then(async ({ data: { session }, error }) => {
         if (!isMounted) return;
         if (error) {
           setAuthError(formatAuthErrorMessage(error.message));
@@ -201,9 +201,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(session.user);
           persistAuthState(session.user, session);
         } else {
-          // If no remote session, preserve cached credentials in offline mode unless explicitly logged out
-          const cached = getInitialUser();
-          if (!cached && !getInitialGuestMode()) {
+          // If Supabase client memory didn't have the session, check our persistent storage for a refresh token
+          const cachedSession = getInitialSession();
+          if (cachedSession?.refresh_token) {
+            try {
+              const res = await supabase.auth.setSession({
+                access_token: cachedSession.access_token,
+                refresh_token: cachedSession.refresh_token,
+              });
+              if (!isMounted) return;
+              if (res.data?.session) {
+                setSession(res.data.session);
+                setUser(res.data.session.user);
+                persistAuthState(res.data.session.user, res.data.session);
+                return;
+              }
+              if (res.error) {
+                const isExpiredOrRevoked =
+                  res.error.message.includes('refresh_token_not_found') ||
+                  res.error.message.includes('invalid_grant') ||
+                  res.error.message.includes('expired');
+                if (isExpiredOrRevoked) {
+                  // Truly expired session - require re-login
+                  signOut();
+                  return;
+                }
+              }
+            } catch {
+              // Ignore network hiccups while attempting restore
+            }
+          }
+
+          // If no cached session or user, clean up unless in guest mode
+          const cachedUser = getInitialUser();
+          if (!cachedUser && !getInitialGuestMode()) {
             setSession(null);
             setUser(null);
             persistAuthState(null, null);
