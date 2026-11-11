@@ -424,3 +424,18 @@ export async function deleteCloudGroceryList(userId: string, listId: string): Pr
     logSafeError('deleteCloudGroceryList', err);
   }
 }
+
+export async function deleteCloudPurchasedItems(userId: string, listId: string): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase || !userId || userId === 'guest') return;
+  try {
+    await supabase
+      .from('grocery_items')
+      .delete()
+      .eq('user_id', userId)
+      .eq('list_id', listId)
+      .eq('is_purchased', true);
+  } catch (err) {
+    logSafeError('deleteCloudPurchasedItems', err);
+  }
+}

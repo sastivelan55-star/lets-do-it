@@ -73,12 +73,70 @@ export function formatAuthErrorMessage(
   return rawMessage;
 }
 
+const LIFEOS_AUTH_USER_KEY = 'lifeos_auth_user';
+const LIFEOS_AUTH_SESSION_KEY = 'lifeos_auth_session';
+const LIFEOS_GUEST_MODE_KEY = 'lifeos_guest_mode';
+
+function getInitialUser(): User | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(LIFEOS_AUTH_USER_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function getInitialSession(): Session | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(LIFEOS_AUTH_SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function getInitialGuestMode(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return localStorage.getItem(LIFEOS_GUEST_MODE_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function persistAuthState(u: User | null, s: Session | null) {
+  if (typeof window === 'undefined') return;
+  try {
+    if (u) {
+      localStorage.setItem(LIFEOS_AUTH_USER_KEY, JSON.stringify(u));
+      localStorage.removeItem(LIFEOS_GUEST_MODE_KEY);
+    } else {
+      localStorage.removeItem(LIFEOS_AUTH_USER_KEY);
+    }
+    if (s) {
+      localStorage.setItem(LIFEOS_AUTH_SESSION_KEY, JSON.stringify(s));
+    } else {
+      localStorage.removeItem(LIFEOS_AUTH_SESSION_KEY);
+    }
+  } catch {}
+}
+
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(() => isSupabaseConfigured);
+  const [user, setUser] = useState<User | null>(getInitialUser);
+  const [session, setSession] = useState<Session | null>(getInitialSession);
+  const [isLoading, setIsLoading] = useState<boolean>(() => {
+    // If a saved session or guest mode exists, unlock dashboard immediately without blocking
+    const hasCachedUser = Boolean(getInitialUser());
+    const hasCachedGuest = getInitialGuestMode();
+    if (hasCachedUser || hasCachedGuest) {
+      return false;
+    }
+    return isSupabaseConfigured;
+  });
   const [authError, setAuthError] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
     const hash = window.location.hash;
@@ -104,7 +162,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     return null;
   });
-  const [isGuest, setIsGuest] = useState<boolean>(false);
+  const [isGuest, setIsGuest] = useState<boolean>(getInitialGuestMode);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     const hash = window.location.hash;
@@ -138,8 +196,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (error) {
           setAuthError(formatAuthErrorMessage(error.message));
         }
-        setSession(session);
-        setUser(session?.user ?? null);
+        if (session) {
+          setSession(session);
+          setUser(session.user);
+          persistAuthState(session.user, session);
+        } else {
+          // If no remote session, preserve cached credentials in offline mode unless explicitly logged out
+          const cached = getInitialUser();
+          if (!cached && !getInitialGuestMode()) {
+            setSession(null);
+            setUser(null);
+            persistAuthState(null, null);
+          }
+        }
       })
       .catch((err: unknown) => {
         if (!isMounted) return;
@@ -162,11 +231,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, newSession) => {
       if (!isMounted) return;
-      setSession(newSession);
-      setUser(newSession?.user ?? null);
       if (newSession) {
+        setSession(newSession);
+        setUser(newSession.user);
         setIsGuest(false);
+        persistAuthState(newSession.user, newSession);
         setAuthError(null);
+      } else if (event === 'SIGNED_OUT') {
+        setSession(null);
+        setUser(null);
+        setIsGuest(false);
+        persistAuthState(null, null);
       }
       if (event === 'PASSWORD_RECOVERY') {
         setIsPasswordRecovery(true);
@@ -215,6 +290,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(data.user);
         setSession(data.session);
         setIsGuest(false);
+        persistAuthState(data.user, data.session);
         return { success: true };
       } catch (err: unknown) {
         logSafeError('Sign In', err);
@@ -275,6 +351,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(data.user);
           setSession(data.session);
           setIsGuest(false);
+          persistAuthState(data.user, data.session);
           return { success: true };
         } else {
           // Email confirmation is required by Supabase project settings (mailer_autoconfirm = false)
@@ -337,6 +414,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    persistAuthState(null, null);
+    try {
+      localStorage.removeItem(LIFEOS_GUEST_MODE_KEY);
+    } catch {}
     const supabase = getSupabase();
     if (supabase) {
       try {
@@ -436,7 +517,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const continueAsGuest = useCallback(() => {
+    try {
+      localStorage.setItem(LIFEOS_GUEST_MODE_KEY, 'true');
+    } catch {}
+    persistAuthState(null, null);
     setIsGuest(true);
+    setUser(null);
+    setSession(null);
     setAuthError(null);
     setIsPasswordRecovery(false);
   }, []);

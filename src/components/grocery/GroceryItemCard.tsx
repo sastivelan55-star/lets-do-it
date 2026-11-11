@@ -60,36 +60,45 @@ function GroceryItemCardComponent({
     >
       {/* Left Checkbox & Item Details */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flex: 1, minWidth: 0 }}>
-        {/* Animated Checkbox */}
+        {/* Animated Checkbox with comfortable touch target */}
         <button
           type="button"
-          onClick={() => togglePurchased(item.id)}
+          onClick={(e) => {
+            e.stopPropagation();
+            togglePurchased(item.id);
+          }}
           style={{
-            width: '24px',
-            height: '24px',
-            borderRadius: '7px',
+            width: '28px',
+            height: '28px',
+            minWidth: '28px',
+            minHeight: '28px',
+            borderRadius: '8px',
             border: item.isPurchased
               ? 'none'
-              : '2px solid rgba(52, 211, 153, 0.5)',
+              : '2px solid rgba(52, 211, 153, 0.6)',
             background: item.isPurchased
               ? 'linear-gradient(135deg, #10b981, #059669)'
-              : 'transparent',
+              : 'rgba(255, 255, 255, 0.03)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             color: '#ffffff',
             cursor: 'pointer',
             flexShrink: 0,
-            transition: 'all 0.2s ease',
-            boxShadow: item.isPurchased ? '0 0 10px rgba(16, 185, 129, 0.5)' : 'none',
+            transition: 'all 0.18s ease',
+            boxShadow: item.isPurchased ? '0 0 12px rgba(16, 185, 129, 0.55)' : 'none',
           }}
           aria-label={item.isPurchased ? 'Mark as not purchased' : 'Mark as purchased'}
         >
-          {item.isPurchased && <Check size={14} strokeWidth={3} />}
+          {item.isPurchased && <Check size={16} strokeWidth={3} />}
         </button>
 
         {/* Text Details */}
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          onClick={() => togglePurchased(item.id)}
+          style={{ flex: 1, minWidth: 0, cursor: 'pointer' }}
+          title={item.isPurchased ? 'Click to mark as to buy' : 'Click to mark as purchased'}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
             <span
               style={{
@@ -97,6 +106,7 @@ function GroceryItemCardComponent({
                 fontWeight: 700,
                 color: item.isPurchased ? '#94a3b8' : '#f8fafc',
                 textDecoration: item.isPurchased ? 'line-through' : 'none',
+                userSelect: 'none',
               }}
             >
               {item.name}

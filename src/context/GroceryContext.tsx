@@ -8,6 +8,7 @@ import {
   syncGroceryDataToCloud,
   deleteCloudGroceryItem,
   deleteCloudGroceryList,
+  deleteCloudPurchasedItems,
   type GroceryStorageState,
 } from '../services/groceryService';
 import { getSupabase } from '../services/supabaseClient';
@@ -50,8 +51,8 @@ interface GroceryContextType {
 const GroceryContext = createContext<GroceryContextType | null>(null);
 
 /**
- * Deep equality helper to compare grocery state and prevent infinite re-render loops.
- * Ignores transient date timestamps so slight clock variations don't trigger cascading updates.
+ * Order-independent deep equality helper to compare grocery state and prevent infinite loops.
+ * Uses ID-indexed maps so array order differences from database queries never trigger false mismatches.
  */
 function areGroceryStatesEqual(
   a: { lists: GroceryList[]; items: GroceryItem[]; activeListId?: string },
@@ -61,12 +62,12 @@ function areGroceryStatesEqual(
     return false;
   }
 
-  // Compare lists
-  for (let i = 0; i < a.lists.length; i++) {
-    const la = a.lists[i];
-    const lb = b.lists[i];
+  // Compare lists by ID
+  const aListMap = new Map(a.lists.map((l) => [l.id, l]));
+  for (const lb of b.lists) {
+    const la = aListMap.get(lb.id);
+    if (!la) return false;
     if (
-      la.id !== lb.id ||
       la.name !== lb.name ||
       la.color !== lb.color ||
       la.icon !== lb.icon ||
@@ -76,12 +77,12 @@ function areGroceryStatesEqual(
     }
   }
 
-  // Compare items
-  for (let i = 0; i < a.items.length; i++) {
-    const ia = a.items[i];
-    const ib = b.items[i];
+  // Compare items by ID
+  const aItemMap = new Map(a.items.map((i) => [i.id, i]));
+  for (const ib of b.items) {
+    const ia = aItemMap.get(ib.id);
+    if (!ia) return false;
     if (
-      ia.id !== ib.id ||
       ia.listId !== ib.listId ||
       ia.name !== ib.name ||
       ia.quantity !== ib.quantity ||
@@ -235,8 +236,18 @@ export function GroceryProvider({ children }: { children: React.ReactNode }) {
 
       realtimeDebounceTimerRef.current = setTimeout(async () => {
         try {
+          // If local client has pending unsaved edits (e.g. user just tapped tick), do NOT overwrite with stale cloud state!
+          if (isDirtyRef.current) {
+            return;
+          }
+
           const { state } = await fetchCloudGroceryData(userId);
           if (!state || state.lists.length === 0) return;
+
+          // Double check dirty flag after async fetch
+          if (isDirtyRef.current) {
+            return;
+          }
 
           const currentSnapshot = {
             lists: listsRef.current,
@@ -310,7 +321,7 @@ export function GroceryProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Debounce cloud sync by 1000ms to batch rapid user inputs and prevent network storms
+    // Debounce cloud sync by 350ms to batch rapid user inputs and push quickly
     if (syncDebounceTimerRef.current) {
       clearTimeout(syncDebounceTimerRef.current);
     }
@@ -333,7 +344,7 @@ export function GroceryProvider({ children }: { children: React.ReactNode }) {
         } catch {
           setCloudSyncStatus('offline');
         }
-      }, 1000);
+      }, 350);
     }
 
     return () => {
@@ -558,7 +569,10 @@ export function GroceryProvider({ children }: { children: React.ReactNode }) {
     isDirtyRef.current = true;
     const currentId = activeList?.id || activeListId;
     setItems((prev) => prev.filter((i) => !(i.listId === currentId && i.isPurchased)));
-  }, [activeList, activeListId]);
+    if (userId && userId !== 'guest') {
+      deleteCloudPurchasedItems(userId, currentId);
+    }
+  }, [activeList, activeListId, userId]);
 
   return (
     <GroceryContext.Provider

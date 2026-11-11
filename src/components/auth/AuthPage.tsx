@@ -406,17 +406,14 @@ export default function AuthPage() {
   // Mode: Sign In vs Create Account
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
 
-  // Remember Me state
+  // Remember Me state (default to true for seamless one-time login on new devices)
   const [rememberMe, setRememberMe] = useState<boolean>(() => {
-    return localStorage.getItem('lifeos_remember_me') === 'true';
+    return localStorage.getItem('lifeos_remember_me') !== 'false';
   });
 
   // Form Fields
   const [email, setEmail] = useState<string>(() => {
-    if (localStorage.getItem('lifeos_remember_me') === 'true') {
-      return localStorage.getItem('lifeos_saved_email') || '';
-    }
-    return '';
+    return localStorage.getItem('lifeos_saved_email') || '';
   });
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
