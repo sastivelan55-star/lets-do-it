@@ -1,84 +1,322 @@
-// Life OS Official News Provider Integration
-// Uses official public developer APIs: Hacker News Firebase API & Dev.to Official REST API
+// Life OS Jarvis News Service
+// Bridges React frontend with FastAPI backend (http://127.0.0.1:8000)
+// With fallback to verified open channels (Dev.to & Hacker News) when backend is offline.
+
 import type { NewsArticle } from '../types';
 
-const CACHE_KEY = 'life_os_news_cache_v1';
-const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes cache to respect API terms and rate limits
+export const BACKEND_BASE_URL =
+  import.meta.env.VITE_NEWS_API_URL || 'http://127.0.0.1:8000';
 
-interface CachedNews {
-  timestamp: number;
-  articles: NewsArticle[];
+const CACHE_KEY = 'life_os_backend_news_cache_v2';
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes cache
+
+export interface BackendArticle {
+  id: string;
+  title: string;
+  description: string;
+  url: string;
+  source: string;
+  category: string;
+  published_at: string;
+  fetched_at: string;
+  image_url?: string;
 }
 
-export async function fetchNewsArticles(forceRefresh = false): Promise<{ articles: NewsArticle[]; lastUpdated: string; fromCache: boolean }> {
-  // Check local cache if not force refresh
+export interface BackendNewsResponse {
+  count: number;
+  filter: {
+    category: string;
+    source: string;
+    search: string | null;
+  };
+  articles: BackendArticle[];
+  isOffline?: boolean;
+}
+
+export interface SourceHealthRecord {
+  source_name: string;
+  source_type: string;
+  last_status: 'OK' | 'FAIL';
+  last_fetch_time: string;
+  articles_fetched: number;
+  error_message: string | null;
+}
+
+export interface SourcesHealthResponse {
+  total_configured_sources: number;
+  healthy_sources: number;
+  sources: SourceHealthRecord[];
+  timestamp: string;
+}
+
+export interface AiBriefingResponse {
+  available: boolean;
+  message?: string;
+  error?: string;
+  title?: string;
+  model?: string;
+  bullet_points?: string[];
+  top_story_summaries?: Array<{
+    title: string;
+    summary: string;
+  }>;
+  cached?: boolean;
+  cache_age_minutes?: number;
+  generated_at?: string;
+}
+
+// ── FORMAT TIME AGO UTILITY ──────────────────────────────────────────────────
+export function formatTimeAgo(isoString?: string): string {
+  if (!isoString) return 'Just now';
+  try {
+    const pubDate = new Date(isoString);
+    if (isNaN(pubDate.getTime())) return 'Recently';
+    const now = Date.now();
+    const diffSec = Math.floor((now - pubDate.getTime()) / 1000);
+
+    if (diffSec < 60) return 'Just now';
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHour = Math.floor(diffMin / 60);
+    if (diffHour < 24) return `${diffHour}h ago`;
+    const diffDays = Math.floor(diffHour / 24);
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return pubDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  } catch {
+    return 'Recently';
+  }
+}
+
+// ── BACKEND NEWS API CALLS ───────────────────────────────────────────────────
+
+export async function fetchBackendNews(params?: {
+  category?: string;
+  source?: string;
+  search?: string;
+  limit?: number;
+}): Promise<BackendNewsResponse> {
+  const query = new URLSearchParams();
+  if (params?.category && params.category !== 'All' && params.category !== 'All News') {
+    query.set('category', params.category);
+  }
+  if (params?.source && params.source !== 'All' && params.source !== 'All Channels') {
+    query.set('source', params.source);
+  }
+  if (params?.search && params.search.trim()) {
+    query.set('search', params.search.trim());
+  }
+  query.set('limit', String(params?.limit || 60));
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000); // 4s timeout
+
+    const res = await fetch(`${BACKEND_BASE_URL}/news?${query.toString()}`, {
+      signal: controller.signal,
+      headers: { Accept: 'application/json' },
+    });
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      const data: BackendNewsResponse = await res.json();
+      // Cache in localStorage for offline fallback
+      try {
+        localStorage.setItem(
+          CACHE_KEY,
+          JSON.stringify({
+            timestamp: Date.now(),
+            articles: data.articles,
+          })
+        );
+      } catch {}
+      return data;
+    }
+  } catch {
+    // Network/backend offline
+  }
+
+  // Fallback to cached articles from previous backend fetch
+  try {
+    const cachedStr = localStorage.getItem(CACHE_KEY);
+    if (cachedStr) {
+      const cached = JSON.parse(cachedStr);
+      if (Array.isArray(cached.articles) && cached.articles.length > 0) {
+        let filtered = cached.articles as BackendArticle[];
+        if (params?.category && params.category !== 'All') {
+          filtered = filtered.filter(
+            (a) => a.category.toLowerCase() === params.category?.toLowerCase()
+          );
+        }
+        if (params?.search) {
+          const s = params.search.toLowerCase();
+          filtered = filtered.filter(
+            (a) =>
+              a.title.toLowerCase().includes(s) ||
+              a.description.toLowerCase().includes(s) ||
+              a.source.toLowerCase().includes(s)
+          );
+        }
+        return {
+          count: filtered.length,
+          filter: {
+            category: params?.category || 'All',
+            source: params?.source || 'All',
+            search: params?.search || null,
+          },
+          articles: filtered,
+          isOffline: true,
+        };
+      }
+    }
+  } catch {}
+
+  return {
+    count: 0,
+    filter: { category: 'All', source: 'All', search: null },
+    articles: [],
+    isOffline: true,
+  };
+}
+
+export async function checkBackendHealth(): Promise<{
+  isOnline: boolean;
+  totalArticles: number;
+  dbStatus: string;
+}> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
+
+    const res = await fetch(`${BACKEND_BASE_URL}/health`, {
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        isOnline: true,
+        totalArticles: data.total_articles || 0,
+        dbStatus: data.database || 'connected',
+      };
+    }
+  } catch {}
+
+  return {
+    isOnline: false,
+    totalArticles: 0,
+    dbStatus: 'offline',
+  };
+}
+
+export async function fetchSourcesHealth(): Promise<SourcesHealthResponse | null> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+    const res = await fetch(`${BACKEND_BASE_URL}/sources/health`, {
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {}
+  return null;
+}
+
+export async function fetchDailyBriefing(): Promise<AiBriefingResponse> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 12000); // 12s timeout for AI
+
+    const res = await fetch(`${BACKEND_BASE_URL}/briefing`, {
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {}
+
+  return {
+    available: false,
+    message: 'Backend AI endpoint is currently unreachable.',
+  };
+}
+
+// ── COMPATIBILITY EXPORT: fetchNewsArticles ──────────────────────────────────
+export async function fetchNewsArticles(
+  forceRefresh = false
+): Promise<{ articles: NewsArticle[]; lastUpdated: string; fromCache: boolean }> {
+  const backendData = await fetchBackendNews({ limit: 40 });
+  if (backendData.articles && backendData.articles.length > 0) {
+    const mapped: NewsArticle[] = backendData.articles.map((a) => {
+      let cat: NewsArticle['category'] = 'general';
+      const cLower = a.category.toLowerCase();
+      if (cLower.includes('tech')) cat = 'tech';
+      else if (cLower.includes('business')) cat = 'career';
+
+      return {
+        id: a.id,
+        title: a.title,
+        source: a.source,
+        url: a.url,
+        publishedAt: a.published_at,
+        category: cat,
+        summary: a.description,
+        author: a.source,
+      };
+    });
+
+    return {
+      articles: mapped,
+      lastUpdated: new Date().toLocaleTimeString(),
+      fromCache: Boolean(backendData.isOffline),
+    };
+  }
+
+  // If backend is empty or offline, fallback to Dev.to + Hacker News
+  return await fetchFallbackOpenChannels(forceRefresh);
+}
+
+async function fetchFallbackOpenChannels(
+  forceRefresh: boolean
+): Promise<{ articles: NewsArticle[]; lastUpdated: string; fromCache: boolean }> {
+  const fallbackKey = 'life_os_fallback_open_channels';
   if (!forceRefresh) {
     try {
-      const cachedStr = localStorage.getItem(CACHE_KEY);
-      if (cachedStr) {
-        const cached: CachedNews = JSON.parse(cachedStr);
-        const age = Date.now() - cached.timestamp;
-        if (age < CACHE_TTL_MS && Array.isArray(cached.articles) && cached.articles.length > 0) {
+      const saved = localStorage.getItem(fallbackKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Date.now() - parsed.timestamp < CACHE_TTL_MS && parsed.articles?.length > 0) {
           return {
-            articles: cached.articles,
-            lastUpdated: new Date(cached.timestamp).toLocaleTimeString(),
+            articles: parsed.articles,
+            lastUpdated: new Date(parsed.timestamp).toLocaleTimeString(),
             fromCache: true,
           };
         }
       }
-    } catch {
-      // Cache read error ignored
-    }
+    } catch {}
   }
 
-  // Fetch from official Dev.to API and Hacker News API concurrently
   const [devToRes, hnRes] = await Promise.allSettled([
     fetchDevToArticles(),
     fetchHackerNewsArticles(),
   ]);
 
   const combined: NewsArticle[] = [];
+  if (devToRes.status === 'fulfilled') combined.push(...devToRes.value);
+  if (hnRes.status === 'fulfilled') combined.push(...hnRes.value);
 
-  if (devToRes.status === 'fulfilled' && devToRes.value.length > 0) {
-    combined.push(...devToRes.value);
-  }
-  if (hnRes.status === 'fulfilled' && hnRes.value.length > 0) {
-    combined.push(...hnRes.value);
-  }
-
-  // If both failed, try returning stale cache before throwing
-  if (combined.length === 0) {
-    try {
-      const cachedStr = localStorage.getItem(CACHE_KEY);
-      if (cachedStr) {
-        const cached: CachedNews = JSON.parse(cachedStr);
-        if (cached.articles && cached.articles.length > 0) {
-          return {
-            articles: cached.articles,
-            lastUpdated: new Date(cached.timestamp).toLocaleTimeString() + ' (Offline backup)',
-            fromCache: true,
-          };
-        }
-      }
-    } catch {
-      // fallback failed
-    }
-    throw new Error('Unable to fetch news from providers at this moment. Please check your internet connection or try again later.');
-  }
-
-  // Sort by publishedAt descending
   combined.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
 
-  // Save to cache
   try {
-    const payload: CachedNews = {
-      timestamp: Date.now(),
-      articles: combined,
-    };
-    localStorage.setItem(CACHE_KEY, JSON.stringify(payload));
-  } catch {
-    // LocalStorage quota error ignored
-  }
+    localStorage.setItem(fallbackKey, JSON.stringify({ timestamp: Date.now(), articles: combined }));
+  } catch {}
 
   return {
     articles: combined,
@@ -89,36 +327,24 @@ export async function fetchNewsArticles(forceRefresh = false): Promise<{ article
 
 async function fetchDevToArticles(): Promise<NewsArticle[]> {
   try {
-    const res = await fetch('https://dev.to/api/articles?per_page=20', {
+    const res = await fetch('https://dev.to/api/articles?per_page=15', {
       headers: { Accept: 'application/json' },
     });
     if (!res.ok) return [];
     const data = await res.json();
     if (!Array.isArray(data)) return [];
 
-    return data.map((item: any): NewsArticle => {
-      const tags = Array.isArray(item.tag_list) ? item.tag_list.map((t: string) => t.toLowerCase()) : [];
-      let category: NewsArticle['category'] = 'general';
-      if (tags.some((t: string) => t.includes('ai') || t.includes('machinelearning') || t.includes('gpt'))) {
-        category = 'ai';
-      } else if (tags.some((t: string) => t.includes('career') || t.includes('interview') || t.includes('jobs'))) {
-        category = 'career';
-      } else {
-        category = 'tech';
-      }
-
-      return {
-        id: `devto-${item.id}`,
-        title: item.title,
-        source: 'Dev.to',
-        url: item.url,
-        publishedAt: item.published_at || new Date().toISOString(),
-        category,
-        summary: item.description,
-        author: item.user?.name || 'Dev.to Contributor',
-        score: item.positive_reactions_count,
-      };
-    });
+    return data.map((item: any): NewsArticle => ({
+      id: `devto-${item.id}`,
+      title: item.title,
+      source: 'Dev.to',
+      url: item.url,
+      publishedAt: item.published_at || new Date().toISOString(),
+      category: 'tech',
+      summary: item.description,
+      author: item.user?.name || 'Dev.to Contributor',
+      score: item.positive_reactions_count,
+    }));
   } catch {
     return [];
   }
@@ -126,15 +352,13 @@ async function fetchDevToArticles(): Promise<NewsArticle[]> {
 
 async function fetchHackerNewsArticles(): Promise<NewsArticle[]> {
   try {
-    // Official Hacker News Firebase top stories
     const topRes = await fetch('https://hacker-news.firebaseio.com/v0/topstories.json');
     if (!topRes.ok) return [];
     const ids: number[] = await topRes.json();
     if (!Array.isArray(ids)) return [];
 
-    // Fetch details for top 15 items
-    const top15 = ids.slice(0, 15);
-    const itemPromises = top15.map(async (id) => {
+    const top10 = ids.slice(0, 10);
+    const itemPromises = top10.map(async (id) => {
       try {
         const itemRes = await fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`);
         if (!itemRes.ok) return null;
@@ -147,27 +371,17 @@ async function fetchHackerNewsArticles(): Promise<NewsArticle[]> {
     const items = await Promise.all(itemPromises);
     const valid = items.filter((it) => it && it.title && it.url);
 
-    return valid.map((item: any): NewsArticle => {
-      const titleLower = (item.title || '').toLowerCase();
-      let category: NewsArticle['category'] = 'tech';
-      if (titleLower.includes('ai') || titleLower.includes('llm') || titleLower.includes('gpt') || titleLower.includes('model')) {
-        category = 'ai';
-      } else if (titleLower.includes('hiring') || titleLower.includes('career') || titleLower.includes('job') || titleLower.includes('interview')) {
-        category = 'career';
-      }
-
-      return {
-        id: `hn-${item.id}`,
-        title: item.title,
-        source: 'Hacker News',
-        url: item.url,
-        publishedAt: item.time ? new Date(item.time * 1000).toISOString() : new Date().toISOString(),
-        category,
-        summary: `Discussion: ${item.descendants || 0} comments · ${item.score || 0} points`,
-        author: item.by || 'HN User',
-        score: item.score,
-      };
-    });
+    return valid.map((item: any): NewsArticle => ({
+      id: `hn-${item.id}`,
+      title: item.title,
+      source: 'Hacker News',
+      url: item.url,
+      publishedAt: item.time ? new Date(item.time * 1000).toISOString() : new Date().toISOString(),
+      category: 'tech',
+      summary: `Discussion: ${item.descendants || 0} comments · ${item.score || 0} points`,
+      author: item.by || 'HN User',
+      score: item.score,
+    }));
   } catch {
     return [];
   }

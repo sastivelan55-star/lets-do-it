@@ -1,8 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Search,
   Bookmark,
-  BookmarkCheck,
   Share2,
   ChevronRight,
   TrendingUp,
@@ -19,15 +18,35 @@ import {
   CheckCircle2,
   Layers,
   Radio,
+  MapPin,
+  Tv,
 } from 'lucide-react';
-import { fetchNewsArticles } from '../services/newsService';
+import {
+  fetchBackendNews,
+  checkBackendHealth,
+  fetchDailyBriefing,
+  formatTimeAgo,
+  type AiBriefingResponse,
+} from '../services/newsService';
+import LiveTvSection from '../components/news/LiveTvPlayerModal';
+import JarvisAiBriefingCard from '../components/news/JarvisAiBriefingCard';
 
 export interface NewsArticleItem {
   id: string;
   title: string;
   description: string;
   content: string;
-  category: 'Breaking' | 'Technology' | 'Business' | 'Politics' | 'Sports' | 'World';
+  category:
+    | 'Breaking'
+    | 'Technology'
+    | 'Business'
+    | 'Politics'
+    | 'Sports'
+    | 'World'
+    | 'Local'
+    | 'Regional'
+    | 'National'
+    | string;
   source: string;
   sourceIcon?: string;
   publishedAt: string;
@@ -38,7 +57,7 @@ export interface NewsArticleItem {
   isNew?: boolean;
 }
 
-// ── HIGH-RESOLUTION CURATED STORIES (MATCHING REFERENCE UI) ──────────────────
+// ── HIGH-RESOLUTION CURATED STORIES (STARTER / FALLBACK) ─────────────────────
 const INITIAL_ARTICLES: NewsArticleItem[] = [
   {
     id: 'art-1',
@@ -46,10 +65,10 @@ const INITIAL_ARTICLES: NewsArticleItem[] = [
     description:
       'Researchers unveil a major advancement in artificial intelligence, promising more human-like and helpful AI systems with sub-second execution.',
     content:
-      'A multi-institutional consortium of AI laboratories has detailed a foundational shift in transformer reasoning architectures. By integrating real-time hierarchical search alongside speculative neural decoders, the next generation of generative assistants can evaluate complex logic trees prior to emitting output tokens. The architecture achieves state-of-the-art benchmarks across mathematical reasoning, live code refactoring, and multi-turn contextual dialog while cutting inference server costs by 42%. Commercial rollouts to developer sandboxes are scheduled across global cloud clusters over the coming weeks.',
+      'A multi-institutional consortium of AI laboratories has detailed a foundational shift in transformer reasoning architectures. By integrating real-time hierarchical search alongside speculative neural decoders, the next generation of generative assistants can evaluate complex logic trees prior to emitting output tokens.',
     category: 'Technology',
     source: 'TechCrunch',
-    publishedAt: '3 min ago',
+    publishedAt: 'Just now',
     timestamp: Date.now() - 3 * 60 * 1000,
     imageUrl:
       'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80',
@@ -58,51 +77,51 @@ const INITIAL_ARTICLES: NewsArticleItem[] = [
   },
   {
     id: 'art-2',
+    title: 'Chennai Metro Phase 2 Tunneling Milestone Reached Along Corridor 4',
+    description:
+      'Tunnel boring machines have completed critical underground transit linkages connecting Light House to Poonamallee Bypass ahead of schedule.',
+    content:
+      'Chennai Metro Rail Limited (CMRL) engineers celebrated the breakthrough of the third tunnel boring machine beneath Corridor 4 today. The milestone connects key arterial transit nodes across Chennai, drastically reducing anticipated commuter transit intervals.',
+    category: 'Local',
+    source: 'The Hindu (Chennai)',
+    publishedAt: '15m ago',
+    timestamp: Date.now() - 15 * 60 * 1000,
+    imageUrl:
+      'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?w=600&auto=format&fit=crop&q=80',
+    isNew: true,
+    readsCount: '48K reads',
+  },
+  {
+    id: 'art-3',
     title: 'Stock Markets Rally as Tech Shares Soar',
     description:
       'Global markets saw strong gains today, led by technology stocks and renewed investor confidence in enterprise software and silicon hardware.',
     content:
-      'Equity markets across New York, London, and Tokyo recorded broad-based surges following robust quarterly balance sheets from semiconductor fabricators and cloud providers. The tech-heavy indices posted their highest single-day inflow of the year as asset managers reallocated reserves into high-growth automated infrastructure and distributed ledger protocols. Bond yields stabilized in parallel, signaling reduced systemic anxiety regarding interest rate volatility.',
+      'Equity markets across New York, London, and Tokyo recorded broad-based surges following robust quarterly balance sheets from semiconductor fabricators and cloud providers.',
     category: 'Business',
     source: 'Bloomberg',
-    publishedAt: '7 min ago',
-    timestamp: Date.now() - 7 * 60 * 1000,
+    publishedAt: '25m ago',
+    timestamp: Date.now() - 25 * 60 * 1000,
     imageUrl:
       'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=600&auto=format&fit=crop&q=80',
     isNew: true,
     readsCount: '72K reads',
   },
   {
-    id: 'art-3',
-    title: 'Champions League: Thrilling Draw Keeps Fans on Edge',
-    description:
-      'A dramatic match ends in a draw, setting up an exciting second leg next week as tactical adjustments pay off in the closing minutes.',
-    content:
-      'In a clash of continental titans, an electrifying 94th-minute stoppage-time volley leveled the scoreline at 2-2 in a breathless European semifinal first leg. Managers praised their squads’ tactical resilience in the post-match conference, with both sides retaining an uncompromised path to the final. Ticket allocations for next Wednesday’s deciding leg sold out in under four minutes following the final whistle.',
-    category: 'Sports',
-    source: 'ESPN',
-    publishedAt: '10 min ago',
-    timestamp: Date.now() - 10 * 60 * 1000,
-    imageUrl:
-      'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=600&auto=format&fit=crop&q=80',
-    isNew: false,
-    readsCount: '61K reads',
-  },
-  {
     id: 'art-4',
-    title: 'New Diplomatic Talks Aim to Ease Global Tensions',
+    title: 'Tamil Nadu Launches Advanced Semiconductor & Green Tech Corridor',
     description:
-      'International leaders begin crucial talks to reduce rising geopolitical tensions around the world and ratify mutual trade agreements.',
+      'State administration formalizes new industrial parks near Coimbatore and Sriperumbudur, projecting 45,000 high-tech engineering jobs.',
     content:
-      'Senior diplomatic envoys gathered in Geneva this morning for multilateral summits centered on maritime freedom of navigation, supply chain de-escalation, and collaborative digital governance frameworks. Observers noted unprecedented progress on bilateral green trade channels and standardized customs clearance for clean energy commodities. A joint communique is expected by late Friday evening.',
-    category: 'World',
-    source: 'BBC',
-    publishedAt: '12 min ago',
-    timestamp: Date.now() - 12 * 60 * 1000,
+      'The Tamil Nadu state government has signed multilateral memoranda with international electronics manufacturers to establish an integrated semiconductor packaging hub with specialized cleanroom infrastructure.',
+    category: 'Regional',
+    source: 'The Hindu (Tamil Nadu)',
+    publishedAt: '1h ago',
+    timestamp: Date.now() - 60 * 60 * 1000,
     imageUrl:
-      'https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1609137144813-7d9921338f24?w=600&auto=format&fit=crop&q=80',
     isNew: false,
-    readsCount: '49K reads',
+    readsCount: '84K reads',
   },
   {
     id: 'art-5',
@@ -110,47 +129,15 @@ const INITIAL_ARTICLES: NewsArticleItem[] = [
     description:
       'World leaders have reached a historic agreement to accelerate climate action and achieve net-zero emissions by 2050 with joint financing.',
     content:
-      'Delegates from 195 nations finalized a landmark accord pledging $100B in annual cross-border clean tech transitions, cryogenic hydrogen transport pipelines, and automated carbon verification registries. Industry analysts hailed the legal framework as the most decisive step toward grid-scale decarbonization since the Paris Accords.',
+      'Delegates from 195 nations finalized a landmark accord pledging cross-border clean tech transitions, cryogenic hydrogen transport pipelines, and automated carbon verification registries.',
     category: 'Breaking',
-    source: 'Reuters',
-    publishedAt: '2 min ago',
-    timestamp: Date.now() - 2 * 60 * 1000,
+    source: 'BBC News',
+    publishedAt: '2h ago',
+    timestamp: Date.now() - 120 * 60 * 1000,
     imageUrl:
       'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1200&auto=format&fit=crop&q=80',
-    isNew: true,
+    isNew: false,
     readsCount: '128K reads',
-  },
-  {
-    id: 'art-6',
-    title: 'Autonomous Space Observatory Detects Water Vapor in Exoplanet Atmosphere',
-    description:
-      'Spectroscopic analysis reveals clear signatures of atmospheric water vapor and carbon dioxide on a temperate planet 120 light years away.',
-    content:
-      'Astronomers operating orbital infrared spectrometers have isolated unambiguous spectroscopic absorption lines indicating cloud decks and water vapor in the atmosphere of K2-18b. Deep spectral modeling suggests a warm sub-Neptune regime with potential oceanic layers beneath hydrogen-rich upper layers, marking a significant milestone in exoplanetary habitability research.',
-    category: 'Technology',
-    source: 'Wired',
-    publishedAt: '25 min ago',
-    timestamp: Date.now() - 25 * 60 * 1000,
-    imageUrl:
-      'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?w=600&auto=format&fit=crop&q=80',
-    isNew: false,
-    readsCount: '38K reads',
-  },
-  {
-    id: 'art-7',
-    title: 'Next-Gen 2nm Wafer Yields Exceed Factory Production Targets',
-    description:
-      'Foundry giant reports breakthrough yields in gate-all-around nanosheet transistors, enabling 30% higher power efficiency for mobile and server chips.',
-    content:
-      'Advanced semiconductor test facilities reported commercial-grade defect densities in early 2nm production runs. The transition from FinFET to gate-all-around (GAA) nanosheets delivers substantial voltage scaling, providing high-efficiency computing for on-device neural processing and sovereign data clusters.',
-    category: 'Business',
-    source: 'Wall Street Journal',
-    publishedAt: '40 min ago',
-    timestamp: Date.now() - 40 * 60 * 1000,
-    imageUrl:
-      'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=600&auto=format&fit=crop&q=80',
-    isNew: false,
-    readsCount: '54K reads',
   },
 ];
 
@@ -158,14 +145,14 @@ const INITIAL_ARTICLES: NewsArticleItem[] = [
 const HERO_BREAKING_STORIES = [
   {
     id: 'hero-1',
-    tag: 'BREAKING NEWS',
-    title: 'Global Leaders Agree on New Climate Action Plan',
+    tag: 'BREAKING INTELLIGENCE',
+    title: 'Chennai & Tamil Nadu Infrastructure Expands: New Rapid Transit Corridors Open',
     subtitle:
-      'World leaders have reached a historic agreement to accelerate climate action and achieve net-zero emissions by 2050.',
-    source: 'Reuters',
-    publishedAt: '2 min ago',
+      'Key developmental corridors and smart city networks in Chennai and Tamil Nadu reach operational readiness.',
+    source: 'The Hindu (Chennai)',
+    publishedAt: 'Just now',
     imageUrl:
-      'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1200&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?w=1200&auto=format&fit=crop&q=80',
   },
   {
     id: 'hero-2',
@@ -174,51 +161,41 @@ const HERO_BREAKING_STORIES = [
     subtitle:
       'New algorithmic advances allow autonomous neural agents to detect and refactor vulnerabilities across enterprise codebases in real time.',
     source: 'TechCrunch',
-    publishedAt: '5 min ago',
+    publishedAt: '5m ago',
     imageUrl:
       'https://images.unsplash.com/photo-1677442136019-21780efad99a?w=1200&auto=format&fit=crop&q=80',
   },
   {
     id: 'hero-3',
-    tag: 'MARKETS SURGE',
-    title: 'Global Markets Rally as Tech Shares Hit Record Highs',
-    subtitle:
-      'International equity indices surge amid unprecedented semiconductor demand and stabilization of global sovereign bond yields.',
-    source: 'Bloomberg',
-    publishedAt: '15 min ago',
-    imageUrl:
-      'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=1200&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 'hero-4',
-    tag: 'WORLD SUMMIT',
+    tag: 'GLOBAL DIPLOMACY',
     title: 'Historic Diplomatic Accord Signed at Multilateral Assembly',
     subtitle:
       'Delegates ratify international digital trade frameworks, securing supply corridors and open cryptographic communication.',
-    source: 'BBC',
-    publishedAt: '22 min ago',
+    source: 'BBC News',
+    publishedAt: '20m ago',
     imageUrl:
       'https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=1200&auto=format&fit=crop&q=80',
   },
 ];
 
-// ── TRENDING NOW LIST (MATCHES REFERENCE IMAGE) ──────────────────────────────
+// ── TRENDING NOW LIST ────────────────────────────────────────────────────────
 const TRENDING_TOPICS = [
-  { rank: 1, title: 'Climate Agreement', reads: '128K reads', filterKey: 'Climate' },
-  { rank: 2, title: 'AI Breakthrough', reads: '95K reads', filterKey: 'AI' },
-  { rank: 3, title: 'Stock Market Today', reads: '72K reads', filterKey: 'Stock' },
-  { rank: 4, title: 'Champions League', reads: '61K reads', filterKey: 'Champions' },
+  { rank: 1, title: 'Chennai Metro', reads: '142K reads', filterKey: 'Chennai' },
+  { rank: 2, title: 'Tamil Nadu Growth', reads: '98K reads', filterKey: 'Tamil Nadu' },
+  { rank: 3, title: 'AI Frontier Models', reads: '95K reads', filterKey: 'AI' },
+  { rank: 4, title: 'Stock Market Surge', reads: '72K reads', filterKey: 'Market' },
   { rank: 5, title: 'Global Diplomacy', reads: '49K reads', filterKey: 'Diplomatic' },
 ];
 
 // ── OPEN REAL-TIME CHANNELS DIRECTORY ───────────────────────────────────────
 const OPEN_CHANNELS = [
   { name: 'All Channels', icon: '🌐' },
-  { name: 'Reuters', icon: '⚡' },
-  { name: 'Bloomberg', icon: '💼' },
-  { name: 'TechCrunch', icon: '💻' },
-  { name: 'BBC', icon: '🌍' },
-  { name: 'ESPN', icon: '🏆' },
+  { name: 'The Hindu', icon: '📰' },
+  { name: 'NDTV', icon: '🔴' },
+  { name: 'Times of India', icon: '🇮🇳' },
+  { name: 'BBC News', icon: '🌍' },
+  { name: 'Al Jazeera', icon: '⚡' },
+  { name: 'New York Times', icon: '🗽' },
   { name: 'Hacker News', icon: '🟧' },
   { name: 'Dev.to', icon: '👩‍💻' },
 ];
@@ -226,7 +203,7 @@ const OPEN_CHANNELS = [
 export default function PulseFlowPage() {
   const [articles, setArticles] = useState<NewsArticleItem[]>(() => {
     try {
-      const saved = localStorage.getItem('newspro_articles_cache_v2');
+      const saved = localStorage.getItem('lifeos_news_page_cache_v3');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
@@ -241,6 +218,24 @@ export default function PulseFlowPage() {
   const [activeHeroIndex, setActiveHeroIndex] = useState<number>(0);
   const [isLiveFetching, setIsLiveFetching] = useState<boolean>(false);
   const [selectedArticle, setSelectedArticle] = useState<NewsArticleItem | null>(null);
+
+  // Live TV player toggle
+  const [showLiveTv, setShowLiveTv] = useState<boolean>(false);
+
+  // AI Briefing state
+  const [briefing, setBriefing] = useState<AiBriefingResponse | null>(null);
+  const [isBriefingLoading, setIsBriefingLoading] = useState<boolean>(false);
+
+  // Backend telemetry status
+  const [backendStatus, setBackendStatus] = useState<{
+    isOnline: boolean;
+    totalArticles: number;
+    dbStatus: string;
+  }>({
+    isOnline: false,
+    totalArticles: 0,
+    dbStatus: 'checking',
+  });
 
   // Saved Bookmarks Set
   const [savedBookmarks, setSavedBookmarks] = useState<Set<string>>(() => {
@@ -264,78 +259,98 @@ export default function PulseFlowPage() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  // ── LIVE OPEN CHANNELS FETCH (HACKER NEWS + DEV.TO REAL FEEDS) ────────────
-  const handleFetchLiveChannels = async () => {
+  // ── FETCH AI BRIEFING ───────────────────────────────────────────────────────
+  const loadBriefing = useCallback(async () => {
+    setIsBriefingLoading(true);
+    try {
+      const result = await fetchDailyBriefing();
+      setBriefing(result);
+    } catch {
+      setBriefing(null);
+    } finally {
+      setIsBriefingLoading(false);
+    }
+  }, []);
+
+  // ── CORE BACKEND / OPEN FEED SYNC ──────────────────────────────────────────
+  const handleFetchNews = useCallback(async () => {
     setIsLiveFetching(true);
     try {
-      const liveFeeds = await fetchNewsArticles(true);
-      if (liveFeeds && Array.isArray(liveFeeds.articles) && liveFeeds.articles.length > 0) {
-        const mappedLive: NewsArticleItem[] = liveFeeds.articles.map((a, idx) => {
-          let category: NewsArticleItem['category'] = 'Technology';
-          const titleLower = a.title.toLowerCase();
+      // 1. Check Backend Health
+      const health = await checkBackendHealth();
+      setBackendStatus(health);
 
-          if (titleLower.includes('market') || titleLower.includes('business') || titleLower.includes('economy') || titleLower.includes('finance')) {
-            category = 'Business';
-          } else if (titleLower.includes('election') || titleLower.includes('gov') || titleLower.includes('policy') || titleLower.includes('law')) {
-            category = 'Politics';
-          } else if (titleLower.includes('sport') || titleLower.includes('league') || titleLower.includes('game') || titleLower.includes('cup')) {
-            category = 'Sports';
-          } else if (titleLower.includes('world') || titleLower.includes('global') || titleLower.includes('un') || titleLower.includes('treaty')) {
-            category = 'World';
-          } else if (idx % 4 === 0) {
-            category = 'Breaking';
-          }
+      // 2. Map category filter for backend
+      let categoryFilter: string | undefined = undefined;
+      if (activeCategory === 'Local (Chennai)') categoryFilter = 'Local';
+      else if (activeCategory === 'Tamil Nadu') categoryFilter = 'Regional';
+      else if (activeCategory === 'National') categoryFilter = 'National';
+      else if (activeCategory !== 'All News') categoryFilter = activeCategory;
 
-          const fallbackImages = [
-            'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80',
-            'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=600&auto=format&fit=crop&q=80',
-            'https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?w=600&auto=format&fit=crop&q=80',
-            'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=600&auto=format&fit=crop&q=80',
-          ];
+      // 3. Query backend
+      const resp = await fetchBackendNews({
+        category: categoryFilter,
+        search: searchQuery || undefined,
+        limit: 80,
+      });
+
+      if (resp.articles && resp.articles.length > 0) {
+        const mapped: NewsArticleItem[] = resp.articles.map((a, idx) => {
+          let cat = a.category;
+          if (cat === 'Local') cat = 'Local (Chennai)';
+          else if (cat === 'Regional') cat = 'Tamil Nadu';
 
           return {
             id: a.id,
             title: a.title,
-            description: a.summary || 'Live real-time story verified through open developer network channels.',
-            content:
-              (a.summary || a.title) +
-              ' Verified via open developer news APIs with real-time community engagement and telemetry checks.',
-            category,
-            source: a.source || 'Open Channel',
-            publishedAt: 'Just now',
-            timestamp: a.publishedAt ? new Date(a.publishedAt).getTime() : Date.now(),
-            imageUrl: fallbackImages[idx % fallbackImages.length],
+            description: a.description || a.title,
+            content: `${a.description} Published by ${a.source}. To read complete editorial coverage and media, use the direct publisher link below.`,
+            category: cat,
+            source: a.source,
+            publishedAt: formatTimeAgo(a.published_at),
+            timestamp: a.published_at ? new Date(a.published_at).getTime() : Date.now(),
+            imageUrl:
+              a.image_url ||
+              INITIAL_ARTICLES[idx % INITIAL_ARTICLES.length].imageUrl,
             url: a.url,
-            isNew: true,
-            readsCount: `${Math.floor(Math.random() * 40) + 15}K reads`,
+            isNew: idx < 6,
+            readsCount: `${Math.floor(Math.random() * 50) + 20}K reads`,
           };
         });
 
-        setArticles((prev) => {
-          const existingIds = new Set(prev.map((p) => p.id));
-          const uniqueNew = mappedLive.filter((m) => !existingIds.has(m.id));
-          const updated = [...uniqueNew, ...prev].slice(0, 40);
-          try {
-            localStorage.setItem('newspro_articles_cache_v2', JSON.stringify(updated));
-          } catch {}
-          return updated;
-        });
+        setArticles(mapped);
+        try {
+          localStorage.setItem('lifeos_news_page_cache_v3', JSON.stringify(mapped));
+        } catch {}
 
-        showToast(`Synced ${mappedLive.length} live articles across open channels!`);
+        if (resp.isOffline) {
+          showToast('Serving verified local news cache (Backend offline)');
+        } else {
+          showToast(`Synced ${mapped.length} real-time news stories!`);
+        }
       } else {
-        showToast('All open news channels are up to date.');
+        showToast('All news channels are up to date.');
       }
     } catch {
-      showToast('Serving verified cached open news feeds.');
+      showToast('Network error: Serving offline verified articles.');
     } finally {
       setIsLiveFetching(false);
     }
-  };
+  }, [activeCategory, searchQuery]);
 
-  // Initial live load on mount
+  // Initial load on mount + load AI briefing
   useEffect(() => {
-    handleFetchLiveChannels();
-  }, []);
+    handleFetchNews();
+    loadBriefing();
+  }, [handleFetchNews, loadBriefing]);
+
+  // Auto-refresh every 5 minutes per requirements
+  useEffect(() => {
+    const interval = setInterval(() => {
+      handleFetchNews();
+    }, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [handleFetchNews]);
 
   // Auto carousel cycle for Hero Breaking News banner
   useEffect(() => {
@@ -370,33 +385,35 @@ export default function PulseFlowPage() {
     showToast('Article link copied to clipboard!');
   };
 
-  // Filtered Articles Logic
+  // Filtered Articles Computation
   const filteredArticles = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
     return articles.filter((art) => {
-      // Bookmark filter
       if (showBookmarksOnly && !savedBookmarks.has(art.id)) {
         return false;
       }
-      // Channel filter
+      if (activeCategory !== 'All News') {
+        const artCatLower = art.category.toLowerCase();
+        const activeCatLower = activeCategory.toLowerCase();
+        if (
+          !artCatLower.includes(activeCatLower) &&
+          !activeCatLower.includes(artCatLower)
+        ) {
+          return false;
+        }
+      }
       if (selectedChannel !== 'All Channels') {
         if (!art.source.toLowerCase().includes(selectedChannel.toLowerCase())) {
           return false;
         }
       }
-      // Category filter
-      if (activeCategory !== 'All News') {
-        const catClean = activeCategory.replace(/[^a-zA-Z]/g, '').trim();
-        if (catClean && art.category !== catClean) {
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchesTitle = art.title.toLowerCase().includes(q);
+        const matchesDesc = art.description.toLowerCase().includes(q);
+        const matchesSource = art.source.toLowerCase().includes(q);
+        if (!matchesTitle && !matchesDesc && !matchesSource) {
           return false;
         }
-      }
-      // Search query
-      if (q) {
-        const inTitle = art.title.toLowerCase().includes(q);
-        const inDesc = art.description.toLowerCase().includes(q);
-        const inSource = art.source.toLowerCase().includes(q);
-        if (!inTitle && !inDesc && !inSource) return false;
       }
       return true;
     });
@@ -410,13 +427,15 @@ export default function PulseFlowPage() {
       style={{
         background: '#0a0d16',
         color: '#ffffff',
-        minHeight: '100vh',
+        minHeight: '100%',
+        flex: 1,
         fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
         padding: 'clamp(1rem, 2vw, 1.75rem)',
+        overflowY: 'auto',
       }}
     >
-      {/* ── TOP SEARCH & CHANNEL ACTION BAR ──────────────────────────────── */}
-      <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
+      {/* ── TOP SEARCH & CONTROLS BAR ────────────────────────────────────── */}
+      <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
         {/* Search Bar matching image */}
         <div className="relative flex-1 max-w-2xl">
           <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
@@ -424,7 +443,7 @@ export default function PulseFlowPage() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search news..."
+            placeholder="Search news by title, keywords or publisher..."
             className="w-full bg-[#131622] border border-white/[0.08] focus:border-blue-500 rounded-full pl-11 pr-10 py-2.5 text-sm text-white placeholder-slate-400 focus:outline-none transition-all shadow-inner"
           />
           {searchQuery && (
@@ -438,24 +457,40 @@ export default function PulseFlowPage() {
           )}
         </div>
 
-        {/* Real Channel Controls & Live Refresh */}
-        <div className="flex items-center gap-3">
+        {/* Real Channel Controls & Live TV Toggle */}
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {/* Live TV Button */}
           <button
             type="button"
-            onClick={handleFetchLiveChannels}
+            onClick={() => setShowLiveTv((v) => !v)}
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold transition-all cursor-pointer border ${
+              showLiveTv
+                ? 'bg-red-600 text-white border-red-500 shadow-lg shadow-red-600/30'
+                : 'bg-[#181d2e] text-slate-200 border-white/[0.08] hover:bg-[#222942]'
+            }`}
+            title="Watch 24/7 Official Live TV Streams"
+          >
+            <Tv className="w-3.5 h-3.5 text-red-400" />
+            <span>{showLiveTv ? 'Close Live TV' : 'Live TV (6 Streams)'}</span>
+          </button>
+
+          {/* Refresh Feeds Button */}
+          <button
+            type="button"
+            onClick={handleFetchNews}
             disabled={isLiveFetching}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-xs font-semibold bg-[#1a1f33] hover:bg-[#232a45] text-blue-400 border border-blue-500/30 transition-all cursor-pointer shadow-md active:scale-95 disabled:opacity-50"
-            title="Refresh Live Open News Channels"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold bg-[#1a1f33] hover:bg-[#232a45] text-blue-400 border border-blue-500/30 transition-all cursor-pointer shadow-md active:scale-95 disabled:opacity-50"
+            title="Refresh Live Feeds"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isLiveFetching ? 'animate-spin' : ''}`} />
-            <span>{isLiveFetching ? 'Fetching…' : 'Refresh Open Channels'}</span>
+            <span>{isLiveFetching ? 'Fetching…' : 'Sync Feeds'}</span>
           </button>
 
           {/* Bookmarks Toggle Pill */}
           <button
             type="button"
             onClick={() => setShowBookmarksOnly(!showBookmarksOnly)}
-            className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full text-xs font-semibold transition-all cursor-pointer border ${
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold transition-all cursor-pointer border ${
               showBookmarksOnly
                 ? 'bg-blue-600 text-white border-blue-500'
                 : 'bg-[#131622] text-slate-300 border-white/[0.08] hover:bg-[#1a1f33]'
@@ -467,11 +502,40 @@ export default function PulseFlowPage() {
         </div>
       </div>
 
+      {/* ── BACKEND TELEMETRY BANNER ───────────────────────────────────────── */}
+      <div className="flex items-center justify-between text-xs mb-5 px-3 py-1.5 rounded-xl bg-white/[0.02] border border-white/[0.05] text-slate-400 flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <span
+            className={`w-2 h-2 rounded-full ${
+              backendStatus.isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'
+            }`}
+          />
+          <span>
+            {backendStatus.isOnline
+              ? `Jarvis Backend Online • ${backendStatus.totalArticles} articles stored in SQLite • Auto-sync every 5m`
+              : 'Backend Offline • Serving verified cached news & open developer channels'}
+          </span>
+        </div>
+        <span className="text-[11px] text-slate-500">
+          Sources: The Hindu, NDTV, BBC, NYT, DW, Al Jazeera, France 24, Dinamalar
+        </span>
+      </div>
+
+      {/* ── PHASE 4: JARVIS AI DAILY BRIEFING CARD (TOP OF PAGE) ───────────── */}
+      <JarvisAiBriefingCard
+        briefing={briefing}
+        isLoading={isBriefingLoading}
+        onRefresh={loadBriefing}
+      />
+
+      {/* ── PHASE 3: LIVE TV EMBED SECTION ─────────────────────────────────── */}
+      {showLiveTv && <LiveTvSection onClose={() => setShowLiveTv(false)} />}
+
       {/* ── FEATURED BREAKING NEWS HERO BANNER (MATCHES REFERENCE IMAGE) ──── */}
       {!showBookmarksOnly && (
         <section
           onClick={() => {
-            const heroArt = articles.find((a) => a.title.includes('Climate') || a.id === currentHero.id) || articles[0];
+            const heroArt = articles[0] || INITIAL_ARTICLES[0];
             setSelectedArticle(heroArt);
           }}
           className="relative w-full rounded-2xl overflow-hidden mb-6 cursor-pointer group shadow-2xl border border-white/[0.08]"
@@ -517,7 +581,7 @@ export default function PulseFlowPage() {
                 <span>{currentHero.publishedAt}</span>
               </div>
 
-              {/* Carousel Pagination Dots (like image: ● ○ ○ ○) */}
+              {/* Carousel Pagination Dots */}
               <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                 {HERO_BREAKING_STORIES.map((_, dotIdx) => (
                   <button
@@ -536,16 +600,19 @@ export default function PulseFlowPage() {
         </section>
       )}
 
-      {/* ── CATEGORY PILLS STRIP (MATCHES REFERENCE IMAGE) ───────────────── */}
+      {/* ── CATEGORY PILLS STRIP (LOCAL, REGIONAL, NATIONAL, GLOBAL) ───────── */}
       <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-1 text-xs no-scrollbar">
         {[
           { label: 'All News', icon: <Layers className="w-3.5 h-3.5" /> },
-          { label: 'Breaking', icon: <Zap className="w-3.5 h-3.5 text-red-400" /> },
+          { label: 'Local (Chennai)', icon: <MapPin className="w-3.5 h-3.5 text-emerald-400" /> },
+          { label: 'Tamil Nadu', icon: <Flame className="w-3.5 h-3.5 text-orange-400" /> },
+          { label: 'National', icon: <Landmark className="w-3.5 h-3.5 text-amber-400" /> },
+          { label: 'World', icon: <Globe className="w-3.5 h-3.5 text-blue-400" /> },
           { label: 'Technology', icon: <Cpu className="w-3.5 h-3.5 text-cyan-400" /> },
-          { label: 'Business', icon: <Briefcase className="w-3.5 h-3.5 text-amber-400" /> },
+          { label: 'Business', icon: <Briefcase className="w-3.5 h-3.5 text-emerald-400" /> },
           { label: 'Politics', icon: <Landmark className="w-3.5 h-3.5 text-purple-400" /> },
           { label: 'Sports', icon: <Trophy className="w-3.5 h-3.5 text-yellow-400" /> },
-          { label: 'World', icon: <Globe className="w-3.5 h-3.5 text-blue-400" /> },
+          { label: 'Breaking', icon: <Zap className="w-3.5 h-3.5 text-red-400" /> },
         ].map((cat) => {
           const isSelected = activeCategory === cat.label && !showBookmarksOnly;
           return (
@@ -598,55 +665,53 @@ export default function PulseFlowPage() {
                   </div>
 
                   {/* Middle Content */}
-                  <div className="flex-1 min-w-0 flex flex-col justify-between">
-                    <div>
-                      {/* Title */}
-                      <h2 className="text-base font-bold text-white group-hover:text-blue-400 transition-colors line-clamp-2 leading-snug mb-1.5">
-                        {art.title}
-                      </h2>
-                      {/* Description Snippet */}
-                      <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed mb-3">
-                        {art.description}
-                      </p>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                      <span className="text-[11px] font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">
+                        {art.category}
+                      </span>
+                      <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
+                        <span>•</span>
+                        <span className="text-white font-semibold">{art.source}</span>
+                        <span>•</span>
+                        <span>{art.publishedAt}</span>
+                      </span>
                     </div>
 
-                    {/* Source & Timestamp */}
-                    <div className="flex items-center gap-2 text-xs text-slate-400">
-                      <div className="w-5 h-5 rounded-full bg-blue-500/20 text-blue-400 font-bold flex items-center justify-center text-[10px]">
-                        {art.source.charAt(0)}
-                      </div>
-                      <span className="font-medium text-slate-300">{art.source}</span>
-                      <span>•</span>
-                      <span>{art.publishedAt}</span>
-                      {art.readsCount && (
-                        <>
-                          <span className="hidden sm:inline">•</span>
-                          <span className="hidden sm:inline text-slate-500 font-mono text-[11px]">{art.readsCount}</span>
-                        </>
-                      )}
-                    </div>
+                    <h2 className="text-sm sm:text-base font-bold text-white group-hover:text-blue-300 transition-colors line-clamp-2 leading-snug mb-1.5">
+                      {art.title}
+                    </h2>
+
+                    <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+                      {art.description}
+                    </p>
                   </div>
 
-                  {/* Actions on the Right (Bookmark, Share, Detail Arrow) */}
-                  <div
-                    className="flex sm:flex-col items-center justify-end gap-2 shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-white/[0.06]"
-                    onClick={(e) => e.stopPropagation()}
-                  >
+                  {/* Action Icons on the Right */}
+                  <div className="flex sm:flex-col items-center justify-end sm:justify-center gap-2 shrink-0 border-t sm:border-t-0 sm:border-l border-white/[0.06] pt-3 sm:pt-0 sm:pl-3">
                     <button
                       type="button"
-                      onClick={() => toggleBookmark(art.id)}
-                      className={`p-2 rounded-lg hover:bg-white/[0.08] transition-colors cursor-pointer ${
-                        isBookmarked ? 'text-amber-400' : 'text-slate-400 hover:text-white'
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleBookmark(art.id);
+                      }}
+                      className={`p-2 rounded-full transition-all cursor-pointer ${
+                        isBookmarked
+                          ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'
+                          : 'bg-white/[0.04] hover:bg-white/[0.08] text-slate-400 hover:text-white'
                       }`}
-                      title={isBookmarked ? 'Saved in Bookmarks' : 'Save to Bookmarks'}
+                      title={isBookmarked ? 'Remove Bookmark' : 'Save Article'}
                     >
-                      {isBookmarked ? <BookmarkCheck className="w-4 h-4 fill-amber-400/20" /> : <Bookmark className="w-4 h-4" />}
+                      <Bookmark className={`w-4 h-4 ${isBookmarked ? 'fill-amber-400' : ''}`} />
                     </button>
 
                     <button
                       type="button"
-                      onClick={() => handleShare(art)}
-                      className="p-2 rounded-lg hover:bg-white/[0.08] text-slate-400 hover:text-white transition-colors cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleShare(art);
+                      }}
+                      className="p-2 rounded-full bg-white/[0.04] hover:bg-white/[0.08] text-slate-400 hover:text-white transition-all cursor-pointer"
                       title="Share Article"
                     >
                       <Share2 className="w-4 h-4" />
@@ -671,7 +736,7 @@ export default function PulseFlowPage() {
               <p className="text-xs text-slate-400 mb-4 max-w-sm mx-auto">
                 {showBookmarksOnly
                   ? 'You have not bookmarked any articles yet. Click the bookmark icon on any card to save it.'
-                  : 'Try selecting All News, clearing your search query, or refreshing live channels.'}
+                  : 'Try selecting All News, clearing your search query, or refreshing live feeds.'}
               </p>
               <button
                 type="button"
@@ -691,7 +756,7 @@ export default function PulseFlowPage() {
 
         {/* ── RIGHT COLUMN: REAL FEATURES (Approx 32% / 4 cols) ─────────────── */}
         <div className="lg:col-span-4 flex flex-col gap-6">
-          {/* 1. TRENDING NOW CARD (EXACT REPLICA OF REFERENCE IMAGE) */}
+          {/* 1. TRENDING NOW CARD */}
           <div className="bg-[#131622] border border-white/[0.07] rounded-2xl p-5 shadow-lg">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
@@ -723,7 +788,6 @@ export default function PulseFlowPage() {
                   className="py-3 flex items-center justify-between gap-3 hover:bg-white/[0.03] px-2 rounded-xl transition-colors cursor-pointer group"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    {/* Rank Circle in Amber */}
                     <div className="w-6 h-6 rounded-full bg-orange-500/20 text-orange-400 font-bold text-xs flex items-center justify-center shrink-0 border border-orange-500/30">
                       {topic.rank}
                     </div>
@@ -735,21 +799,23 @@ export default function PulseFlowPage() {
                     </div>
                   </div>
 
-                  {/* Green Upward Arrow */}
                   <TrendingUp className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                 </div>
               ))}
             </div>
           </div>
 
-          {/* 2. REAL-TIME OPEN CHANNELS SWITCHER */}
+          {/* 2. REAL-TIME CHANNELS SWITCHER */}
           <div className="bg-[#131622] border border-white/[0.07] rounded-2xl p-5 shadow-lg">
-            <div className="flex items-center gap-2 mb-3">
-              <Radio className="w-4 h-4 text-cyan-400" />
-              <h3 className="text-sm font-bold text-white">Open News Channels</h3>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Radio className="w-4 h-4 text-cyan-400" />
+                <h3 className="text-sm font-bold text-white">Verified Publishers</h3>
+              </div>
+              <span className="text-[11px] text-slate-400">17 feeds</span>
             </div>
             <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-              Real-time dispatches from verified open developer & international journalism networks.
+              Real-time dispatches from Chennai, Tamil Nadu, India, and global journalism bureaus.
             </p>
 
             {/* Channels Pill Grid */}
@@ -778,7 +844,7 @@ export default function PulseFlowPage() {
             </div>
           </div>
 
-          {/* 3. READING LIST QUICK STATUS */}
+          {/* 3. READING LIST STATUS */}
           <div className="bg-[#131622] border border-white/[0.07] rounded-2xl p-5 shadow-lg">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
@@ -790,7 +856,7 @@ export default function PulseFlowPage() {
               </span>
             </div>
             <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-              Bookmarked articles are kept offline in your local database so you can read anytime.
+              Saved articles are stored offline in your browser database so you can read anytime.
             </p>
             <button
               type="button"
@@ -863,7 +929,7 @@ export default function PulseFlowPage() {
                   {selectedArticle.description}
                 </p>
 
-                {/* Full Article Text */}
+                {/* Full Article Text / Excerpt */}
                 <div className="text-sm text-slate-300 leading-relaxed space-y-4">
                   <p>{selectedArticle.content}</p>
                 </div>
@@ -902,7 +968,7 @@ export default function PulseFlowPage() {
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white transition-colors cursor-pointer shadow-md"
                   >
-                    <span>Open Live Source</span>
+                    <span>Read Full Story on {selectedArticle.source}</span>
                     <ExternalLink className="w-3.5 h-3.5" />
                   </a>
                 )}
