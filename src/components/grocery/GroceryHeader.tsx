@@ -150,8 +150,11 @@ export default function GroceryHeader({
             style={{
               display: 'inline-flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: '0.35rem',
               padding: '0.4rem 0.65rem',
+              minWidth: '114px',
+              height: '32px',
               borderRadius: '9px',
               background: 'rgba(16, 185, 129, 0.1)',
               border: '1px solid rgba(16, 185, 129, 0.25)',
@@ -159,11 +162,13 @@ export default function GroceryHeader({
               fontSize: '0.78rem',
               fontWeight: 600,
               cursor: 'pointer',
-              transition: 'all 0.2s ease',
+              flexShrink: 0,
+              boxSizing: 'border-box',
+              transition: 'background 0.2s ease, border-color 0.2s ease',
             }}
           >
-            <RefreshCw size={12} className={cloudSyncStatus === 'syncing' ? 'animate-spin' : ''} />
-            <span>
+            <RefreshCw size={12} className={cloudSyncStatus === 'syncing' ? 'animate-spin' : ''} style={{ flexShrink: 0 }} />
+            <span style={{ whiteSpace: 'nowrap' }}>
               {cloudSyncStatus === 'synced'
                 ? 'Cloud Synced'
                 : cloudSyncStatus === 'syncing'

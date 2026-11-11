@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import {
   Check,
   Edit2,
@@ -15,7 +15,7 @@ interface GroceryItemCardProps {
   onDelete: (item: GroceryItem) => void;
 }
 
-export default function GroceryItemCard({
+function GroceryItemCardComponent({
   item,
   onEdit,
   onDelete,
@@ -227,3 +227,5 @@ export default function GroceryItemCard({
     </div>
   );
 }
+
+export default memo(GroceryItemCardComponent);

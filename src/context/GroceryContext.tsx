@@ -1,5 +1,5 @@
 // Life OS — Grocery List Context & Automatic Cloud Synchronization
-import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { GroceryItem, GroceryList, GroceryCategory, GroceryProgress } from '../types/grocery';
 import {
   loadGroceryData,
@@ -49,6 +49,55 @@ interface GroceryContextType {
 
 const GroceryContext = createContext<GroceryContextType | null>(null);
 
+/**
+ * Deep equality helper to compare grocery state and prevent infinite re-render loops.
+ * Ignores transient date timestamps so slight clock variations don't trigger cascading updates.
+ */
+function areGroceryStatesEqual(
+  a: { lists: GroceryList[]; items: GroceryItem[]; activeListId?: string },
+  b: { lists: GroceryList[]; items: GroceryItem[]; activeListId?: string }
+): boolean {
+  if (a.lists.length !== b.lists.length || a.items.length !== b.items.length) {
+    return false;
+  }
+
+  // Compare lists
+  for (let i = 0; i < a.lists.length; i++) {
+    const la = a.lists[i];
+    const lb = b.lists[i];
+    if (
+      la.id !== lb.id ||
+      la.name !== lb.name ||
+      la.color !== lb.color ||
+      la.icon !== lb.icon ||
+      Boolean(la.isDefault) !== Boolean(lb.isDefault)
+    ) {
+      return false;
+    }
+  }
+
+  // Compare items
+  for (let i = 0; i < a.items.length; i++) {
+    const ia = a.items[i];
+    const ib = b.items[i];
+    if (
+      ia.id !== ib.id ||
+      ia.listId !== ib.listId ||
+      ia.name !== ib.name ||
+      ia.quantity !== ib.quantity ||
+      ia.unit !== ib.unit ||
+      ia.category !== ib.category ||
+      ia.estimatedPrice !== ib.estimatedPrice ||
+      (ia.notes || '') !== (ib.notes || '') ||
+      Boolean(ia.isPurchased) !== Boolean(ib.isPurchased)
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 export function GroceryProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const userId = user?.id;
@@ -65,6 +114,22 @@ export function GroceryProvider({ children }: { children: React.ReactNode }) {
   const [cloudNeedsSetup, setCloudNeedsSetup] = useState<boolean>(false);
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
 
+  // Sync Control Refs to avoid feedback loops, layout shifts & glitching
+  const listsRef = useRef(lists);
+  const itemsRef = useRef(items);
+  const activeListIdRef = useRef(activeListId);
+  const isRemoteUpdateRef = useRef(false);
+  const isDirtyRef = useRef(false);
+  const syncDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const realtimeDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Keep refs synchronized with state
+  useEffect(() => {
+    listsRef.current = lists;
+    itemsRef.current = items;
+    activeListIdRef.current = activeListId;
+  }, [lists, items, activeListId]);
+
   const clearSyncNotice = () => setSyncNotice(null);
 
   // 1. Initial Load: Load local storage cache immediately for instant render
@@ -73,6 +138,10 @@ export function GroceryProvider({ children }: { children: React.ReactNode }) {
     setLists(data.lists);
     setItems(data.items);
     setActiveListId(data.activeListId);
+    listsRef.current = data.lists;
+    itemsRef.current = data.items;
+    activeListIdRef.current = data.activeListId;
+    isDirtyRef.current = false;
     setIsLoaded(true);
   }, [userId]);
 
@@ -83,7 +152,6 @@ export function GroceryProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    setCloudSyncStatus('syncing');
     try {
       const { state, schemaMissing } = await fetchCloudGroceryData(userId);
       if (schemaMissing) {
@@ -93,9 +161,22 @@ export function GroceryProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (state && state.lists.length > 0) {
-        setLists(state.lists);
-        setItems(state.items);
-        setActiveListId(state.activeListId);
+        const currentSnapshot = {
+          lists: listsRef.current,
+          items: itemsRef.current,
+          activeListId: activeListIdRef.current,
+        };
+
+        // Only update state if cloud data is actually different from current memory
+        if (!areGroceryStatesEqual(currentSnapshot, state)) {
+          isRemoteUpdateRef.current = true;
+          setLists(state.lists);
+          setItems(state.items);
+          if (state.activeListId) {
+            setActiveListId(state.activeListId);
+          }
+          saveGroceryData(userId, state);
+        }
         setCloudSyncStatus('synced');
         setCloudNeedsSetup(false);
       } else {
@@ -146,42 +227,66 @@ export function GroceryProvider({ children }: { children: React.ReactNode }) {
     const supabase = getSupabase();
     if (!supabase) return;
 
+    const handleRealtimeUpdate = () => {
+      // Debounce realtime event bursts so multiple row events only trigger one fetch
+      if (realtimeDebounceTimerRef.current) {
+        clearTimeout(realtimeDebounceTimerRef.current);
+      }
+
+      realtimeDebounceTimerRef.current = setTimeout(async () => {
+        try {
+          const { state } = await fetchCloudGroceryData(userId);
+          if (!state || state.lists.length === 0) return;
+
+          const currentSnapshot = {
+            lists: listsRef.current,
+            items: itemsRef.current,
+            activeListId: activeListIdRef.current,
+          };
+
+          // If incoming data matches our local state (echo of our own push), ignore
+          if (areGroceryStatesEqual(currentSnapshot, state)) {
+            return;
+          }
+
+          // True remote change from another device (e.g. mobile)
+          isRemoteUpdateRef.current = true;
+          setLists(state.lists);
+          setItems(state.items);
+          if (state.activeListId) {
+            setActiveListId(state.activeListId);
+          }
+          saveGroceryData(userId, state);
+          setCloudSyncStatus('synced');
+        } catch {
+          // Ignore transient realtime fetch errors
+        }
+      }, 500);
+    };
+
     const channel = supabase
       .channel(`grocery_realtime_${userId}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'grocery_items', filter: `user_id=eq.${userId}` },
-        () => {
-          fetchCloudGroceryData(userId).then(({ state }) => {
-            if (state) {
-              setLists(state.lists);
-              setItems(state.items);
-              saveGroceryData(userId, state);
-            }
-          });
-        }
+        handleRealtimeUpdate
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'grocery_lists', filter: `user_id=eq.${userId}` },
-        () => {
-          fetchCloudGroceryData(userId).then(({ state }) => {
-            if (state) {
-              setLists(state.lists);
-              setItems(state.items);
-              saveGroceryData(userId, state);
-            }
-          });
-        }
+        handleRealtimeUpdate
       )
       .subscribe();
 
     return () => {
+      if (realtimeDebounceTimerRef.current) {
+        clearTimeout(realtimeDebounceTimerRef.current);
+      }
       supabase.removeChannel(channel);
     };
   }, [userId]);
 
-  // 5. Persist to Local Storage & Push to Cloud on Changes
+  // 5. Persist to Local Storage & Debounced Push to Cloud on Changes
   useEffect(() => {
     if (!isLoaded) return;
 
@@ -194,20 +299,48 @@ export function GroceryProvider({ children }: { children: React.ReactNode }) {
     // Always mirror to local storage immediately
     saveGroceryData(userId, currentState);
 
-    // If authenticated, push updates to cloud in background
+    // If update arrived from cloud (remote update), do NOT push back to cloud!
+    if (isRemoteUpdateRef.current) {
+      isRemoteUpdateRef.current = false;
+      return;
+    }
+
+    // Only push to cloud if marked dirty by a user action
+    if (!isDirtyRef.current) {
+      return;
+    }
+
+    // Debounce cloud sync by 1000ms to batch rapid user inputs and prevent network storms
+    if (syncDebounceTimerRef.current) {
+      clearTimeout(syncDebounceTimerRef.current);
+    }
+
     if (userId && userId !== 'guest' && !cloudNeedsSetup) {
       setCloudSyncStatus('syncing');
-      syncGroceryDataToCloud(userId, currentState).then((res) => {
-        if (res.schemaMissing) {
-          setCloudNeedsSetup(true);
-          setCloudSyncStatus('needs_setup');
-        } else if (res.success) {
-          setCloudSyncStatus('synced');
-        } else {
+
+      syncDebounceTimerRef.current = setTimeout(async () => {
+        try {
+          const res = await syncGroceryDataToCloud(userId, currentState);
+          if (res.schemaMissing) {
+            setCloudNeedsSetup(true);
+            setCloudSyncStatus('needs_setup');
+          } else if (res.success) {
+            isDirtyRef.current = false;
+            setCloudSyncStatus('synced');
+          } else {
+            setCloudSyncStatus('offline');
+          }
+        } catch {
           setCloudSyncStatus('offline');
         }
-      });
+      }, 1000);
     }
+
+    return () => {
+      if (syncDebounceTimerRef.current) {
+        clearTimeout(syncDebounceTimerRef.current);
+      }
+    };
   }, [lists, items, activeListId, userId, isLoaded, cloudNeedsSetup]);
 
   // Manual Trigger to Force-Sync
@@ -224,6 +357,7 @@ export function GroceryProvider({ children }: { children: React.ReactNode }) {
       setCloudSyncStatus('needs_setup');
       setSyncNotice('Database schema setup required in Supabase.');
     } else if (res.success) {
+      isDirtyRef.current = false;
       setCloudSyncStatus('synced');
       setCloudNeedsSetup(false);
       setSyncNotice('Grocery list successfully synced across web & mobile!');
@@ -296,9 +430,10 @@ export function GroceryProvider({ children }: { children: React.ReactNode }) {
     };
   }, [activeListItems]);
 
-  // Actions
+  // Actions (Marked dirty so cloud auto-sync triggers only on real user interaction)
   const addItem = useCallback(
     (itemData: Omit<GroceryItem, 'id' | 'listId' | 'isPurchased' | 'createdAt' | 'updatedAt'>) => {
+      isDirtyRef.current = true;
       const currentListId = activeList?.id || activeListId;
       const now = new Date().toISOString();
       const newItem: GroceryItem = {
@@ -316,6 +451,7 @@ export function GroceryProvider({ children }: { children: React.ReactNode }) {
 
   const updateItem = useCallback(
     (id: string, updates: Partial<Omit<GroceryItem, 'id' | 'listId'>>) => {
+      isDirtyRef.current = true;
       setItems((prev) =>
         prev.map((item) =>
           item.id === id
@@ -333,6 +469,7 @@ export function GroceryProvider({ children }: { children: React.ReactNode }) {
 
   const deleteItem = useCallback(
     (id: string) => {
+      isDirtyRef.current = true;
       setItems((prev) => prev.filter((item) => item.id !== id));
       if (userId && userId !== 'guest') {
         deleteCloudGroceryItem(userId, id);
@@ -342,6 +479,7 @@ export function GroceryProvider({ children }: { children: React.ReactNode }) {
   );
 
   const togglePurchased = useCallback((id: string) => {
+    isDirtyRef.current = true;
     setItems((prev) =>
       prev.map((item) => {
         if (item.id === id) {
@@ -360,6 +498,7 @@ export function GroceryProvider({ children }: { children: React.ReactNode }) {
 
   const createList = useCallback(
     (name: string, color = '#10b981', icon = 'ShoppingCart'): string => {
+      isDirtyRef.current = true;
       const now = new Date().toISOString();
       const newListId = `list_${Date.now()}_${nanoid(5)}`;
       const newList: GroceryList = {
@@ -381,6 +520,7 @@ export function GroceryProvider({ children }: { children: React.ReactNode }) {
   const renameList = useCallback((id: string, newName: string) => {
     const trimmed = newName.trim();
     if (!trimmed) return;
+    isDirtyRef.current = true;
     setLists((prev) =>
       prev.map((list) =>
         list.id === id
@@ -389,13 +529,14 @@ export function GroceryProvider({ children }: { children: React.ReactNode }) {
               name: trimmed,
               updatedAt: new Date().toISOString(),
             }
-            : list
+          : list
       )
     );
   }, []);
 
   const deleteList = useCallback(
     (id: string) => {
+      isDirtyRef.current = true;
       setLists((prev) => {
         if (prev.length <= 1) return prev; // Cannot delete only list
         const remaining = prev.filter((l) => l.id !== id);
@@ -414,6 +555,7 @@ export function GroceryProvider({ children }: { children: React.ReactNode }) {
   );
 
   const clearPurchasedInActiveList = useCallback(() => {
+    isDirtyRef.current = true;
     const currentId = activeList?.id || activeListId;
     setItems((prev) => prev.filter((i) => !(i.listId === currentId && i.isPurchased)));
   }, [activeList, activeListId]);

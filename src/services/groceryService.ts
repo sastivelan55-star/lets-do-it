@@ -358,7 +358,7 @@ export async function syncGroceryDataToCloud(
       icon: l.icon || 'ShoppingCart',
       is_default: Boolean(l.isDefault),
       created_at: l.createdAt,
-      updated_at: new Date().toISOString(),
+      updated_at: l.updatedAt || new Date().toISOString(),
     }));
 
     const listsRes = await supabase.from('grocery_lists').upsert(listRows, { onConflict: 'id' });
@@ -385,7 +385,7 @@ export async function syncGroceryDataToCloud(
         is_purchased: i.isPurchased,
         purchased_at: i.purchasedAt ?? null,
         created_at: i.createdAt,
-        updated_at: new Date().toISOString(),
+        updated_at: i.updatedAt || new Date().toISOString(),
       }));
 
       const itemsRes = await supabase.from('grocery_items').upsert(itemRows, { onConflict: 'id' });

@@ -97,6 +97,7 @@ function GroceryContent() {
           minHeight: 0,
           overflowY: 'auto',
           overflowX: 'hidden',
+          overscrollBehavior: 'contain',
           padding: 'clamp(0.75rem, 2vw, 1.5rem)',
           paddingBottom: '6rem',
           maxWidth: '1280px',
