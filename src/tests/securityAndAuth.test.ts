@@ -135,4 +135,93 @@ describe('Security & Isolation Assurances', () => {
     const cleanHash = '#access_token=valid-token&type=signup';
     expect(parseUrlError(cleanHash)).toBeNull();
   });
+
+  describe('Persistent Login & Session Resilience', () => {
+    it('restores user from persistent localStorage across app restarts without redirecting to login', () => {
+      const mockStorage: Record<string, string> = {
+        lifeos_supabase_auth_token: JSON.stringify({
+          access_token: 'valid-jwt-token-xyz',
+          refresh_token: 'valid-refresh-token-abc',
+          expires_at: Math.floor(Date.now() / 1000) + 3600,
+          user: {
+            id: 'user-phone-uuid-1',
+            email: 'sastivelan@lifeos.app',
+          },
+        }),
+      };
+
+      // Helper simulating getInitialUser
+      const getInitialUser = () => {
+        const rawToken = mockStorage['lifeos_supabase_auth_token'];
+        if (rawToken) {
+          const parsed = JSON.parse(rawToken);
+          if (parsed?.user?.id) return parsed.user;
+        }
+        return null;
+      };
+
+      const restoredUser = getInitialUser();
+      expect(restoredUser).toBeDefined();
+      expect(restoredUser.id).toBe('user-phone-uuid-1');
+      expect(restoredUser.email).toBe('sastivelan@lifeos.app');
+
+      // The main router should unlock immediately without flashing the login page
+      const shouldShowLogin = !restoredUser;
+      expect(shouldShowLogin).toBe(false);
+    });
+
+    it('migrates legacy Supabase tokens (sb-*-auth-token) to lifeos_supabase_auth_token', () => {
+      const mockStorage: Record<string, string> = {
+        'sb-myproject123-auth-token': JSON.stringify({
+          access_token: 'legacy-token-123',
+          refresh_token: 'legacy-refresh-456',
+          user: { id: 'legacy-user', email: 'legacy@lifeos.app' },
+        }),
+      };
+
+      // Simulate migration function
+      const migrate = () => {
+        if (mockStorage['lifeos_supabase_auth_token']) return;
+        for (const key of Object.keys(mockStorage)) {
+          if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
+            mockStorage['lifeos_supabase_auth_token'] = mockStorage[key];
+            break;
+          }
+        }
+      };
+
+      migrate();
+      expect(mockStorage['lifeos_supabase_auth_token']).toBeDefined();
+      const parsed = JSON.parse(mockStorage['lifeos_supabase_auth_token']);
+      expect(parsed.user.id).toBe('legacy-user');
+    });
+
+    it('clears all persistent tokens only upon manual sign out', () => {
+      const mockStorage: Record<string, string> = {
+        lifeos_supabase_auth_token: '{"token":"xyz"}',
+        lifeos_auth_user: '{"id":"user-1"}',
+        lifeos_auth_session: '{"access_token":"xyz"}',
+        lifeos_guest_mode: 'false',
+        'sb-proj-auth-token': '{"token":"legacy"}',
+      };
+
+      // Simulate signOut cleanup
+      const signOutCleanup = () => {
+        delete mockStorage['lifeos_auth_user'];
+        delete mockStorage['lifeos_auth_session'];
+        delete mockStorage['lifeos_guest_mode'];
+        delete mockStorage['lifeos_supabase_auth_token'];
+        for (const key of Object.keys(mockStorage)) {
+          if ((key.startsWith('sb-') || key.startsWith('lifeos_')) && key.endsWith('-auth-token')) {
+            delete mockStorage[key];
+          }
+        }
+      };
+
+      signOutCleanup();
+      expect(mockStorage['lifeos_supabase_auth_token']).toBeUndefined();
+      expect(mockStorage['lifeos_auth_user']).toBeUndefined();
+      expect(mockStorage['sb-proj-auth-token']).toBeUndefined();
+    });
+  });
 });

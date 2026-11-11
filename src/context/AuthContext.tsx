@@ -80,21 +80,65 @@ const LIFEOS_GUEST_MODE_KEY = 'lifeos_guest_mode';
 function getInitialUser(): User | null {
   if (typeof window === 'undefined') return null;
   try {
-    const raw = localStorage.getItem(LIFEOS_AUTH_USER_KEY);
-    return raw ? JSON.parse(raw) : null;
+    const rawUser = localStorage.getItem(LIFEOS_AUTH_USER_KEY);
+    if (rawUser) {
+      const parsed = JSON.parse(rawUser);
+      if (parsed && parsed.id) return parsed;
+    }
+
+    // Inspect Supabase storage token
+    const rawToken = localStorage.getItem('lifeos_supabase_auth_token');
+    if (rawToken) {
+      const parsed = JSON.parse(rawToken);
+      if (parsed?.user?.id) return parsed.user;
+    }
+
+    // Legacy Supabase keys
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+        const val = localStorage.getItem(key);
+        if (val) {
+          const parsed = JSON.parse(val);
+          if (parsed?.user?.id) return parsed.user;
+        }
+      }
+    }
   } catch {
     return null;
   }
+  return null;
 }
 
 function getInitialSession(): Session | null {
   if (typeof window === 'undefined') return null;
   try {
-    const raw = localStorage.getItem(LIFEOS_AUTH_SESSION_KEY);
-    return raw ? JSON.parse(raw) : null;
+    const rawSession = localStorage.getItem(LIFEOS_AUTH_SESSION_KEY);
+    if (rawSession) {
+      const parsed = JSON.parse(rawSession);
+      if (parsed && parsed.access_token) return parsed;
+    }
+
+    const rawToken = localStorage.getItem('lifeos_supabase_auth_token');
+    if (rawToken) {
+      const parsed = JSON.parse(rawToken);
+      if (parsed?.access_token) return parsed as Session;
+    }
+
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+        const val = localStorage.getItem(key);
+        if (val) {
+          const parsed = JSON.parse(val);
+          if (parsed?.access_token) return parsed as Session;
+        }
+      }
+    }
   } catch {
     return null;
   }
+  return null;
 }
 
 function getInitialGuestMode(): boolean {
@@ -268,11 +312,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsGuest(false);
         persistAuthState(newSession.user, newSession);
         setAuthError(null);
+        setIsLoading(false);
       } else if (event === 'SIGNED_OUT') {
         setSession(null);
         setUser(null);
         setIsGuest(false);
         persistAuthState(null, null);
+        setIsLoading(false);
       }
       if (event === 'PASSWORD_RECOVERY') {
         setIsPasswordRecovery(true);
@@ -282,7 +328,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           window.history.replaceState({}, document.title, window.location.pathname);
         }
       }
-      setIsLoading(false);
+      // Note: do not call setIsLoading(false) on INITIAL_SESSION null to prevent premature flash of login page
     });
 
     return () => {
@@ -378,13 +424,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return { success: false, error: err };
         }
 
-        if (data.session) {
+        if (data.session && data.user) {
           setUser(data.user);
           setSession(data.session);
           setIsGuest(false);
           persistAuthState(data.user, data.session);
           return { success: true };
         } else {
+          // If Supabase created the user but returned session: null, immediately attempt auto-login
+          const autoLogin = await supabase.auth.signInWithPassword({
+            email: trimmedEmail,
+            password,
+          });
+
+          if (autoLogin.data?.session && autoLogin.data?.user) {
+            setUser(autoLogin.data.user);
+            setSession(autoLogin.data.session);
+            setIsGuest(false);
+            persistAuthState(autoLogin.data.user, autoLogin.data.session);
+            return { success: true };
+          }
+
           // Email confirmation is required by Supabase project settings (mailer_autoconfirm = false)
           return {
             success: true,
@@ -448,6 +508,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     persistAuthState(null, null);
     try {
       localStorage.removeItem(LIFEOS_GUEST_MODE_KEY);
+      localStorage.removeItem('lifeos_supabase_auth_token');
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith('sb-') || key.startsWith('lifeos_')) && key.endsWith('-auth-token')) {
+          localStorage.removeItem(key);
+        }
+      }
     } catch {}
     const supabase = getSupabase();
     if (supabase) {
