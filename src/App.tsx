@@ -120,7 +120,18 @@ function LoadingScreen() {
 }
 
 function AppContent() {
-  const [section, setSection] = useState<NavSection>('home');
+  const [section, setSection] = useState<NavSection>(() => {
+    if (typeof window !== 'undefined') {
+      if (window.location.hash.includes('grocery_sync=') || window.location.hash.includes('groceries')) {
+        return 'groceries';
+      }
+      if (window.location.hash.includes('section=')) {
+        const s = window.location.hash.split('section=')[1] as NavSection;
+        if (s) return s;
+      }
+    }
+    return 'home';
+  });
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [isSearchOpen, setIsSearchOpen] = useState(false);

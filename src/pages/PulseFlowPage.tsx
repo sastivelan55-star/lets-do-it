@@ -668,7 +668,7 @@ export default function PulseFlowPage() {
     try {
       const saved = localStorage.getItem('lifeos_google_news_bookmarks');
       if (saved) return new Set(JSON.parse(saved));
-    } catch {}
+    } catch { }
     return new Set<string>(['rain-1', 'world-1', 'tech-1']);
   });
 
@@ -677,7 +677,7 @@ export default function PulseFlowPage() {
     try {
       const saved = localStorage.getItem('lifeos_followed_topics');
       if (saved) return new Set(JSON.parse(saved));
-    } catch {}
+    } catch { }
     return new Set<string>(['Chennai', 'Tamil Nadu', 'Technology', 'Rain & Monsoon', 'Space & ISRO']);
   });
 
@@ -720,9 +720,9 @@ export default function PulseFlowPage() {
         fetchBackendNews({
           category:
             activeNavTab !== 'Home' &&
-            activeNavTab !== 'For you' &&
-            activeNavTab !== 'Following' &&
-            activeNavTab !== 'News Showcase'
+              activeNavTab !== 'For you' &&
+              activeNavTab !== 'Following' &&
+              activeNavTab !== 'News Showcase'
               ? activeNavTab
               : undefined,
           search: targetQuery || undefined,
@@ -732,9 +732,9 @@ export default function PulseFlowPage() {
           country: 'in',
           category:
             activeNavTab !== 'Home' &&
-            activeNavTab !== 'For you' &&
-            activeNavTab !== 'Following' &&
-            activeNavTab !== 'News Showcase'
+              activeNavTab !== 'For you' &&
+              activeNavTab !== 'Following' &&
+              activeNavTab !== 'News Showcase'
               ? activeNavTab
               : undefined,
           q: targetQuery || undefined,
@@ -981,7 +981,7 @@ export default function PulseFlowPage() {
           'lifeos_google_news_bookmarks',
           JSON.stringify(Array.from(next))
         );
-      } catch {}
+      } catch { }
       return next;
     });
   };
@@ -1001,7 +1001,7 @@ export default function PulseFlowPage() {
           'lifeos_followed_topics',
           JSON.stringify(Array.from(next))
         );
-      } catch {}
+      } catch { }
       return next;
     });
   };
@@ -1506,8 +1506,7 @@ export default function PulseFlowPage() {
             style={{
               marginBottom: '1.5rem',
               display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
+              alignItems: 'center',             gap: '8px',
               flexWrap: 'wrap',
               background: '#202124',
               padding: '0.85rem 1rem',
@@ -2064,10 +2063,10 @@ export default function PulseFlowPage() {
                 {searchQuery
                   ? `More results for "${searchQuery}"`
                   : activeNavTab === 'Home'
-                  ? 'Picks for you'
-                  : activeNavTab === 'Following'
-                  ? 'Saved & Followed Feed'
-                  : `${activeNavTab} coverage`}
+                    ? 'Picks for you'
+                    : activeNavTab === 'Following'
+                      ? 'Saved & Followed Feed'
+                      : `${activeNavTab} coverage`}
               </h2>
               <div style={{ fontSize: '0.78rem', color: '#9aa0a6' }}>
                 Showing {feedArticles.length} stories

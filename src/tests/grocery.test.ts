@@ -1,6 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { GroceryItem, GroceryList } from '../types/grocery';
-import { loadGroceryData, saveGroceryData } from '../services/groceryService';
+import {
+  loadGroceryData,
+  saveGroceryData,
+  createMobileSyncUrl,
+  parseMobileSyncHash,
+  GROCERY_SETUP_SQL,
+} from '../services/groceryService';
 
 // Mock localStorage for test environment
 function createLocalStorageMock() {
@@ -228,6 +234,33 @@ describe('Life OS — Grocery List System Unit Tests', () => {
     expect(fruitsOnly).toHaveLength(2);
     expect(vegetablesOnly).toHaveLength(1);
     expect(dairyOnly).toHaveLength(1);
+  });
+
+  it('generates and parses mobile transfer link correctly', () => {
+    const state = {
+      lists: [{ id: 'l1', name: 'Weekly Groceries', createdAt: '', updatedAt: '' }],
+      items: [{ id: 'i1', listId: 'l1', name: 'Organic Apples', quantity: 2, unit: 'kg' as const, category: 'fruits' as const, isPurchased: false, createdAt: '', updatedAt: '' }],
+      activeListId: 'l1',
+    };
+
+    const link = createMobileSyncUrl(state);
+    expect(link).toContain('#grocery_sync=');
+
+    const hash = '#' + link.split('#')[1];
+    const parsed = parseMobileSyncHash(hash);
+    expect(parsed).not.toBeNull();
+    expect(parsed?.lists).toHaveLength(1);
+    expect(parsed?.lists[0].name).toBe('Weekly Groceries');
+    expect(parsed?.items).toHaveLength(1);
+    expect(parsed?.items[0].name).toBe('Organic Apples');
+    expect(parsed?.activeListId).toBe('l1');
+  });
+
+  it('exports valid idempotent SQL migration for grocery tables', () => {
+    expect(GROCERY_SETUP_SQL).toContain('CREATE TABLE IF NOT EXISTS public.grocery_lists');
+    expect(GROCERY_SETUP_SQL).toContain('CREATE TABLE IF NOT EXISTS public.grocery_items');
+    expect(GROCERY_SETUP_SQL).toContain('ENABLE ROW LEVEL SECURITY');
+    expect(GROCERY_SETUP_SQL).toContain('auth.uid() = user_id');
   });
 });
 

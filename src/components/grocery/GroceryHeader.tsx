@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   ShoppingCart,
   Plus,
@@ -5,8 +6,11 @@ import {
   Trash2,
   CheckCircle2,
   DollarSign,
+  Smartphone,
+  Cloud,
 } from 'lucide-react';
 import { useGrocery } from '../../context/GroceryContext';
+import GroceryMobileSyncModal from './GroceryMobileSyncModal';
 
 interface GroceryHeaderProps {
   onOpenCreateListModal: () => void;
@@ -25,7 +29,13 @@ export default function GroceryHeader({
     deleteList,
     progress,
     clearPurchasedInActiveList,
+    cloudSyncStatus,
+    cloudNeedsSetup,
+    syncNotice,
+    clearSyncNotice,
   } = useGrocery();
+
+  const [showSyncModal, setShowSyncModal] = useState(false);
 
   const handleDeleteCurrentList = () => {
     if (lists.length <= 1) {
@@ -129,8 +139,47 @@ export default function GroceryHeader({
           </button>
         </div>
 
-        {/* List Action Buttons (Rename, Delete, Clear Purchased) */}
+        {/* List Action Buttons (Rename, Delete, Clear Purchased, Sync Mobile) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+          {/* Sync with Mobile Button */}
+          <button
+            type="button"
+            onClick={() => setShowSyncModal(true)}
+            title="Sync grocery list with mobile device"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              padding: '0.4rem 0.75rem',
+              borderRadius: '9px',
+              background: cloudNeedsSetup ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+              border: cloudNeedsSetup ? '1px solid rgba(239, 68, 68, 0.35)' : '1px solid rgba(16, 185, 129, 0.35)',
+              color: cloudNeedsSetup ? '#f87171' : '#34d399',
+              fontSize: '0.78rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            <Smartphone size={13} />
+            <span>Sync with Mobile</span>
+            {cloudSyncStatus === 'synced' && <Cloud size={12} color="#34d399" />}
+            {cloudNeedsSetup && (
+              <span
+                style={{
+                  fontSize: '0.62rem',
+                  background: '#ef4444',
+                  color: '#ffffff',
+                  padding: '1px 5px',
+                  borderRadius: '8px',
+                  fontWeight: 800,
+                }}
+              >
+                SQL
+              </span>
+            )}
+          </button>
+
           <button
             onClick={onOpenRenameListModal}
             title="Rename current list"
@@ -321,6 +370,49 @@ export default function GroceryHeader({
           </span>
         </div>
       </div>
+
+      {/* Sync Notice Banner */}
+      {syncNotice && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0.6rem 0.9rem',
+            background: 'rgba(16, 185, 129, 0.12)',
+            border: '1px solid rgba(16, 185, 129, 0.3)',
+            borderRadius: '12px',
+            fontSize: '0.8rem',
+            color: '#34d399',
+            marginTop: '0.25rem',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <CheckCircle2 size={16} color="#34d399" />
+            <span>{syncNotice}</span>
+          </div>
+          <button
+            type="button"
+            onClick={clearSyncNotice}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#94a3b8',
+              cursor: 'pointer',
+              padding: '2px',
+              fontSize: '0.9rem',
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Mobile Sync Modal */}
+      <GroceryMobileSyncModal
+        isOpen={showSyncModal}
+        onClose={() => setShowSyncModal(false)}
+      />
     </div>
   );
 }
