@@ -1,4 +1,4 @@
-// Life OS — Grocery List Context & State Management with Cloud & Mobile Synchronization
+// Life OS — Grocery List Context & Automatic Cloud Synchronization
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import type { GroceryItem, GroceryList, GroceryCategory, GroceryProgress } from '../types/grocery';
 import {
@@ -6,10 +6,11 @@ import {
   saveGroceryData,
   fetchCloudGroceryData,
   syncGroceryDataToCloud,
-  createMobileSyncUrl,
-  parseMobileSyncHash,
+  deleteCloudGroceryItem,
+  deleteCloudGroceryList,
   type GroceryStorageState,
 } from '../services/groceryService';
+import { getSupabase } from '../services/supabaseClient';
 import { useAuth } from './AuthContext';
 import { nanoid } from 'nanoid';
 
@@ -38,12 +39,10 @@ interface GroceryContextType {
   deleteList: (id: string) => void;
   clearPurchasedInActiveList: () => void;
 
-  // Cloud & Mobile Sync
+  // Cloud Sync
   cloudSyncStatus: GroceryCloudStatus;
   cloudNeedsSetup: boolean;
   syncNow: () => Promise<void>;
-  getMobileSyncUrl: () => string;
-  importFromPayload: (payload: GroceryStorageState) => void;
   syncNotice: string | null;
   clearSyncNotice: () => void;
 }
@@ -68,27 +67,8 @@ export function GroceryProvider({ children }: { children: React.ReactNode }) {
 
   const clearSyncNotice = () => setSyncNotice(null);
 
-  // 1. Initial Load: Check for Mobile Transfer Link in URL Hash first, then Local Storage
+  // 1. Initial Load: Load local storage cache immediately for instant render
   useEffect(() => {
-    // Check if mobile opened via transfer link (#grocery_sync=...)
-    if (typeof window !== 'undefined' && window.location.hash.includes('grocery_sync=')) {
-      const imported = parseMobileSyncHash(window.location.hash);
-      if (imported) {
-        setLists(imported.lists);
-        setItems(imported.items);
-        setActiveListId(imported.activeListId);
-        saveGroceryData(userId, imported);
-        setIsLoaded(true);
-        setSyncNotice('Grocery list successfully synced to mobile via transfer link!');
-        // Clean URL hash without reload
-        try {
-          window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
-        } catch {}
-        return;
-      }
-    }
-
-    // Otherwise load local mirror
     const data = loadGroceryData(userId);
     setLists(data.lists);
     setItems(data.items);
@@ -96,56 +76,112 @@ export function GroceryProvider({ children }: { children: React.ReactNode }) {
     setIsLoaded(true);
   }, [userId]);
 
-  // 2. Cloud Fetch: If user is authenticated, query Supabase for latest cloud lists
-  useEffect(() => {
+  // 2. Cloud Sync: When authenticated, sync with Supabase Cloud
+  const pullCloudData = useCallback(async () => {
     if (!userId || userId === 'guest') {
       setCloudSyncStatus('offline');
       return;
     }
 
-    let isMounted = true;
-    async function loadCloud() {
-      setCloudSyncStatus('syncing');
-      try {
-        const { state, schemaMissing } = await fetchCloudGroceryData(userId as string);
-        if (!isMounted) return;
+    setCloudSyncStatus('syncing');
+    try {
+      const { state, schemaMissing } = await fetchCloudGroceryData(userId);
+      if (schemaMissing) {
+        setCloudNeedsSetup(true);
+        setCloudSyncStatus('needs_setup');
+        return;
+      }
 
-        if (schemaMissing) {
+      if (state && state.lists.length > 0) {
+        setLists(state.lists);
+        setItems(state.items);
+        setActiveListId(state.activeListId);
+        setCloudSyncStatus('synced');
+        setCloudNeedsSetup(false);
+      } else {
+        // Cloud has no data yet — push local list to seed cloud
+        const localData = loadGroceryData(userId);
+        const pushRes = await syncGroceryDataToCloud(userId, localData);
+        if (pushRes.schemaMissing) {
           setCloudNeedsSetup(true);
           setCloudSyncStatus('needs_setup');
-          return;
-        }
-
-        if (state && state.lists.length > 0) {
-          setLists(state.lists);
-          setItems(state.items);
-          setActiveListId(state.activeListId);
+        } else if (pushRes.success) {
           setCloudSyncStatus('synced');
           setCloudNeedsSetup(false);
-        } else {
-          // If cloud has no records yet, upload current local list to initialize cloud!
-          const localData = loadGroceryData(userId);
-          const uploadRes = await syncGroceryDataToCloud(userId as string, localData);
-          if (uploadRes.schemaMissing) {
-            setCloudNeedsSetup(true);
-            setCloudSyncStatus('needs_setup');
-          } else if (uploadRes.success) {
-            setCloudSyncStatus('synced');
-            setCloudNeedsSetup(false);
-          }
         }
-      } catch {
-        if (isMounted) setCloudSyncStatus('offline');
       }
+    } catch {
+      setCloudSyncStatus('offline');
     }
+  }, [userId]);
 
-    loadCloud();
+  // Initial cloud fetch on mount or user change
+  useEffect(() => {
+    pullCloudData();
+  }, [pullCloudData]);
+
+  // 3. Auto-sync on Window Focus / Visibility Change (ensures mobile gets latest updates when opened)
+  useEffect(() => {
+    if (!userId || userId === 'guest') return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        pullCloudData();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleVisibilityChange);
+
     return () => {
-      isMounted = false;
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleVisibilityChange);
+    };
+  }, [userId, pullCloudData]);
+
+  // 4. Supabase Realtime Subscription: Update immediately when changed on desktop/mobile
+  useEffect(() => {
+    if (!userId || userId === 'guest') return;
+
+    const supabase = getSupabase();
+    if (!supabase) return;
+
+    const channel = supabase
+      .channel(`grocery_realtime_${userId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'grocery_items', filter: `user_id=eq.${userId}` },
+        () => {
+          fetchCloudGroceryData(userId).then(({ state }) => {
+            if (state) {
+              setLists(state.lists);
+              setItems(state.items);
+              saveGroceryData(userId, state);
+            }
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'grocery_lists', filter: `user_id=eq.${userId}` },
+        () => {
+          fetchCloudGroceryData(userId).then(({ state }) => {
+            if (state) {
+              setLists(state.lists);
+              setItems(state.items);
+              saveGroceryData(userId, state);
+            }
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
     };
   }, [userId]);
 
-  // 3. Persist to Local Storage & Sync to Cloud on Changes
+  // 5. Persist to Local Storage & Push to Cloud on Changes
   useEffect(() => {
     if (!isLoaded) return;
 
@@ -158,7 +194,7 @@ export function GroceryProvider({ children }: { children: React.ReactNode }) {
     // Always mirror to local storage immediately
     saveGroceryData(userId, currentState);
 
-    // If authenticated, sync to cloud asynchronously
+    // If authenticated, push updates to cloud in background
     if (userId && userId !== 'guest' && !cloudNeedsSetup) {
       setCloudSyncStatus('syncing');
       syncGroceryDataToCloud(userId, currentState).then((res) => {
@@ -174,7 +210,7 @@ export function GroceryProvider({ children }: { children: React.ReactNode }) {
     }
   }, [lists, items, activeListId, userId, isLoaded, cloudNeedsSetup]);
 
-  // Manual Trigger to Push / Pull Cloud Sync
+  // Manual Trigger to Force-Sync
   const syncNow = useCallback(async () => {
     if (!userId || userId === 'guest') {
       setSyncNotice('Sign in to your Life OS account to enable cross-device cloud sync.');
@@ -186,33 +222,16 @@ export function GroceryProvider({ children }: { children: React.ReactNode }) {
     if (res.schemaMissing) {
       setCloudNeedsSetup(true);
       setCloudSyncStatus('needs_setup');
-      setSyncNotice('Supabase cloud table setup required. Click "Sync with Mobile" to run SQL.');
+      setSyncNotice('Database schema setup required in Supabase.');
     } else if (res.success) {
       setCloudSyncStatus('synced');
       setCloudNeedsSetup(false);
-      setSyncNotice('Grocery list successfully synced to cloud & mobile!');
+      setSyncNotice('Grocery list successfully synced across web & mobile!');
     } else {
       setCloudSyncStatus('offline');
-      setSyncNotice(`Sync issue: ${res.error || 'Server unreachable'}`);
+      setSyncNotice(`Sync notice: ${res.error || 'Server unreachable'}`);
     }
   }, [userId, lists, items, activeListId]);
-
-  // Generate Mobile Instant Transfer Link
-  const getMobileSyncUrl = useCallback(() => {
-    return createMobileSyncUrl({ lists, items, activeListId });
-  }, [lists, items, activeListId]);
-
-  // Direct Payload Import
-  const importFromPayload = useCallback(
-    (payload: GroceryStorageState) => {
-      setLists(payload.lists);
-      setItems(payload.items);
-      setActiveListId(payload.activeListId);
-      saveGroceryData(userId, payload);
-      setSyncNotice('Grocery list data imported successfully!');
-    },
-    [userId]
-  );
 
   // Find active list object
   const activeList = useMemo(() => {
@@ -312,9 +331,15 @@ export function GroceryProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
-  const deleteItem = useCallback((id: string) => {
-    setItems((prev) => prev.filter((item) => item.id !== id));
-  }, []);
+  const deleteItem = useCallback(
+    (id: string) => {
+      setItems((prev) => prev.filter((item) => item.id !== id));
+      if (userId && userId !== 'guest') {
+        deleteCloudGroceryItem(userId, id);
+      }
+    },
+    [userId]
+  );
 
   const togglePurchased = useCallback((id: string) => {
     setItems((prev) =>
@@ -381,8 +406,11 @@ export function GroceryProvider({ children }: { children: React.ReactNode }) {
       });
       // Also delete all items in that list
       setItems((prev) => prev.filter((item) => item.listId !== id));
+      if (userId && userId !== 'guest') {
+        deleteCloudGroceryList(userId, id);
+      }
     },
-    [activeListId]
+    [activeListId, userId]
   );
 
   const clearPurchasedInActiveList = useCallback(() => {
@@ -417,8 +445,6 @@ export function GroceryProvider({ children }: { children: React.ReactNode }) {
         cloudSyncStatus,
         cloudNeedsSetup,
         syncNow,
-        getMobileSyncUrl,
-        importFromPayload,
         syncNotice,
         clearSyncNotice,
       }}

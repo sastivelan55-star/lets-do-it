@@ -405,41 +405,22 @@ export async function syncGroceryDataToCloud(
   }
 }
 
-// ── INSTANT MOBILE TRANSFER LINK (URL HASH / QR COMPATIBLE) ─────────────────
-export function createMobileSyncUrl(data: GroceryStorageState): string {
+export async function deleteCloudGroceryItem(userId: string, itemId: string): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase || !userId || userId === 'guest') return;
   try {
-    const jsonStr = JSON.stringify({
-      lists: data.lists,
-      items: data.items,
-      activeListId: data.activeListId,
-      t: Date.now(),
-    });
-    // Base64 encode for compact URL transfer
-    const encoded = btoa(unescape(encodeURIComponent(jsonStr)));
-    const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    return `${origin}/#grocery_sync=${encoded}`;
+    await supabase.from('grocery_items').delete().eq('id', itemId).eq('user_id', userId);
   } catch (err) {
-    console.error('Failed to encode grocery sync url:', err);
-    return '';
+    logSafeError('deleteCloudGroceryItem', err);
   }
 }
 
-export function parseMobileSyncHash(hash: string): GroceryStorageState | null {
+export async function deleteCloudGroceryList(userId: string, listId: string): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase || !userId || userId === 'guest') return;
   try {
-    if (!hash || !hash.includes('grocery_sync=')) return null;
-    const raw = hash.split('grocery_sync=')[1];
-    if (!raw) return null;
-    const jsonStr = decodeURIComponent(escape(atob(raw)));
-    const parsed = JSON.parse(jsonStr);
-    if (parsed && Array.isArray(parsed.lists) && Array.isArray(parsed.items)) {
-      return {
-        lists: parsed.lists,
-        items: parsed.items,
-        activeListId: parsed.activeListId || parsed.lists[0]?.id || 'list-weekly',
-      };
-    }
+    await supabase.from('grocery_lists').delete().eq('id', listId).eq('user_id', userId);
   } catch (err) {
-    console.error('Failed to parse mobile sync payload:', err);
+    logSafeError('deleteCloudGroceryList', err);
   }
-  return null;
 }

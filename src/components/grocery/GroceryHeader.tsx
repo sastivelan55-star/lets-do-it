@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
   ShoppingCart,
   Plus,
@@ -6,11 +5,9 @@ import {
   Trash2,
   CheckCircle2,
   DollarSign,
-  Smartphone,
-  Cloud,
+  RefreshCw,
 } from 'lucide-react';
 import { useGrocery } from '../../context/GroceryContext';
-import GroceryMobileSyncModal from './GroceryMobileSyncModal';
 
 interface GroceryHeaderProps {
   onOpenCreateListModal: () => void;
@@ -30,12 +27,10 @@ export default function GroceryHeader({
     progress,
     clearPurchasedInActiveList,
     cloudSyncStatus,
-    cloudNeedsSetup,
+    syncNow,
     syncNotice,
     clearSyncNotice,
   } = useGrocery();
-
-  const [showSyncModal, setShowSyncModal] = useState(false);
 
   const handleDeleteCurrentList = () => {
     if (lists.length <= 1) {
@@ -139,45 +134,42 @@ export default function GroceryHeader({
           </button>
         </div>
 
-        {/* List Action Buttons (Rename, Delete, Clear Purchased, Sync Mobile) */}
+        {/* List Action Buttons (Cloud Sync, Rename, Delete, Clear Purchased) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-          {/* Sync with Mobile Button */}
+          {/* Automatic Cloud Sync Status Button */}
           <button
             type="button"
-            onClick={() => setShowSyncModal(true)}
-            title="Sync grocery list with mobile device"
+            onClick={syncNow}
+            title={
+              cloudSyncStatus === 'synced'
+                ? 'Cloud Sync Active — Web & Mobile synced'
+                : cloudSyncStatus === 'syncing'
+                ? 'Syncing with Supabase Cloud...'
+                : 'Click to sync grocery data'
+            }
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: '0.35rem',
-              padding: '0.4rem 0.75rem',
+              padding: '0.4rem 0.65rem',
               borderRadius: '9px',
-              background: cloudNeedsSetup ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)',
-              border: cloudNeedsSetup ? '1px solid rgba(239, 68, 68, 0.35)' : '1px solid rgba(16, 185, 129, 0.35)',
-              color: cloudNeedsSetup ? '#f87171' : '#34d399',
+              background: 'rgba(16, 185, 129, 0.1)',
+              border: '1px solid rgba(16, 185, 129, 0.25)',
+              color: '#34d399',
               fontSize: '0.78rem',
-              fontWeight: 700,
+              fontWeight: 600,
               cursor: 'pointer',
               transition: 'all 0.2s ease',
             }}
           >
-            <Smartphone size={13} />
-            <span>Sync with Mobile</span>
-            {cloudSyncStatus === 'synced' && <Cloud size={12} color="#34d399" />}
-            {cloudNeedsSetup && (
-              <span
-                style={{
-                  fontSize: '0.62rem',
-                  background: '#ef4444',
-                  color: '#ffffff',
-                  padding: '1px 5px',
-                  borderRadius: '8px',
-                  fontWeight: 800,
-                }}
-              >
-                SQL
-              </span>
-            )}
+            <RefreshCw size={12} className={cloudSyncStatus === 'syncing' ? 'animate-spin' : ''} />
+            <span>
+              {cloudSyncStatus === 'synced'
+                ? 'Cloud Synced'
+                : cloudSyncStatus === 'syncing'
+                ? 'Syncing...'
+                : 'Sync Cloud'}
+            </span>
           </button>
 
           <button
@@ -407,12 +399,6 @@ export default function GroceryHeader({
           </button>
         </div>
       )}
-
-      {/* Mobile Sync Modal */}
-      <GroceryMobileSyncModal
-        isOpen={showSyncModal}
-        onClose={() => setShowSyncModal(false)}
-      />
     </div>
   );
 }

@@ -122,7 +122,7 @@ function LoadingScreen() {
 function AppContent() {
   const [section, setSection] = useState<NavSection>(() => {
     if (typeof window !== 'undefined') {
-      if (window.location.hash.includes('grocery_sync=') || window.location.hash.includes('groceries')) {
+      if (window.location.hash.includes('groceries')) {
         return 'groceries';
       }
       if (window.location.hash.includes('section=')) {
