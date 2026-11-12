@@ -286,7 +286,7 @@ export default function CreativityPage() {
           sublabel="Published"
         />
 
-        <div style={{ flex: 1, minWidth: 260 }}>
+        <div style={{ flex: 1, minWidth: 'min(100%, 260px)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
             <Palette size={22} color="#ec4899" />
             <h1 style={{ fontSize: '1.4rem', fontWeight: 800 }}>{creativeTitle}</h1>

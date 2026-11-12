@@ -17,6 +17,7 @@ import {
   updateVaultResource,
   deleteVaultResource,
   recordResourceView,
+  subscribeToVault,
 } from '../services/vaultService';
 import { useAuth } from './AuthContext';
 
@@ -94,28 +95,57 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   const [isCollectionModalOpen, setIsCollectionModalOpen] = useState(false);
   const [editingCollection, setEditingCollection] = useState<VaultCollection | null>(null);
 
+  // Load Vault Data
+  const loadVaultData = useCallback(async () => {
+    try {
+      const [cols, res] = await Promise.all([
+        fetchVaultCollections(userId),
+        fetchVaultResources(userId),
+      ]);
+      setCollections(cols);
+      setResources(res);
+    } catch (err) {
+      console.error('Failed to load vault data', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [userId]);
+
   // Initial load & when user changes
   useEffect(() => {
-    let isCancelled = false;
     setIsLoading(true);
+    loadVaultData();
+  }, [loadVaultData]);
 
-    Promise.all([fetchVaultCollections(userId), fetchVaultResources(userId)])
-      .then(([cols, res]) => {
-        if (!isCancelled) {
-          setCollections(cols);
-          setResources(res);
-          setIsLoading(false);
-        }
-      })
-      .catch((err) => {
-        console.error('Failed to load vault data', err);
-        if (!isCancelled) setIsLoading(false);
-      });
+  // Window Focus & Visibility Change: Instantly re-pull latest data when switching between Web and Mobile
+  useEffect(() => {
+    if (!userId || userId === 'guest') return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadVaultData();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleVisibilityChange);
 
     return () => {
-      isCancelled = true;
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleVisibilityChange);
     };
-  }, [userId]);
+  }, [userId, loadVaultData]);
+
+  // Supabase Realtime Subscription: Update immediately across active sessions
+  useEffect(() => {
+    if (!userId || userId === 'guest') return;
+    const unsubscribe = subscribeToVault(userId, () => {
+      loadVaultData();
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, [userId, loadVaultData]);
 
   // Resource Actions
   const addResource = useCallback(

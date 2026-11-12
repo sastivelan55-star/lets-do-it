@@ -314,42 +314,40 @@ export function saveLocalResources(resources: VaultResource[], userId?: string |
 export async function fetchVaultCollections(userId?: string | null): Promise<VaultCollection[]> {
   const local = loadLocalCollections(userId);
 
-  // If local is completely empty, initialize with default seed collections
-  if (local.length === 0) {
-    const now = new Date().toISOString();
-    const seeded: VaultCollection[] = DEFAULT_COLLECTIONS.map((c, i) => ({
-      ...c,
-      id: `local_col_${Date.now()}_${i}`,
-      userId: userId || 'guest',
-      createdAt: now,
-      updatedAt: now,
-    }));
-    saveLocalCollections(seeded, userId);
-    return seeded;
+  const supabase = getSupabase();
+  if (supabase && userId && userId !== 'guest') {
+    try {
+      const { data, error } = await supabase
+        .from('vault_collections')
+        .select('*')
+        .eq('user_id', userId)
+        .order('order_index', { ascending: true });
+
+      if (!error && data && data.length > 0) {
+        const cloudCollections = (data as DbVaultCollectionRow[]).map(dbRowToCollection);
+        saveLocalCollections(cloudCollections, userId);
+        return cloudCollections;
+      }
+    } catch (err) {
+      logSafeError('fetchVaultCollections cloud', err);
+    }
   }
 
-  const supabase = getSupabase();
-  if (!supabase || !userId) {
+  if (local.length > 0) {
     return local;
   }
 
-  try {
-    const { data, error } = await supabase
-      .from('vault_collections')
-      .select('*')
-      .eq('user_id', userId)
-      .order('order_index', { ascending: true });
-
-    if (!error && data && data.length > 0) {
-      const cloudCollections = (data as DbVaultCollectionRow[]).map(dbRowToCollection);
-      saveLocalCollections(cloudCollections, userId);
-      return cloudCollections;
-    }
-  } catch (err) {
-    logSafeError('fetchVaultCollections cloud', err);
-  }
-
-  return local;
+  // If local is completely empty, initialize with default seed collections
+  const now = new Date().toISOString();
+  const seeded: VaultCollection[] = DEFAULT_COLLECTIONS.map((c, i) => ({
+    ...c,
+    id: `local_col_${Date.now()}_${i}`,
+    userId: userId || 'guest',
+    createdAt: now,
+    updatedAt: now,
+  }));
+  saveLocalCollections(seeded, userId);
+  return seeded;
 }
 
 export async function createVaultCollection(
@@ -472,42 +470,40 @@ export async function deleteVaultCollection(id: string, userId: string): Promise
 export async function fetchVaultResources(userId?: string | null): Promise<VaultResource[]> {
   const local = loadLocalResources(userId);
 
-  // Seed with sample resources if completely empty
-  if (local.length === 0) {
-    const now = new Date().toISOString();
-    const seeded: VaultResource[] = INITIAL_SAMPLE_RESOURCES.map((r, i) => ({
-      ...r,
-      id: `local_res_${Date.now()}_${i}`,
-      userId: userId || 'guest',
-      createdAt: now,
-      updatedAt: now,
-    }));
-    saveLocalResources(seeded, userId);
-    return seeded;
+  const supabase = getSupabase();
+  if (supabase && userId && userId !== 'guest') {
+    try {
+      const { data, error } = await supabase
+        .from('vault_resources')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (!error && data && data.length > 0) {
+        const cloudResources = (data as DbVaultResourceRow[]).map(dbRowToResource);
+        saveLocalResources(cloudResources, userId);
+        return cloudResources;
+      }
+    } catch (err) {
+      logSafeError('fetchVaultResources cloud', err);
+    }
   }
 
-  const supabase = getSupabase();
-  if (!supabase || !userId) {
+  if (local.length > 0) {
     return local;
   }
 
-  try {
-    const { data, error } = await supabase
-      .from('vault_resources')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-
-    if (!error && data && data.length > 0) {
-      const cloudResources = (data as DbVaultResourceRow[]).map(dbRowToResource);
-      saveLocalResources(cloudResources, userId);
-      return cloudResources;
-    }
-  } catch (err) {
-    logSafeError('fetchVaultResources cloud', err);
-  }
-
-  return local;
+  // Seed with sample resources if completely empty
+  const now = new Date().toISOString();
+  const seeded: VaultResource[] = INITIAL_SAMPLE_RESOURCES.map((r, i) => ({
+    ...r,
+    id: `local_res_${Date.now()}_${i}`,
+    userId: userId || 'guest',
+    createdAt: now,
+    updatedAt: now,
+  }));
+  saveLocalResources(seeded, userId);
+  return seeded;
 }
 
 export async function createVaultResource(
@@ -663,4 +659,29 @@ export async function recordResourceView(id: string, userId: string): Promise<vo
       // Ignore background view increment errors
     }
   }
+}
+
+// ── Realtime Subscription ────────────────────────────────────────────────────
+
+export function subscribeToVault(userId: string, onChange: () => void): () => void {
+  const supabase = getSupabase();
+  if (!supabase || !userId || userId === 'guest') return () => {};
+
+  const channel = supabase
+    .channel(`realtime:vault:${userId}`)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'vault_collections', filter: `user_id=eq.${userId}` },
+      () => onChange()
+    )
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'vault_resources', filter: `user_id=eq.${userId}` },
+      () => onChange()
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
 }

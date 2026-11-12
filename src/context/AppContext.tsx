@@ -56,6 +56,30 @@ import {
   updateCommunicationSession as updateCloudCommSession,
   deleteCommunicationSession as deleteCloudCommSession,
 } from '../services/communicationService';
+import {
+  fetchUserProjects,
+  updateCloudProject,
+  deleteCloudProject,
+  subscribeToUserProjects,
+} from '../services/projectService';
+import {
+  fetchUserMilestones,
+  saveCloudMilestone,
+  subscribeToUserMilestones,
+} from '../services/milestoneService';
+import {
+  fetchUserDailyRecords,
+  saveCloudDailyRecord,
+  subscribeToUserDailyRecords,
+} from '../services/dailyRecordService';
+import {
+  fetchUserSettings,
+  saveCloudSettings,
+  subscribeToUserSettings,
+} from '../services/settingsService';
+import { subscribeToUserSchedules } from '../services/scheduleService';
+import { subscribeToUserNotes } from '../services/noteService';
+import { migrateLocalDataToCloud } from '../services/localMigrationService';
 import { extractErrorInfo, formatSafeErrorMessage, logSafeError } from '../utils/errorUtils';
 import { nanoid } from '../utils/nanoid';
 import {
@@ -323,12 +347,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (user && isConfigured) {
         setSyncStatus('syncing');
 
-        const [tasksRes, schedulesRes, notesRes, uploadsRes, commRes] = await Promise.allSettled([
+        const [
+          tasksRes,
+          schedulesRes,
+          notesRes,
+          uploadsRes,
+          commRes,
+          projectsRes,
+          milestonesRes,
+          recordsRes,
+          settingsRes,
+        ] = await Promise.allSettled([
           fetchUserTasks(user.id),
           fetchUserSchedules(user.id),
           fetchUserNotes(user.id),
           fetchUserUploads(user.id),
           fetchUserCommunicationSessions(user.id),
+          fetchUserProjects(user.id),
+          fetchUserMilestones(user.id),
+          fetchUserDailyRecords(user.id),
+          fetchUserSettings(user.id),
         ]);
 
         let hasCriticalTaskError = false;
@@ -337,6 +375,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         // 1. Process Tasks
         if (tasksRes.status === 'fulfilled') {
           setAllTasks(tasksRes.value);
+          // Mirror to local IndexedDB for fast offline cache
+          for (const t of tasksRes.value) {
+            saveTask(t).catch(() => {});
+          }
         } else {
           hasCriticalTaskError = true;
           logSafeError('Load User Tasks', tasksRes.reason);
@@ -353,24 +395,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         // 2. Process Schedules
         if (schedulesRes.status === 'fulfilled') {
           setSchedules(schedulesRes.value);
+          for (const s of schedulesRes.value) {
+            saveSchedule(s).catch(() => {});
+          }
         } else {
           logSafeError('Load User Schedules', schedulesRes.reason);
-          const info = extractErrorInfo(schedulesRes.reason, 'Load schedules');
-          if (info.isSchemaMissing) {
-            console.warn('[Life OS] Schedules table not yet in Supabase schema cache. Run migration 20261016000000_create_schedules_and_notes_tables.sql.');
-          }
           setSchedules([]);
         }
 
         // 3. Process Notes
         if (notesRes.status === 'fulfilled') {
           setNotes(notesRes.value);
+          for (const n of notesRes.value) {
+            saveNote(n).catch(() => {});
+          }
         } else {
           logSafeError('Load User Notes', notesRes.reason);
-          const info = extractErrorInfo(notesRes.reason, 'Load notes');
-          if (info.isSchemaMissing) {
-            console.warn('[Life OS] Notes table not yet in Supabase schema cache. Run migration 20261016000000_create_schedules_and_notes_tables.sql.');
-          }
           setNotes([]);
         }
 
@@ -379,10 +419,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           setUploads(uploadsRes.value);
         } else {
           logSafeError('Load User Uploads', uploadsRes.reason);
-          const info = extractErrorInfo(uploadsRes.reason, 'Load uploads');
-          if (info.isSchemaMissing) {
-            console.warn('[Life OS] user_uploads table or media-vault bucket not yet in Supabase. Run migration 20261016100000_create_media_vault_and_uploads.sql.');
-          }
           setUploads([]);
         }
 
@@ -394,6 +430,38 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           setCommunicationSessions([]);
         }
 
+        // 6. Process Projects (Cloud + Local Mirror)
+        if (projectsRes.status === 'fulfilled') {
+          setProjects(projectsRes.value.projects);
+        }
+
+        // 7. Process Roadmap Milestones (Cloud + Local Mirror)
+        if (milestonesRes.status === 'fulfilled') {
+          setMilestones(milestonesRes.value.milestones);
+        }
+
+        // 8. Process Daily Records (Cloud + Local Mirror)
+        if (recordsRes.status === 'fulfilled') {
+          setDailyRecords(recordsRes.value.records);
+        }
+
+        // 9. Process User Settings (Cloud + Local Mirror)
+        if (settingsRes.status === 'fulfilled') {
+          setSettings(settingsRes.value.settings);
+          applyTheme(settingsRes.value.settings.theme, settingsRes.value.settings.appearance);
+        }
+
+        // 10. Safe Non-Destructive Local-to-Cloud Migration
+        // Safely push any local records that only exist on this device up to Supabase
+        migrateLocalDataToCloud(user.id, {
+          tasks: tasksRes.status === 'fulfilled' ? tasksRes.value : [],
+          projects: projectsRes.status === 'fulfilled' ? projectsRes.value.projects : [],
+          milestones: milestonesRes.status === 'fulfilled' ? milestonesRes.value.milestones : [],
+          schedules: schedulesRes.status === 'fulfilled' ? schedulesRes.value : [],
+          notes: notesRes.status === 'fulfilled' ? notesRes.value : [],
+          dailyRecords: recordsRes.status === 'fulfilled' ? recordsRes.value.records : [],
+        }).catch((err) => logSafeError('Data migration error', err));
+
         if (hasCriticalTaskError) {
           setError(taskErrorMessage);
           setSyncStatus('error');
@@ -404,17 +472,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       } else {
         // Fallback to local storage (Guest mode or Supabase not configured)
         setSyncStatus('offline');
-        const [localTasks, localSchedules, localNotes, localComm] = await Promise.all([
-          getAllTasks(),
-          getAllSchedules(),
-          getAllNotes(),
-          fetchUserCommunicationSessions(''),
-        ]);
+        const [localTasks, localSchedules, localNotes, localComm, localProjects, localMilestones, localRecords, localSettings] =
+          await Promise.all([
+            getAllTasks(),
+            getAllSchedules(),
+            getAllNotes(),
+            fetchUserCommunicationSessions(''),
+            getAllProjects(),
+            getAllMilestones(),
+            getAllDailyRecords(),
+            getSettings(),
+          ]);
         setAllTasks(localTasks);
         setSchedules(localSchedules);
         setNotes(localNotes);
         setUploads([]);
         setCommunicationSessions(localComm);
+        setProjects(localProjects.length > 0 ? localProjects : INITIAL_PROJECTS);
+        setMilestones(localMilestones.length > 0 ? localMilestones : INITIAL_MILESTONES);
+        setDailyRecords(localRecords);
+        if (localSettings) {
+          setSettings(localSettings);
+          applyTheme(localSettings.theme, localSettings.appearance);
+        }
       }
     } catch (err: unknown) {
       logSafeError('Bootstrap User Data', err);
@@ -426,7 +506,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, isConfigured, authIsLoading]);
 
-  // Guard: clear tasks, schedules, notes, uploads immediately when user identity changes to prevent cross-account flash
+  // Guard: clear state immediately when user identity changes to prevent cross-account flash
   useEffect(() => {
     const prevId = prevUserIdRef.current;
     const currentId = user?.id ?? null;
@@ -437,6 +517,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setNotes([]);
       setUploads([]);
       setCommunicationSessions([]);
+      setProjects([]);
+      setMilestones([]);
+      setDailyRecords([]);
       setSyncStatus('synced');
       setError(null);
     }
@@ -445,46 +528,143 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!authIsLoading) {
-      // Use queueMicrotask to avoid synchronous setState inside render effect warning
       queueMicrotask(() => {
         loadUserData();
       });
     }
   }, [loadUserData, authIsLoading]);
 
-  // ── Realtime Subscription for Authenticated User ─────────────────────────
+  // ── Multi-Module Realtime Subscriptions for Authenticated User ───────────
   useEffect(() => {
     if (!user || !isConfigured || authIsLoading) return;
 
-    const unsubscribe = subscribeToUserTasks(user.id, () => {
-      fetchUserTasks(user.id)
-        .then((fresh) => {
-          setAllTasks(fresh);
-          setSyncStatus('synced');
-        })
-        .catch((err: unknown) => {
-          // Surface realtime refresh errors safely — do not silently swallow them
-          logSafeError('Realtime refresh', err);
-          const msg = formatSafeErrorMessage(err, 'Realtime sync failed');
-          setSyncStatus('error');
-          setError(`Live sync failed: ${msg}`);
-        });
-    });
+    const unsubs: (() => void)[] = [];
+
+    // 1. Tasks Realtime
+    unsubs.push(
+      subscribeToUserTasks(user.id, () => {
+        fetchUserTasks(user.id)
+          .then((fresh) => {
+            setAllTasks(fresh);
+            setSyncStatus('synced');
+          })
+          .catch((err) => logSafeError('Realtime refresh tasks', err));
+      })
+    );
+
+    // 2. Schedules Realtime
+    unsubs.push(
+      subscribeToUserSchedules(user.id, () => {
+        fetchUserSchedules(user.id)
+          .then((fresh) => {
+            setSchedules(fresh);
+            setSyncStatus('synced');
+          })
+          .catch((err) => logSafeError('Realtime refresh schedules', err));
+      })
+    );
+
+    // 3. Notes Realtime
+    unsubs.push(
+      subscribeToUserNotes(user.id, () => {
+        fetchUserNotes(user.id)
+          .then((fresh) => {
+            setNotes(fresh);
+            setSyncStatus('synced');
+          })
+          .catch((err) => logSafeError('Realtime refresh notes', err));
+      })
+    );
+
+    // 4. Projects Realtime
+    unsubs.push(
+      subscribeToUserProjects(user.id, () => {
+        fetchUserProjects(user.id)
+          .then((res) => {
+            setProjects(res.projects);
+            setSyncStatus('synced');
+          })
+          .catch((err) => logSafeError('Realtime refresh projects', err));
+      })
+    );
+
+    // 5. Milestones Realtime
+    unsubs.push(
+      subscribeToUserMilestones(user.id, () => {
+        fetchUserMilestones(user.id)
+          .then((res) => {
+            setMilestones(res.milestones);
+            setSyncStatus('synced');
+          })
+          .catch((err) => logSafeError('Realtime refresh milestones', err));
+      })
+    );
+
+    // 6. Daily Records Realtime
+    unsubs.push(
+      subscribeToUserDailyRecords(user.id, () => {
+        fetchUserDailyRecords(user.id)
+          .then((res) => {
+            setDailyRecords(res.records);
+            setSyncStatus('synced');
+          })
+          .catch((err) => logSafeError('Realtime refresh daily records', err));
+      })
+    );
+
+    // 7. Settings Realtime
+    unsubs.push(
+      subscribeToUserSettings(user.id, (freshSettings) => {
+        setSettings(freshSettings);
+        applyTheme(freshSettings.theme, freshSettings.appearance);
+      })
+    );
 
     return () => {
-      unsubscribe();
+      unsubs.forEach((u) => u());
     };
   }, [user, isConfigured, authIsLoading]);
 
+  // ── Auto-Sync on Tab Focus & Mobile App Resume ───────────────────────────
+  useEffect(() => {
+    if (!user || !isConfigured || authIsLoading) return;
+
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const handleResume = () => {
+      if (document.visibilityState === 'visible') {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+          loadUserData();
+        }, 300);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleResume);
+    window.addEventListener('focus', handleResume);
+
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      document.removeEventListener('visibilitychange', handleResume);
+      window.removeEventListener('focus', handleResume);
+    };
+  }, [user, isConfigured, authIsLoading, loadUserData]);
+
   // ── Settings & Customization ─────────────────────────────────────────────
-  const updateSettings = useCallback(async (partial: Partial<AppSettings>) => {
-    setSettings((prev) => {
-      const next = { ...prev, ...partial };
-      saveSettings(next);
-      applyTheme(next.theme, next.appearance);
-      return next;
-    });
-  }, []);
+  const updateSettings = useCallback(
+    async (partial: Partial<AppSettings>) => {
+      setSettings((prev) => {
+        const next = { ...prev, ...partial };
+        applyTheme(next.theme, next.appearance);
+        if (user && isConfigured) {
+          saveCloudSettings(next, user.id).catch((err) => logSafeError('saveCloudSettings', err));
+        } else {
+          saveSettings(next);
+        }
+        return next;
+      });
+    },
+    [user, isConfigured]
+  );
 
   const customLifeAreas = useMemo(() => {
     return settings.lifeAreas && settings.lifeAreas.length > 0
@@ -551,6 +731,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             dueDate: savedTask.dueDate || assigned,
           };
           setAllTasks((prev) => [fullSaved, ...prev]);
+          saveTask(fullSaved).catch(() => {});
           setSyncStatus('synced');
           return fullSaved;
         } catch (err: unknown) {
@@ -603,6 +784,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         try {
           const saved = await updateCloudTask(updated, user.id);
           setAllTasks((prev) => prev.map((t) => (t.id === task.id ? saved : t)));
+          saveTask(saved).catch(() => {});
           setSyncStatus('synced');
         } catch (err: unknown) {
           // Targeted rollback: revert only this task without wiping other concurrent changes
@@ -1055,24 +1237,48 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return weekDueTasks.length ? Math.round((weekCompleted / weekDueTasks.length) * 100) : 0;
   }, [tasks, currentDate]);
 
-  // ── Milestones & Projects ────────────────────────────────────────────────
-  const updateMilestone = useCallback(async (milestone: RoadmapMilestone) => {
-    await saveMilestone(milestone);
-    setMilestones((prev) => prev.map((m) => (m.id === milestone.id ? milestone : m)));
-  }, []);
+  // ── Milestones & Projects (Cloud Sync + Local Mirror) ───────────────────
+  const updateMilestone = useCallback(
+    async (milestone: RoadmapMilestone) => {
+      setMilestones((prev) => prev.map((m) => (m.id === milestone.id ? milestone : m)));
+      if (user && isConfigured) {
+        await saveCloudMilestone(milestone, user.id);
+      } else {
+        await saveMilestone(milestone);
+      }
+    },
+    [user, isConfigured]
+  );
 
-  const updateProject = useCallback(async (project: Project) => {
-    const updated = { ...project, updatedAt: nowISO() };
-    await saveProject(updated);
-    setProjects((prev) => prev.map((p) => (p.id === project.id ? updated : p)));
-  }, []);
+  const updateProject = useCallback(
+    async (project: Project) => {
+      const updated = { ...project, updatedAt: nowISO() };
+      setProjects((prev) => {
+        const exists = prev.some((p) => p.id === project.id);
+        return exists ? prev.map((p) => (p.id === project.id ? updated : p)) : [updated, ...prev];
+      });
+      if (user && isConfigured) {
+        await updateCloudProject(updated, user.id);
+      } else {
+        await saveProject(updated);
+      }
+    },
+    [user, isConfigured]
+  );
 
-  const removeProject = useCallback(async (id: string) => {
-    await deleteProject(id);
-    setProjects((prev) => prev.filter((p) => p.id !== id));
-  }, []);
+  const removeProject = useCallback(
+    async (id: string) => {
+      setProjects((prev) => prev.filter((p) => p.id !== id));
+      if (user && isConfigured) {
+        await deleteCloudProject(id, user.id);
+      } else {
+        await deleteProject(id);
+      }
+    },
+    [user, isConfigured]
+  );
 
-  // ── Daily Record ─────────────────────────────────────────────────────────
+  // ── Daily Record / Reflections (Cloud Sync + Local Mirror) ───────────────
   const saveTodayRecord = useCallback(async () => {
     const record: DailyRecord = {
       date: today(),
@@ -1083,12 +1289,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         .reduce((sum, t) => sum + (t.actualMinutes ?? t.estimatedMinutes ?? 0), 0),
       savedAt: nowISO(),
     };
-    await saveDailyRecord(record);
     setDailyRecords((prev) => {
       const exists = prev.findIndex((r) => r.date === today());
       return exists >= 0 ? prev.map((r, i) => (i === exists ? record : r)) : [...prev, record];
     });
-  }, [todaysTasks]);
+    if (user && isConfigured) {
+      await saveCloudDailyRecord(record, user.id);
+    } else {
+      await saveDailyRecord(record);
+    }
+  }, [todaysTasks, user, isConfigured]);
 
   // ── Schedules Operations (with Optimistic UI + Server Rollback) ─────────
   const addSchedule = useCallback(
@@ -1104,6 +1314,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               (a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime)
             )
           );
+          saveSchedule(savedSchedule).catch(() => {});
           setSyncStatus('synced');
           return savedSchedule;
         } catch (err: unknown) {
@@ -1153,6 +1364,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               .map((s) => (s.id === schedule.id ? saved : s))
               .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime))
           );
+          saveSchedule(saved).catch(() => {});
           setSyncStatus('synced');
         } catch (err: unknown) {
           if (originalSchedule) {
@@ -1188,6 +1400,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (user && isConfigured) {
         try {
           await deleteCloudSchedule(id, user.id);
+          deleteSchedule(id).catch(() => {});
           setSyncStatus('synced');
         } catch (err: unknown) {
           if (originalSchedule) {
@@ -1221,6 +1434,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         try {
           const savedNote = await createCloudNote(noteData, user.id);
           setNotes((prev) => [savedNote, ...prev]);
+          saveNote(savedNote).catch(() => {});
           setSyncStatus('synced');
           return savedNote;
         } catch (err: unknown) {
@@ -1260,6 +1474,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         try {
           const saved = await updateCloudNote(updated, user.id);
           setNotes((prev) => prev.map((n) => (n.id === note.id ? saved : n)));
+          saveNote(saved).catch(() => {});
           setSyncStatus('synced');
         } catch (err: unknown) {
           if (originalNote) {
@@ -1291,6 +1506,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (user && isConfigured) {
         try {
           await deleteCloudNote(id, user.id);
+          deleteNote(id).catch(() => {});
           setSyncStatus('synced');
         } catch (err: unknown) {
           if (originalNote) {

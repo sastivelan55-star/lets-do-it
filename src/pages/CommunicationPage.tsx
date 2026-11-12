@@ -253,7 +253,7 @@ export default function CommunicationPage({ initialView = 'communication' }: Com
           sublabel="Goal Met"
         />
 
-        <div style={{ flex: 1, minWidth: 260 }}>
+        <div style={{ flex: 1, minWidth: 'min(100%, 260px)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
             {initialView === 'attendance' ? (
               <>
@@ -412,7 +412,7 @@ export default function CommunicationPage({ initialView = 'communication' }: Com
                   borderLeft: `4px solid ${isMissed ? '#ef4444' : activityConfig.color}`,
                 }}
               >
-                <div style={{ flex: 1, minWidth: 260 }}>
+                <div style={{ flex: 1, minWidth: 'min(100%, 260px)' }}>
                   {/* Meta tags row */}
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '0.4rem' }}>
                     <span

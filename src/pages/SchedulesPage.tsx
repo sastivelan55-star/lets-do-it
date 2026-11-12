@@ -462,8 +462,10 @@ export default function SchedulesPage() {
               backdropFilter: 'blur(20px)',
               border: '1px solid rgba(255, 255, 255, 0.08)',
               borderRadius: '24px',
-              padding: '1.5rem',
+              padding: 'clamp(0.75rem, 3vw, 1.5rem)',
               boxShadow: '0 12px 36px rgba(0, 0, 0, 0.35)',
+              boxSizing: 'border-box',
+              maxWidth: '100%',
             }}
           >
             {/* Header: Month, Year & Prev/Next */}
@@ -589,15 +591,15 @@ export default function SchedulesPage() {
                     type="button"
                     onClick={() => setSelectedDate(dayStr)}
                     style={{
-                      width: '36px',
-                      height: '36px',
+                      width: 'clamp(28px, 7.5vw, 36px)',
+                      height: 'clamp(28px, 7.5vw, 36px)',
                       margin: '0 auto',
                       borderRadius: '50%',
                       border: 'none',
                       background: isSelected ? '#ff5e6d' : 'transparent',
                       color: isSelected ? '#ffffff' : inCurrentMonth ? '#cbd5e1' : '#475569',
                       fontWeight: isSelected ? 800 : inCurrentMonth ? 600 : 400,
-                      fontSize: '0.8rem',
+                      fontSize: 'clamp(0.7rem, 2.5vw, 0.8rem)',
                       cursor: 'pointer',
                       display: 'flex',
                       flexDirection: 'column',

@@ -72,7 +72,7 @@ export default function RoadmapPage() {
 
         {/* Overall progress */}
         <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: 220 }}>
+          <div style={{ flex: 1, minWidth: 'min(100%, 220px)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
               <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 600 }}>Overall Progress</span>
               <span style={{ fontSize: '0.82rem', color: 'var(--accent)', fontWeight: 700 }}>{overallPct}%</span>

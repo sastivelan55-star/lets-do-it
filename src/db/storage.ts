@@ -4,6 +4,46 @@
 import { openDB, type IDBPDatabase } from 'idb';
 import type { AppData, AppSettings, Task, RoadmapMilestone, Project, DailyRecord, ScheduleEntry, Note } from '../types';
 import { DEFAULT_LIFE_AREAS, DEFAULT_APPEARANCE, DEFAULT_AI_SETTINGS, DEFAULT_PERSONALIZATION } from '../types';
+import { getSupabase } from '../services/supabaseClient';
+
+const STORE_TO_TABLE_MAP: Record<string, string> = {
+  careerItems: 'career_items',
+  internshipApplications: 'internship_applications',
+  contentItems: 'content_items',
+  healthEntries: 'health_entries',
+  weeklyReviews: 'weekly_reviews',
+};
+
+function camelToSnakeCase(str: string): string {
+  return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+}
+
+function snakeToCamelCase(str: string): string {
+  return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+}
+
+function objectToDbRow(obj: any, userId: string): any {
+  if (!obj || typeof obj !== 'object') return obj;
+  const row: Record<string, any> = { user_id: userId };
+  for (const [key, val] of Object.entries(obj)) {
+    if (key === 'userId') continue;
+    row[camelToSnakeCase(key)] = val;
+  }
+  return row;
+}
+
+function dbRowToObject(row: any): any {
+  if (!row || typeof row !== 'object') return row;
+  const obj: Record<string, any> = {};
+  for (const [key, val] of Object.entries(row)) {
+    if (key === 'user_id') {
+      obj.userId = val;
+    } else {
+      obj[snakeToCamelCase(key)] = val;
+    }
+  }
+  return obj;
+}
 
 const DB_NAME = 'lifemap-db';
 const DB_VERSION = 3;
@@ -237,17 +277,67 @@ export async function deleteProject(id: string): Promise<void> {
 
 export async function getAllFromStore<T>(storeName: string): Promise<T[]> {
   const db = await getDB();
-  return db.getAll(storeName);
+  const local = await db.getAll(storeName);
+
+  const tableName = STORE_TO_TABLE_MAP[storeName];
+  if (!tableName) return local;
+
+  try {
+    const supabase = getSupabase();
+    if (!supabase) return local;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return local;
+
+    const { data, error } = await supabase
+      .from(tableName)
+      .select('*')
+      .eq('user_id', user.id);
+
+    if (!error && data && data.length > 0) {
+      const cloudItems = data.map(dbRowToObject) as T[];
+      for (const item of cloudItems) {
+        await db.put(storeName, item);
+      }
+      return cloudItems;
+    }
+  } catch {}
+
+  return local;
 }
 
 export async function saveToStore<T>(storeName: string, item: T): Promise<void> {
   const db = await getDB();
   await db.put(storeName, item);
+
+  const tableName = STORE_TO_TABLE_MAP[storeName];
+  if (!tableName) return;
+
+  try {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const payload = objectToDbRow(item, user.id);
+    await supabase.from(tableName).upsert(payload, { onConflict: 'id' });
+  } catch {}
 }
 
 export async function deleteFromStore(storeName: string, id: string): Promise<void> {
   const db = await getDB();
   await db.delete(storeName, id);
+
+  const tableName = STORE_TO_TABLE_MAP[storeName];
+  if (!tableName) return;
+
+  try {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    await supabase.from(tableName).delete().eq('id', id).eq('user_id', user.id);
+  } catch {}
 }
 
 // ─── Daily / Weekly Checklist Persistence (Local storage with daily key) ─────

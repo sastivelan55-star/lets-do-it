@@ -362,7 +362,10 @@ export default function AnimeFantasyDashboard({
                 width: '100%',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: '1 1 auto' }}>
+              <div
+                className="dash-today-title-block"
+                style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: '1 1 auto' }}
+              >
                 <div
                   style={{
                     width: '34px',
@@ -419,7 +422,6 @@ export default function AnimeFantasyDashboard({
                     boxShadow: deletedTasks.length > 0 ? '0 0 12px rgba(239, 68, 68, 0.2)' : 'none',
                     transition: 'all 0.2s ease',
                     whiteSpace: 'nowrap',
-                    flexShrink: 0,
                   }}
                   title="View deleted & auto-recycled missions"
                 >
@@ -444,7 +446,6 @@ export default function AnimeFantasyDashboard({
                     border: '1px solid rgba(168, 85, 247, 0.3)',
                     cursor: 'pointer',
                     whiteSpace: 'nowrap',
-                    flexShrink: 0,
                   }}
                 >
                   <Clock size={13} color="#c084fc" /> Timetable
@@ -463,7 +464,6 @@ export default function AnimeFantasyDashboard({
                     gap: '3px',
                     padding: '4px 8px',
                     whiteSpace: 'nowrap',
-                    flexShrink: 0,
                   }}
                 >
                   <span>View All</span>

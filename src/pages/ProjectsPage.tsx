@@ -140,7 +140,7 @@ export default function ProjectsPage() {
 
       {/* Search and Filters Bar */}
       <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
-        <div style={{ position: 'relative', flex: 1, minWidth: 220 }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: 'min(100%, 220px)' }}>
           <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
           <input
             className="input"

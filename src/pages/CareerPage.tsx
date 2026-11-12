@@ -312,7 +312,7 @@ export default function CareerPage() {
           sublabel="Prepared"
         />
 
-        <div style={{ flex: 1, minWidth: 260 }}>
+        <div style={{ flex: 1, minWidth: 'min(100%, 260px)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
             <Briefcase size={22} color="#f59e0b" />
             <h1 style={{ fontSize: '1.4rem', fontWeight: 800 }}>{careerGoal}</h1>

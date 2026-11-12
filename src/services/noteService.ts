@@ -130,3 +130,30 @@ export async function deleteCloudNote(noteId: string, userId: string): Promise<v
     throw new Error(formatSafeErrorMessage(error, 'Failed to delete note'));
   }
 }
+
+// ── Realtime subscription ────────────────────────────────────────────────────
+
+export function subscribeToUserNotes(userId: string, onChange: () => void): () => void {
+  const supabase = getSupabase();
+  if (!supabase || !userId) return () => {};
+
+  const channel = supabase
+    .channel(`realtime:notes:${userId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'notes',
+        filter: `user_id=eq.${userId}`,
+      },
+      () => {
+        onChange();
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}

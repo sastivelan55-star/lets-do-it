@@ -227,7 +227,7 @@ export default function TodayPage({ onNavigateSubTab, onNavigateSection }: Today
     <div className="page-container pb-safe">
       {/* Header with Live Real-Time Date, Day & Clock */}
       <div className="today-header" style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
-        <div style={{ flex: 1, minWidth: 260 }}>
+        <div style={{ flex: 1, minWidth: 'min(100%, 260px)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '0.35rem' }}>
             <span style={{ color: '#818cf8', fontWeight: 700, fontSize: '0.88rem', letterSpacing: '0.02em', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
               <CalendarDays size={14} /> {dayOfWeek}, {formattedDate}

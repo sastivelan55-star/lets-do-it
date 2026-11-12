@@ -2112,7 +2112,7 @@ export default function TaskBuilderPage() {
               </div>
 
               {/* Card Body */}
-              <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: '1.5rem', alignItems: 'center' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: '1.25rem', alignItems: 'center' }}>
                 <div
                   style={{
                     width: '140px',
@@ -2275,7 +2275,7 @@ export default function TaskBuilderPage() {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 120px), 1fr))', gap: '0.75rem' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', color: '#94a3b8', marginBottom: '4px' }}>
                     Rank Tier
@@ -2508,7 +2508,7 @@ export default function TaskBuilderPage() {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 130px), 1fr))', gap: '0.75rem' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', color: '#c084fc', marginBottom: '4px' }}>
                     Timetable Start (HH:MM)
@@ -2553,7 +2553,7 @@ export default function TaskBuilderPage() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 120px), 1fr))', gap: '0.75rem' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', color: '#94a3b8', marginBottom: '4px' }}>
                     Rank Tier

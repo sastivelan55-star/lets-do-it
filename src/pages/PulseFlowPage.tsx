@@ -1558,7 +1558,7 @@ export default function PulseFlowPage() {
               </p>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1.25rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '1.25rem' }}>
               {SHOWCASE_PACKAGES.map((pkg, idx) => (
                 <div
                   key={idx}
@@ -1728,7 +1728,7 @@ export default function PulseFlowPage() {
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
               gap: '1.25rem',
               marginBottom: '1.5rem',
             }}
@@ -1776,7 +1776,7 @@ export default function PulseFlowPage() {
                 <div
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
                     gap: '1.25rem',
                     alignItems: 'start',
                   }}
@@ -2076,7 +2076,7 @@ export default function PulseFlowPage() {
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))',
                 gap: '1rem',
               }}
             >

@@ -154,3 +154,30 @@ export async function deleteCloudSchedule(scheduleId: string, userId: string): P
     throw new Error(formatSafeErrorMessage(error, 'Failed to delete schedule'));
   }
 }
+
+// ── Realtime subscription ────────────────────────────────────────────────────
+
+export function subscribeToUserSchedules(userId: string, onChange: () => void): () => void {
+  const supabase = getSupabase();
+  if (!supabase || !userId) return () => {};
+
+  const channel = supabase
+    .channel(`realtime:schedules:${userId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'schedules',
+        filter: `user_id=eq.${userId}`,
+      },
+      () => {
+        onChange();
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}

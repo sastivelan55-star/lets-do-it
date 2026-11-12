@@ -64,7 +64,7 @@ function VaultResourcesContent() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 230px), 1fr))',
             gap: '1rem',
             marginTop: '0.75rem',
           }}
@@ -113,7 +113,7 @@ function VaultResourcesContent() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 230px), 1fr))',
             gap: '1rem',
           }}
         >
