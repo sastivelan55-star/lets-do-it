@@ -280,21 +280,23 @@ export default function AnimeFantasyDashboard({
         <div
           style={{
             position: 'fixed',
-            bottom: '24px',
-            right: '24px',
+            bottom: 'calc(76px + env(safe-area-inset-bottom, 16px))',
+            right: '16px',
             zIndex: 9999,
             background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.95), rgba(99, 102, 241, 0.95))',
             color: '#ffffff',
-            padding: '0.85rem 1.4rem',
+            padding: '0.75rem 1.25rem',
             borderRadius: '999px',
             display: 'flex',
             alignItems: 'center',
             gap: '10px',
             fontWeight: 800,
-            fontSize: '0.9rem',
+            fontSize: '0.85rem',
             boxShadow: '0 10px 30px rgba(16, 185, 129, 0.45)',
             border: '1px solid rgba(255, 255, 255, 0.3)',
             animation: 'fadeInUp 0.3s ease',
+            maxWidth: 'calc(100vw - 32px)',
+            boxSizing: 'border-box',
           }}
         >
           <div
@@ -307,12 +309,13 @@ export default function AnimeFantasyDashboard({
               alignItems: 'center',
               justifyContent: 'center',
               color: '#10b981',
+              flexShrink: 0,
             }}
           >
             <Check size={16} strokeWidth={3} />
           </div>
-          <span>{celebrationText}</span>
-          <Sparkles size={16} color="#facc15" />
+          <span style={{ overflowWrap: 'anywhere' }}>{celebrationText}</span>
+          <Sparkles size={16} color="#facc15" style={{ flexShrink: 0 }} />
         </div>
       )}
 
@@ -330,23 +333,36 @@ export default function AnimeFantasyDashboard({
         {/* Today's Missions Glass Card */}
         {widgets.showMissions && (
           <div
+            className="dash-today-card"
             style={{
               background: 'rgba(18, 12, 38, 0.75)',
               backdropFilter: 'blur(16px)',
               borderRadius: '20px',
               border: '1px solid rgba(192, 132, 252, 0.25)',
-              padding: '1.25rem 1.5rem',
+              padding: 'clamp(0.85rem, 2.5vw, 1.25rem)',
               display: 'flex',
               flexDirection: 'column',
               gap: '1rem',
               boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
               minHeight: '220px',
               transition: 'all 0.25s ease',
+              width: '100%',
+              boxSizing: 'border-box',
             }}
           >
             {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div
+              className="dash-today-header"
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '0.75rem',
+                width: '100%',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: '1 1 auto' }}>
                 <div
                   style={{
                     width: '34px',
@@ -357,42 +373,53 @@ export default function AnimeFantasyDashboard({
                     alignItems: 'center',
                     justifyContent: 'center',
                     color: '#f87171',
+                    flexShrink: 0,
                   }}
                 >
                   <Target size={18} />
                 </div>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#f8fafc' }}>
+                <div style={{ minWidth: 0 }}>
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#f8fafc', letterSpacing: '0.01em' }}>
                     Today Missions
                   </h3>
-                  <p style={{ margin: '2px 0 0', fontSize: '0.74rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                  <div style={{ margin: '2px 0 0', fontSize: '0.74rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                     <span>Your plan for today • {formattedDate}</span>
-                    <span style={{ fontSize: '0.68rem', color: '#34d399', background: 'rgba(16, 185, 129, 0.12)', padding: '1px 6px', borderRadius: '4px' }}>
+                    <span style={{ fontSize: '0.68rem', color: '#34d399', background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.25)', padding: '1px 6px', borderRadius: '4px', whiteSpace: 'nowrap' }}>
                       ⚡ Auto-Recycle Completed
                     </span>
-                  </p>
+                  </div>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div
+                className="dash-today-actions"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  flexWrap: 'wrap',
+                }}
+              >
                 <button
                   type="button"
                   onClick={() => setIsRecycleBinOpen(true)}
                   className="btn btn-ghost btn-sm"
                   style={{
                     color: deletedTasks.length > 0 ? '#f87171' : '#94a3b8',
-                    fontSize: '0.76rem',
+                    fontSize: '0.74rem',
                     fontWeight: 600,
                     display: 'flex',
                     alignItems: 'center',
                     gap: '4px',
                     background: deletedTasks.length > 0 ? 'rgba(239, 68, 68, 0.12)' : 'rgba(255, 255, 255, 0.04)',
-                    padding: '4px 9px',
+                    padding: '4px 8px',
                     borderRadius: '8px',
                     border: deletedTasks.length > 0 ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(255, 255, 255, 0.08)',
                     cursor: 'pointer',
                     boxShadow: deletedTasks.length > 0 ? '0 0 12px rgba(239, 68, 68, 0.2)' : 'none',
                     transition: 'all 0.2s ease',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
                   }}
                   title="View deleted & auto-recycled missions"
                 >
@@ -406,16 +433,18 @@ export default function AnimeFantasyDashboard({
                   className="btn btn-ghost btn-sm"
                   style={{
                     color: '#c084fc',
-                    fontSize: '0.78rem',
+                    fontSize: '0.74rem',
                     fontWeight: 700,
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '5px',
+                    gap: '4px',
                     background: 'rgba(168, 85, 247, 0.12)',
-                    padding: '4px 10px',
+                    padding: '4px 9px',
                     borderRadius: '8px',
                     border: '1px solid rgba(168, 85, 247, 0.3)',
                     cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
                   }}
                 >
                   <Clock size={13} color="#c084fc" /> Timetable
@@ -427,14 +456,18 @@ export default function AnimeFantasyDashboard({
                   className="btn btn-ghost btn-sm"
                   style={{
                     color: '#94a3b8',
-                    fontSize: '0.78rem',
+                    fontSize: '0.74rem',
                     fontWeight: 700,
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '4px',
+                    gap: '3px',
+                    padding: '4px 8px',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
                   }}
                 >
-                  View All <ChevronRight size={14} />
+                  <span>View All</span>
+                  <ChevronRight size={13} />
                 </button>
               </div>
             </div>
@@ -444,7 +477,7 @@ export default function AnimeFantasyDashboard({
               {todayMissions.length === 0 ? (
                 <div
                   style={{
-                    padding: '2rem 1.5rem',
+                    padding: '1.5rem 1rem',
                     textAlign: 'center',
                     background: 'rgba(255, 255, 255, 0.02)',
                     borderRadius: '16px',
@@ -453,6 +486,8 @@ export default function AnimeFantasyDashboard({
                     flexDirection: 'column',
                     alignItems: 'center',
                     gap: '10px',
+                    width: '100%',
+                    boxSizing: 'border-box',
                   }}
                 >
                   <div
@@ -473,7 +508,7 @@ export default function AnimeFantasyDashboard({
                     <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#f8fafc', marginBottom: '4px' }}>
                       No Missions Scheduled
                     </div>
-                    <div style={{ fontSize: '0.76rem', color: '#94a3b8', maxWidth: '280px', margin: '0 auto' }}>
+                    <div style={{ fontSize: '0.76rem', color: '#94a3b8', maxWidth: '300px', margin: '0 auto', lineHeight: 1.4 }}>
                       You have no pending missions for today. Add new tasks in the Task Builder to track your progress!
                     </div>
                   </div>
@@ -485,9 +520,9 @@ export default function AnimeFantasyDashboard({
                       background: 'linear-gradient(135deg, #ec4899, #8b5cf6)',
                       border: 'none',
                       borderRadius: '10px',
-                      padding: '7px 16px',
+                      padding: '8px 18px',
                       fontWeight: 700,
-                      fontSize: '0.8rem',
+                      fontSize: '0.82rem',
                       display: 'flex',
                       alignItems: 'center',
                       gap: '6px',
@@ -517,7 +552,7 @@ export default function AnimeFantasyDashboard({
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        padding: '0.75rem 1rem',
+                        padding: '0.7rem 0.85rem',
                         borderRadius: '14px',
                         background: m.isCompleted
                           ? 'rgba(16, 185, 129, 0.12)'
@@ -528,9 +563,12 @@ export default function AnimeFantasyDashboard({
                         transition: 'all 0.3s ease',
                         opacity: m.isMovingToTrash ? 0.6 : 1,
                         transform: m.isMovingToTrash ? 'scale(0.98)' : 'scale(1)',
+                        gap: '8px',
+                        width: '100%',
+                        boxSizing: 'border-box',
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: '1 1 auto' }}>
                         <div
                           style={{
                             width: '32px',
@@ -541,15 +579,16 @@ export default function AnimeFantasyDashboard({
                             alignItems: 'center',
                             justifyContent: 'center',
                             color: badgeColor,
+                            flexShrink: 0,
                           }}
                         >
                           {m.icon}
                         </div>
 
-                        <div>
+                        <div style={{ minWidth: 0, flex: 1 }}>
                           <div
                             style={{
-                              fontSize: '0.88rem',
+                              fontSize: '0.86rem',
                               fontWeight: 700,
                               color: m.isCompleted ? '#94a3b8' : '#f8fafc',
                               textDecoration: m.isCompleted ? 'line-through' : 'none',
@@ -557,6 +596,7 @@ export default function AnimeFantasyDashboard({
                               alignItems: 'center',
                               gap: '6px',
                               flexWrap: 'wrap',
+                              overflowWrap: 'anywhere',
                             }}
                           >
                             <span>{m.title}</span>
@@ -579,7 +619,7 @@ export default function AnimeFantasyDashboard({
                               </span>
                             )}
                           </div>
-                          <div style={{ fontSize: '0.72rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
+                          <div style={{ fontSize: '0.72rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px', flexWrap: 'wrap' }}>
                             {m.isScheduled ? (
                               <span style={{ color: '#c084fc', fontFamily: 'monospace' }}>{m.time}</span>
                             ) : (
@@ -878,24 +918,28 @@ export default function AnimeFantasyDashboard({
         {/* Next Milestone Card */}
         {widgets.showMilestone && (
           <div
+            className="dash-milestone-card"
             style={{
               background: 'rgba(18, 12, 38, 0.75)',
               backdropFilter: 'blur(16px)',
               borderRadius: '20px',
               border: '1px solid rgba(192, 132, 252, 0.25)',
-              padding: '1.25rem',
+              padding: 'clamp(0.85rem, 2.5vw, 1.25rem)',
               boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
               display: 'flex',
               alignItems: 'center',
               gap: '1rem',
               height: 'fit-content',
+              boxSizing: 'border-box',
+              width: '100%',
             }}
           >
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#facc15', fontSize: '0.78rem', fontWeight: 800 }}>
-                <Trophy size={14} /> Next Milestone
+                <Trophy size={14} style={{ flexShrink: 0 }} />
+                <span>Next Milestone</span>
               </div>
-              <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#f8fafc', margin: '3px 0 6px' }}>
+              <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#f8fafc', margin: '3px 0 6px', overflowWrap: 'anywhere' }}>
                 Complete 5 tasks today!
               </div>
 
@@ -925,8 +969,8 @@ export default function AnimeFantasyDashboard({
             {/* Gift Box Icon */}
             <div
               style={{
-                width: '46px',
-                height: '46px',
+                width: '42px',
+                height: '42px',
                 borderRadius: '12px',
                 background: 'linear-gradient(135deg, #f59e0b, #ec4899)',
                 display: 'flex',
@@ -937,7 +981,7 @@ export default function AnimeFantasyDashboard({
                 flexShrink: 0,
               }}
             >
-              <Gift size={22} />
+              <Gift size={20} />
             </div>
           </div>
         )}
@@ -951,23 +995,28 @@ export default function AnimeFantasyDashboard({
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
-            margin: '0.75rem auto 0',
+            margin: '0.5rem auto 0',
+            boxSizing: 'border-box',
+            padding: '0 0.5rem',
           }}
         >
           <div
+            className="dash-quote-banner"
             style={{
               textAlign: 'center',
-              padding: '0.85rem 2.5rem',
+              padding: '0.75rem 1.5rem',
               borderRadius: '999px',
               background: 'linear-gradient(90deg, transparent, rgba(236, 72, 153, 0.15), rgba(168, 85, 247, 0.15), transparent)',
               border: '1px solid rgba(236, 72, 153, 0.25)',
               fontFamily: 'cursive, var(--font-display), sans-serif',
-              fontSize: '1.15rem',
+              fontSize: 'clamp(0.85rem, 3.2vw, 1.15rem)',
               color: '#f472b6',
               fontWeight: 600,
               letterSpacing: '0.02em',
               textShadow: '0 0 16px rgba(244, 114, 182, 0.6)',
               boxShadow: '0 4px 20px rgba(236, 72, 153, 0.12)',
+              maxWidth: '100%',
+              wordBreak: 'break-word',
             }}
           >
             "Small steps today... Big dreams tomorrow ♡"

@@ -47,7 +47,7 @@ export default function HomePage({ initialTab = 'dashboard', onNavigateSection }
   return (
     <div className="composite-page" style={{ maxWidth: '100vw', overflowX: 'hidden', boxSizing: 'border-box', width: '100%' }}>
       {/* Subtab Navigation Bar with Live Time & Date */}
-      <header className="composite-header" style={{ marginBottom: '1.25rem' }}>
+      <header className="composite-header" style={{ marginBottom: '0.75rem' }}>
         <div className="composite-header-top">
           {/* Time & Date Display */}
           <div>
@@ -56,17 +56,17 @@ export default function HomePage({ initialTab = 'dashboard', onNavigateSection }
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '10px',
+                gap: '8px',
                 fontFamily: 'var(--font-display)',
                 fontWeight: 800,
-                fontSize: '1.65rem',
+                fontSize: 'clamp(1.25rem, 4.5vw, 1.65rem)',
                 color: '#f8fafc',
                 letterSpacing: '0.02em',
                 textShadow: '0 0 16px rgba(192, 132, 252, 0.4)',
                 margin: 0,
               }}
             >
-              <Clock size={22} color="#ec4899" style={{ filter: 'drop-shadow(0 0 8px rgba(236, 72, 153, 0.6))' }} />
+              <Clock size={20} color="#ec4899" style={{ filter: 'drop-shadow(0 0 8px rgba(236, 72, 153, 0.6))', flexShrink: 0 }} />
               <span>{formattedTime}</span>
             </h1>
 
@@ -78,12 +78,12 @@ export default function HomePage({ initialTab = 'dashboard', onNavigateSection }
                 gap: '6px',
                 color: '#c084fc',
                 fontWeight: 600,
-                fontSize: '0.86rem',
-                marginTop: '4px',
+                fontSize: '0.82rem',
+                marginTop: '3px',
                 letterSpacing: '0.02em',
               }}
             >
-              <Calendar size={14} color="#38bdf8" />
+              <Calendar size={13} color="#38bdf8" style={{ flexShrink: 0 }} />
               <span>{formattedDate}</span>
             </p>
           </div>
