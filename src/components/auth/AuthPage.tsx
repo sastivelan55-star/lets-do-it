@@ -779,7 +779,7 @@ export default function AuthPage() {
                     fontFamily: "'Outfit', 'Inter', sans-serif",
                   }}
                 >
-                  {mode === 'signin' ? 'Welcome Back!' : 'Create Account'}
+                  {mode === 'signin' ? 'Welcome Back Sasti!' : 'Create Account'}
                 </h1>
                 <p
                   style={{
@@ -1483,7 +1483,7 @@ export default function AuthPage() {
                 fontFamily: "'Outfit', 'Inter', sans-serif",
               }}
             >
-              {mode === 'signin' ? 'Welcome Back!' : 'Join the Force'}
+              {mode === 'signin' ? 'Welcome Back Sasti!' : 'Join the Force'}
             </h2>
             <p
               style={{
