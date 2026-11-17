@@ -18,6 +18,7 @@ import {
   Globe,
   FileBox,
   ShoppingCart,
+  GraduationCap,
 } from 'lucide-react';
 import type { NavSection } from '../../App';
 import { useAuth } from '../../context/AuthContext';
@@ -42,6 +43,7 @@ const NAV_ITEMS: { id: NavSection; label: string; icon: React.ReactNode; color: 
   { id: 'projects',   label: 'Projects',   icon: <FolderKanban size={18} />,    color: '#ec4899' },
   { id: 'roadmap',    label: 'Roadmap',    icon: <Rocket size={18} />,          color: '#f59e0b' },
   { id: 'reflection', label: 'Reflection', icon: <Heart size={18} />,           color: '#10b981' },
+  { id: 'placement',  label: 'Placement HQ', icon: <GraduationCap size={18} />, color: '#a855f7' },
   { id: 'settings',   label: 'Settings',   icon: <Settings size={18} />,        color: '#94a3b8' },
 ];
 

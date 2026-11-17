@@ -331,6 +331,8 @@ export interface PersonalizationSettings {
   sidebarDecorationEnabled: boolean;
   preferredGreeting?: string;
   dashboardWidgets: DashboardWidgetToggles;
+  dailyMissionGoal?: number;
+  bestStreak?: number;
 }
 
 export const DEFAULT_PERSONALIZATION: PersonalizationSettings = {
@@ -339,6 +341,8 @@ export const DEFAULT_PERSONALIZATION: PersonalizationSettings = {
   favouriteCharacterIds: ['nami', 'nico-robin', 'rias-gremory', 'yor-forger'],
   sidebarDecorationEnabled: true,
   preferredGreeting: "Good Morning! ♡ Let's make today productive together!",
+  dailyMissionGoal: 3,
+  bestStreak: 0,
   dashboardWidgets: {
     showMissions: true,
     showProgressRing: true,
@@ -498,3 +502,43 @@ export interface AppData {
 export * from './vault';
 
 
+
+// ── Daily Completion Engine ───────────────────────────────────────────────
+
+export interface DailyTaskCompletion {
+  id: string;
+  taskId: string;
+  userId: string;
+  occurrenceDate: string; // YYYY-MM-DD
+  isCompleted: boolean;
+  completedAt?: string; // ISO datetime
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DailyTaskOccurrence {
+  taskId: string;
+  title: string;
+  lifeArea: LifeArea;
+  priority: TaskPriority;
+  recurring?: Task['recurring'];
+  startTime?: string;
+  endTime?: string;
+  estimatedMinutes?: number;
+  notes?: string;
+  projectId?: string;
+  occurrenceDate: string; // YYYY-MM-DD
+  isCompleted: boolean;
+  completedAt?: string;
+  completionId?: string; // ID of the daily_task_completions record
+  // Original task fields preserved for editing
+  originalTask: Task;
+}
+
+export interface DailyExecutionSummary {
+  date: string; // YYYY-MM-DD
+  total: number;
+  completed: number;
+  pending: number;
+  percentage: number;
+}

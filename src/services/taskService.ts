@@ -30,6 +30,18 @@ export interface DbTaskRow {
 
 export function dbRowToTask(row: DbTaskRow): Task {
   const assignedDate = row.due_date ?? new Date().toISOString().slice(0, 10);
+  
+  // Safely extract parentRecurringId if encoded in notes: [recur_parent:UUID]
+  let parentRecurringId: string | undefined = undefined;
+  let cleanNotes = row.notes ?? undefined;
+  if (row.notes && row.notes.includes('[recur_parent:')) {
+    const match = row.notes.match(/\[recur_parent:([^\]]+)\]/);
+    if (match) {
+      parentRecurringId = match[1];
+      cleanNotes = row.notes.replace(/\[recur_parent:[^\]]+\]\s?/, '').trim() || undefined;
+    }
+  }
+
   return {
     id: row.id,
     userId: row.user_id,
@@ -48,12 +60,13 @@ export function dbRowToTask(row: DbTaskRow): Task {
     status: row.status,
     estimatedMinutes: row.estimated_minutes ?? undefined,
     actualMinutes: row.actual_minutes ?? undefined,
-    notes: row.notes ?? undefined,
+    notes: cleanNotes,
     recurring: (row.recurring_rule as Task['recurring']) ?? undefined,
     completedAt: row.completed_at ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     parentId: row.parent_id ?? undefined,
+    parentRecurringId: parentRecurringId,
     orderIndex: row.order_index ?? 0,
     isDeleted: Boolean(row.is_deleted),
     deletedAt: row.deleted_at ?? undefined,
@@ -98,7 +111,18 @@ export function taskToDbRow(task: Partial<Task>, userId: string): Partial<DbTask
     row.completed_at = task.completedAt || null;
   }
   if (task.recurring !== undefined) row.recurring_rule = task.recurring || null;
-  if (task.notes !== undefined) row.notes = task.notes || null;
+  
+  // Combine notes and parentRecurringId tag
+  if (task.notes !== undefined || task.parentRecurringId !== undefined) {
+    let finalNotes = task.notes || '';
+    if (task.parentRecurringId) {
+      if (!finalNotes.includes(`[recur_parent:${task.parentRecurringId}]`)) {
+        finalNotes = `[recur_parent:${task.parentRecurringId}] ${finalNotes}`.trim();
+      }
+    }
+    row.notes = finalNotes || null;
+  }
+
   if (task.parentId !== undefined) row.parent_id = task.parentId || null;
   if (task.orderIndex !== undefined) row.order_index = task.orderIndex ?? 0;
   if (task.isDeleted !== undefined) row.is_deleted = task.isDeleted;

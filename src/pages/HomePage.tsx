@@ -3,11 +3,13 @@ import {
   Sparkles,
   Calendar,
   Clock,
+  CalendarCheck,
 } from 'lucide-react';
 import AnimeFantasyDashboard from '../components/dashboard/AnimeFantasyDashboard';
 import DailyTimetable from '../components/timetable/DailyTimetable';
+import DailyExecutionDashboard from '../components/dashboard/DailyExecutionDashboard';
 
-export type HomeTab = 'dashboard' | 'timeline';
+export type HomeTab = 'dashboard' | 'timeline' | 'companion';
 
 interface HomePageProps {
   initialTab?: HomeTab;
@@ -40,8 +42,9 @@ export default function HomePage({ initialTab = 'dashboard', onNavigateSection }
   });
 
   const TABS: { id: HomeTab; label: string; icon: React.ReactNode; color: string }[] = [
-    { id: 'dashboard', label: 'Fantasy Dashboard', icon: <Sparkles size={15} />, color: '#ec4899' },
-    { id: 'timeline',  label: 'Daily Timetable',   icon: <Clock size={15} />,    color: '#a855f7' },
+    { id: 'dashboard', label: 'Daily Execution',   icon: <CalendarCheck size={15} />, color: '#38bdf8' },
+    { id: 'companion', label: 'Anime Companion',   icon: <Sparkles size={15} />,      color: '#ec4899' },
+    { id: 'timeline',  label: 'Daily Timetable',   icon: <Clock size={15} />,         color: '#a855f7' },
   ];
 
   return (
@@ -111,6 +114,13 @@ export default function HomePage({ initialTab = 'dashboard', onNavigateSection }
       {/* Content Area */}
       <div className="composite-content" style={{ maxWidth: '100vw', overflowX: 'hidden', boxSizing: 'border-box', width: '100%' }}>
         {activeTab === 'dashboard' && (
+          <DailyExecutionDashboard
+            onNavigateSection={onNavigateSection}
+            onOpenTaskBuilder={() => onNavigateSection && onNavigateSection('tasks')}
+            onOpenTimetable={() => setActiveTab('timeline')}
+          />
+        )}
+        {activeTab === 'companion' && (
           <AnimeFantasyDashboard
             onNavigateSection={onNavigateSection}
             onOpenTaskBuilder={() => onNavigateSection && onNavigateSection('tasks')}

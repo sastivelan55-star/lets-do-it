@@ -1,25 +1,31 @@
 // Life OS — Productivity Dashboard
 // Clean, streamlined missions timeline, milestones, celebrations & quote
 
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Target,
   Trophy,
   Check,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Sparkles,
-  Gift,
   Plus,
   Clock,
   MoreVertical,
   X,
   Trash2,
+  Flame,
+  AlertTriangle,
+  RotateCcw,
+  CheckCircle2,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import type { Task } from '../../types';
 import TimetableScheduledBadge from '../common/TimetableScheduledBadge';
 import { formatTimetableTime, getTimetableIcon } from '../timetable/DailyTimetable';
 import TaskRecycleBinModal from '../taskBuilder/TaskRecycleBinModal';
+import { today } from '../../utils/dates';
 
 interface AnimeFantasyDashboardProps {
   onNavigateSection?: (section: string) => void;
@@ -42,12 +48,16 @@ export default function AnimeFantasyDashboard({
     restoreTask,
     permanentDeleteTask,
     emptyRecycleBin,
+    currentDate,
+    streakData,
+    carryForwardOverdueTasks,
   } = useApp();
 
   const rawWidgets = settings.personalization?.dashboardWidgets;
   const widgets = {
     showMissions: rawWidgets?.showMissions !== false,
     showMilestone: rawWidgets?.showMilestone !== false,
+    showStreakLevel: rawWidgets?.showStreakLevel !== false,
     showQuote: rawWidgets?.showQuote !== false,
     enableAnimations: rawWidgets?.enableAnimations !== false,
     density: rawWidgets?.density || 'comfortable',
@@ -59,11 +69,12 @@ export default function AnimeFantasyDashboard({
   // Recycle Bin Modal Visibility State
   const [isRecycleBinOpen, setIsRecycleBinOpen] = useState(false);
 
-  // Set of mission IDs currently undergoing completion & auto-move to Recycle Bin
-  const [movingToTrashIds, setMovingToTrashIds] = useState<Set<string>>(new Set());
-  const autoMovedIdsRef = useRef<Set<string>>(new Set());
+  // Accordion state for completed missions section
+  const [showCompletedMissions, setShowCompletedMissions] = useState(true);
+  const [isRollingOverdue, setIsRollingOverdue] = useState(false);
 
   // Dynamic Date Formatting
+  const todayDateStr = currentDate || today();
   const now = new Date();
   const formattedDate = now.toLocaleDateString('en-US', {
     month: 'short',
@@ -71,128 +82,82 @@ export default function AnimeFantasyDashboard({
     weekday: 'short',
   });
 
-  // Current system date formatted to 'YYYY-MM-DD'
-  const todayDateStr = useMemo(() => {
-    const sysDate = new Date();
-    const y = sysDate.getFullYear();
-    const m = String(sysDate.getMonth() + 1).padStart(2, '0');
-    const d = String(sysDate.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-  }, []);
-
-  // Automatically move any completed today missions to the Recycle Bin on load / background
-  useEffect(() => {
-    if (!tasks || tasks.length === 0) return;
-
-    const completedToday = tasks.filter((t) => {
-      if (t.isDeleted) return false;
-      if (t.status !== 'completed') return false;
-      if (autoMovedIdsRef.current.has(t.id)) return false;
-      const taskDate = (t.scheduledDate || t.targetDate || t.dueDate || '').slice(0, 10);
-      return taskDate === todayDateStr;
-    });
-
-    if (completedToday.length > 0) {
-      completedToday.forEach((t) => {
-        autoMovedIdsRef.current.add(t.id);
-        removeTask(t.id).catch((err) => {
-          console.error('Failed to auto-move completed task to recycle bin:', err);
-        });
-      });
-    }
-  }, [tasks, todayDateStr, removeTask]);
-
   // Scheduling modal state
   const [timeModalTask, setTimeModalTask] = useState<Task | null>(null);
   const [timeModalStart, setTimeModalStart] = useState('08:00');
   const [timeModalEnd, setTimeModalEnd] = useState('');
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
-  // Filter global task array: compare targetDate / scheduledDate / dueDate with current system date
-  // Exclude completed missions unless currently in the middle of celebratory fade-out to Recycle Bin
-  const todayMissions = useMemo(() => {
+  // 1. Active missions scheduled for today (not completed, not deleted)
+  const activeTodayTasks = useMemo(() => {
     if (!tasks || tasks.length === 0) return [];
-
-    const filtered = tasks.filter((t) => {
+    return tasks.filter((t) => {
       if (t.isDeleted) return false;
-      // If already completed and not in active completion transition, hide from active missions list
-      if (t.status === 'completed' && !movingToTrashIds.has(t.id)) return false;
+      if (t.status === 'completed') return false;
       const taskDate = (t.scheduledDate || t.targetDate || t.dueDate || '').slice(0, 10);
       return taskDate === todayDateStr;
     });
+  }, [tasks, todayDateStr]);
 
-    return filtered.map((t) => {
-      const isScheduled = Boolean(t.startTime || t.plannedStartTime);
-      const rawTime = t.startTime || t.plannedStartTime;
-      const formattedTime = isScheduled ? formatTimetableTime(rawTime) : undefined;
-      const icon = getTimetableIcon(t.title, t.lifeArea);
-      const isMoving = movingToTrashIds.has(t.id);
-
-      return {
-        id: t.id,
-        title: t.title,
-        time: formattedTime,
-        isScheduled,
-        category: (t.recurring === 'daily' ? 'Daily' : t.lifeArea === 'routine' ? 'Routine' : 'Daily') as 'Routine' | 'Daily' | 'One-time',
-        icon,
-        isCompleted: t.status === 'completed' || isMoving,
-        isMovingToTrash: isMoving,
-        realTask: t,
-      };
+  // 2. Completed missions for today (completed, with scheduled date or completedAt == today)
+  const completedTodayTasks = useMemo(() => {
+    if (!tasks || tasks.length === 0) return [];
+    return tasks.filter((t) => {
+      if (t.isDeleted) return false;
+      if (t.status !== 'completed') return false;
+      const taskDate = (t.scheduledDate || t.targetDate || t.dueDate || '').slice(0, 10);
+      const compDate = (t.completedAt || '').slice(0, 10);
+      return taskDate === todayDateStr || compDate === todayDateStr;
     });
-  }, [tasks, todayDateStr, movingToTrashIds]);
+  }, [tasks, todayDateStr]);
 
-  // Compute total completed tasks for today (active + those moved to recycle bin so user milestone is preserved!)
-  const completedCount = useMemo(() => {
-    const fromActive = tasks.filter((t) => {
+  // 3. Overdue missions (scheduled before today, not completed, not rescheduled, not deleted)
+  const overdueTasks = useMemo(() => {
+    if (!tasks || tasks.length === 0) return [];
+    return tasks.filter((t) => {
+      if (t.isDeleted) return false;
+      if (t.status === 'completed' || t.status === 'rescheduled') return false;
       const taskDate = (t.scheduledDate || t.targetDate || t.dueDate || '').slice(0, 10);
-      return (taskDate === todayDateStr && t.status === 'completed') || (t.completedAt && t.completedAt.slice(0, 10) === todayDateStr);
-    }).length;
+      return taskDate !== '' && taskDate < todayDateStr;
+    });
+  }, [tasks, todayDateStr]);
 
-    const fromDeleted = deletedTasks.filter((t) => {
-      const taskDate = (t.scheduledDate || t.targetDate || t.dueDate || '').slice(0, 10);
-      const deletedDate = (t.deletedAt || '').slice(0, 10);
-      return (taskDate === todayDateStr && (t.status === 'completed' || deletedDate === todayDateStr)) || (t.completedAt && t.completedAt.slice(0, 10) === todayDateStr);
-    }).length;
+  const totalMissionsToday = activeTodayTasks.length + completedTodayTasks.length;
+  const completedCount = completedTodayTasks.length;
+  const totalMissions = totalMissionsToday;
 
-    return fromActive + fromDeleted;
-  }, [tasks, deletedTasks, todayDateStr]);
-
-  const totalMissions = todayMissions.length;
-
-  // Toggle mission completion with instant celebration and auto-move to Recycle Bin
+  // Toggle mission completion without deleting to recycle bin (supports instant reversible undo)
   const handleToggleMission = async (missionId: string, currentCompleted: boolean) => {
     if (!currentCompleted) {
-      // 1. Mark in moving state so checkmark immediately turns green
-      setMovingToTrashIds((prev) => new Set([...prev, missionId]));
-      setCelebrationText('Mission Completed! Moved to Recycle Bin (+10 XP)');
-
-      // 2. Mark complete in DB so completedAt is saved
+      setCelebrationText('Mission Completed! (+10 XP) 🔥');
       try {
         await completeTask(missionId);
       } catch (err) {
         console.error('Failed to complete task:', err);
       }
-
-      // 3. Automatically soft-delete / move to Recycle Bin after brief celebratory animation
-      setTimeout(async () => {
-        try {
-          await removeTask(missionId);
-        } catch (err) {
-          console.error('Failed to move task to recycle bin:', err);
-        } finally {
-          setMovingToTrashIds((prev) => {
-            const next = new Set(prev);
-            next.delete(missionId);
-            return next;
-          });
-        }
-      }, 700);
-
-      setTimeout(() => setCelebrationText(null), 3500);
+      setTimeout(() => setCelebrationText(null), 3000);
     } else {
-      // If already marked, move directly to recycle bin
-      await removeTask(missionId);
+      // Reversible: undo completion and return to active
+      setCelebrationText('Mission restored to Active');
+      try {
+        await completeTask(missionId);
+      } catch (err) {
+        console.error('Failed to undo task completion:', err);
+      }
+      setTimeout(() => setCelebrationText(null), 2500);
+    }
+  };
+
+  const handleCarryForwardAllOverdue = async () => {
+    setIsRollingOverdue(true);
+    try {
+      const count = await carryForwardOverdueTasks();
+      setCelebrationText(`Carried forward ${count} overdue mission(s) to Today!`);
+      setTimeout(() => setCelebrationText(null), 3000);
+    } catch (err) {
+      console.error('Failed to carry forward overdue missions:', err);
+    } finally {
+      setIsRollingOverdue(false);
     }
   };
 
@@ -387,8 +352,8 @@ export default function AnimeFantasyDashboard({
                   </h3>
                   <div style={{ margin: '2px 0 0', fontSize: '0.74rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                     <span>Your plan for today • {formattedDate}</span>
-                    <span style={{ fontSize: '0.68rem', color: '#34d399', background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.25)', padding: '1px 6px', borderRadius: '4px', whiteSpace: 'nowrap' }}>
-                      ⚡ Auto-Recycle Completed
+                    <span style={{ fontSize: '0.68rem', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.25)', padding: '1px 6px', borderRadius: '4px', whiteSpace: 'nowrap' }}>
+                      {completedTodayTasks.length}/{totalMissionsToday} Completed
                     </span>
                   </div>
                 </div>
@@ -472,97 +437,159 @@ export default function AnimeFantasyDashboard({
               </div>
             </div>
 
-            {/* Missions Timeline */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-              {todayMissions.length === 0 ? (
-                <div
+            {/* Overdue Carryover Banner */}
+            {overdueTasks.length > 0 && (
+              <div
+                style={{
+                  background: 'rgba(239, 68, 68, 0.12)',
+                  border: '1px solid rgba(239, 68, 68, 0.35)',
+                  borderRadius: '12px',
+                  padding: '0.65rem 0.85rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '10px',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                  <AlertTriangle size={16} color="#f87171" style={{ flexShrink: 0 }} />
+                  <span style={{ fontSize: '0.8rem', color: '#fecaca', fontWeight: 600 }}>
+                    {overdueTasks.length} overdue task{overdueTasks.length > 1 ? 's' : ''} from previous days
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCarryForwardAllOverdue}
+                  disabled={isRollingOverdue}
                   style={{
-                    padding: '1.5rem 1rem',
-                    textAlign: 'center',
-                    background: 'rgba(255, 255, 255, 0.02)',
-                    borderRadius: '16px',
-                    border: '1px dashed rgba(192, 132, 252, 0.25)',
+                    background: 'linear-gradient(135deg, #ef4444, #f97316)',
+                    border: 'none',
+                    color: '#fff',
+                    padding: '4px 10px',
+                    borderRadius: '8px',
+                    fontSize: '0.74rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
                     display: 'flex',
-                    flexDirection: 'column',
                     alignItems: 'center',
-                    gap: '10px',
-                    width: '100%',
-                    boxSizing: 'border-box',
+                    gap: '4px',
+                    boxShadow: '0 0 10px rgba(239, 68, 68, 0.3)',
                   }}
                 >
+                  <RotateCcw size={12} className={isRollingOverdue ? 'animate-spin' : ''} />
+                  Carry Over to Today
+                </button>
+              </div>
+            )}
+
+            {/* Missions Timeline */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+              {activeTodayTasks.length === 0 ? (
+                completedTodayTasks.length === 0 ? (
                   <div
                     style={{
-                      width: '42px',
-                      height: '42px',
-                      borderRadius: '50%',
-                      background: 'rgba(192, 132, 252, 0.12)',
+                      padding: '1.5rem 1rem',
+                      textAlign: 'center',
+                      background: 'rgba(255, 255, 255, 0.02)',
+                      borderRadius: '16px',
+                      border: '1px dashed rgba(192, 132, 252, 0.25)',
                       display: 'flex',
+                      flexDirection: 'column',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#c084fc',
+                      gap: '10px',
+                      width: '100%',
+                      boxSizing: 'border-box',
                     }}
                   >
-                    <Target size={20} />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#f8fafc', marginBottom: '4px' }}>
-                      No Missions Scheduled
+                    <div
+                      style={{
+                        width: '42px',
+                        height: '42px',
+                        borderRadius: '50%',
+                        background: 'rgba(192, 132, 252, 0.12)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#c084fc',
+                      }}
+                    >
+                      <Target size={20} />
                     </div>
-                    <div style={{ fontSize: '0.76rem', color: '#94a3b8', maxWidth: '300px', margin: '0 auto', lineHeight: 1.4 }}>
-                      You have no pending missions for today. Add new tasks in the Task Builder to track your progress!
+                    <div>
+                      <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#f8fafc', marginBottom: '4px' }}>
+                        No Missions Scheduled
+                      </div>
+                      <div style={{ fontSize: '0.76rem', color: '#94a3b8', maxWidth: '300px', margin: '0 auto', lineHeight: 1.4 }}>
+                        You have no pending missions for today. Add new tasks in the Task Builder to track your progress!
+                      </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => (onOpenTaskBuilder ? onOpenTaskBuilder() : onNavigateSection && onNavigateSection('tasks'))}
+                      style={{
+                        marginTop: '4px',
+                        background: 'linear-gradient(135deg, #ec4899, #8b5cf6)',
+                        border: 'none',
+                        borderRadius: '10px',
+                        padding: '8px 18px',
+                        fontWeight: 700,
+                        fontSize: '0.82rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        color: '#fff',
+                        cursor: 'pointer',
+                        boxShadow: '0 0 16px rgba(236, 72, 153, 0.3)',
+                      }}
+                    >
+                      <Plus size={14} /> Add First Mission
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => (onOpenTaskBuilder ? onOpenTaskBuilder() : onNavigateSection && onNavigateSection('tasks'))}
+                ) : (
+                  <div
                     style={{
-                      marginTop: '4px',
-                      background: 'linear-gradient(135deg, #ec4899, #8b5cf6)',
-                      border: 'none',
-                      borderRadius: '10px',
-                      padding: '8px 18px',
-                      fontWeight: 700,
-                      fontSize: '0.82rem',
+                      padding: '1.25rem 1rem',
+                      textAlign: 'center',
+                      background: 'rgba(16, 185, 129, 0.08)',
+                      borderRadius: '14px',
+                      border: '1px solid rgba(16, 185, 129, 0.25)',
                       display: 'flex',
+                      flexDirection: 'column',
                       alignItems: 'center',
                       gap: '6px',
-                      color: '#fff',
-                      cursor: 'pointer',
-                      boxShadow: '0 0 16px rgba(236, 72, 153, 0.3)',
                     }}
                   >
-                    <Plus size={14} /> Add First Mission
-                  </button>
-                </div>
+                    <CheckCircle2 size={24} color="#34d399" />
+                    <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#ecfdf5' }}>
+                      All missions completed for today!
+                    </span>
+                    <span style={{ fontSize: '0.74rem', color: '#a7f3d0' }}>
+                      Awesome work maintaining your streak. Keep it up tomorrow! 🔥
+                    </span>
+                  </div>
+                )
               ) : (
-                todayMissions.map((m, idx) => {
-                  const isRoutine = m.category === 'Routine';
-                  const isDaily = m.category === 'Daily';
-
-                  const badgeColor = isRoutine
-                    ? '#10b981'
-                    : isDaily
-                      ? '#06b6d4'
-                      : '#a855f7';
+                activeTodayTasks.map((t) => {
+                  const isScheduled = !!(t.startTime || t.plannedStartTime);
+                  const displayTime = isScheduled ? formatTimetableTime(t.startTime || t.plannedStartTime) : null;
+                  const cat = t.lifeArea ? t.lifeArea.toUpperCase() : 'DAILY';
+                  const isRoutine = cat === 'ROUTINE' || cat === 'HEALTH';
+                  const isDaily = cat === 'GROWTH' || cat === 'CAREER';
+                  const badgeColor = isRoutine ? '#10b981' : isDaily ? '#06b6d4' : '#a855f7';
 
                   return (
                     <div
-                      key={m.id || idx}
+                      key={t.id}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         padding: '0.7rem 0.85rem',
                         borderRadius: '14px',
-                        background: m.isCompleted
-                          ? 'rgba(16, 185, 129, 0.12)'
-                          : 'rgba(255, 255, 255, 0.03)',
-                        border: m.isCompleted
-                          ? '1px solid rgba(16, 185, 129, 0.35)'
-                          : '1px solid rgba(255, 255, 255, 0.06)',
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        border: '1px solid rgba(255, 255, 255, 0.06)',
                         transition: 'all 0.3s ease',
-                        opacity: m.isMovingToTrash ? 0.6 : 1,
-                        transform: m.isMovingToTrash ? 'scale(0.98)' : 'scale(1)',
                         gap: '8px',
                         width: '100%',
                         boxSizing: 'border-box',
@@ -582,7 +609,7 @@ export default function AnimeFantasyDashboard({
                             flexShrink: 0,
                           }}
                         >
-                          {m.icon}
+                          {getTimetableIcon(t.title, t.lifeArea)}
                         </div>
 
                         <div style={{ minWidth: 0, flex: 1 }}>
@@ -590,8 +617,7 @@ export default function AnimeFantasyDashboard({
                             style={{
                               fontSize: '0.86rem',
                               fontWeight: 700,
-                              color: m.isCompleted ? '#94a3b8' : '#f8fafc',
-                              textDecoration: m.isCompleted ? 'line-through' : 'none',
+                              color: '#f8fafc',
                               display: 'flex',
                               alignItems: 'center',
                               gap: '6px',
@@ -599,33 +625,16 @@ export default function AnimeFantasyDashboard({
                               overflowWrap: 'anywhere',
                             }}
                           >
-                            <span>{m.title}</span>
-                            {m.isScheduled && <TimetableScheduledBadge time={m.time} />}
-                            {m.isMovingToTrash && (
-                              <span
-                                style={{
-                                  fontSize: '0.66rem',
-                                  color: '#34d399',
-                                  background: 'rgba(16, 185, 129, 0.15)',
-                                  border: '1px solid rgba(16, 185, 129, 0.3)',
-                                  padding: '1px 6px',
-                                  borderRadius: '4px',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '3px',
-                                }}
-                              >
-                                <Trash2 size={10} /> Moving to Recycle Bin...
-                              </span>
-                            )}
+                            <span>{t.title}</span>
+                            {isScheduled && <TimetableScheduledBadge time={displayTime || ''} />}
                           </div>
                           <div style={{ fontSize: '0.72rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px', flexWrap: 'wrap' }}>
-                            {m.isScheduled ? (
-                              <span style={{ color: '#c084fc', fontFamily: 'monospace' }}>{m.time}</span>
+                            {isScheduled ? (
+                              <span style={{ color: '#c084fc', fontFamily: 'monospace' }}>{displayTime}</span>
                             ) : (
                               <button
                                 type="button"
-                                onClick={() => handleOpenTimeModal(m.realTask)}
+                                onClick={() => handleOpenTimeModal(t)}
                                 style={{
                                   background: 'none',
                                   border: 'none',
@@ -657,14 +666,14 @@ export default function AnimeFantasyDashboard({
                             border: `1px solid ${badgeColor}33`,
                           }}
                         >
-                          {m.category}
+                          {cat}
                         </span>
 
                         {/* Quick options menu */}
                         <div style={{ position: 'relative' }}>
                           <button
                             type="button"
-                            onClick={() => setActiveMenuId(activeMenuId === m.id ? null : m.id)}
+                            onClick={() => setActiveMenuId(activeMenuId === t.id ? null : t.id)}
                             style={{
                               background: 'none',
                               border: 'none',
@@ -678,7 +687,7 @@ export default function AnimeFantasyDashboard({
                             <MoreVertical size={14} />
                           </button>
 
-                          {activeMenuId === m.id && (
+                          {activeMenuId === t.id && (
                             <div
                               style={{
                                 position: 'absolute',
@@ -699,7 +708,7 @@ export default function AnimeFantasyDashboard({
                             >
                               <button
                                 type="button"
-                                onClick={() => handleOpenTimeModal(m.realTask)}
+                                onClick={() => handleOpenTimeModal(t)}
                                 style={{
                                   background: 'none',
                                   border: 'none',
@@ -715,13 +724,13 @@ export default function AnimeFantasyDashboard({
                                 }}
                               >
                                 <Clock size={12} color="#38bdf8" />
-                                {m.isScheduled ? 'Change Timetable Time' : 'Assign Timetable Time'}
+                                {isScheduled ? 'Change Timetable Time' : 'Assign Timetable Time'}
                               </button>
 
-                              {m.isScheduled && (
+                              {isScheduled && (
                                 <button
                                   type="button"
-                                  onClick={() => handleRemoveFromTimetable(m.realTask)}
+                                  onClick={() => handleRemoveFromTimetable(t)}
                                   style={{
                                     background: 'none',
                                     border: 'none',
@@ -742,7 +751,7 @@ export default function AnimeFantasyDashboard({
 
                               <button
                                 type="button"
-                                onClick={() => handleMoveToRecycleBin(m.realTask.id)}
+                                onClick={() => handleMoveToRecycleBin(t.id)}
                                 style={{
                                   background: 'none',
                                   border: 'none',
@@ -765,30 +774,133 @@ export default function AnimeFantasyDashboard({
 
                         <button
                           type="button"
-                          onClick={() => handleToggleMission(m.id, m.isCompleted)}
+                          onClick={() => handleToggleMission(t.id, false)}
                           style={{
                             width: '24px',
                             height: '24px',
                             borderRadius: '50%',
-                            border: m.isCompleted ? 'none' : '2px solid rgba(192, 132, 252, 0.4)',
-                            background: m.isCompleted ? '#10b981' : 'transparent',
+                            border: '2px solid rgba(192, 132, 252, 0.4)',
+                            background: 'transparent',
                             color: '#ffffff',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             cursor: 'pointer',
                             flexShrink: 0,
-                            boxShadow: m.isCompleted ? '0 0 10px rgba(16, 185, 129, 0.5)' : 'none',
                             transition: 'all 0.2s ease',
                           }}
-                          aria-label={`Mark ${m.title} ${m.isCompleted ? 'incomplete' : 'complete'}`}
-                        >
-                          {m.isCompleted && <Check size={14} strokeWidth={3} />}
-                        </button>
+                          aria-label={`Mark ${t.title} complete`}
+                        />
                       </div>
                     </div>
                   );
                 })
+              )}
+
+              {/* Dedicated Completed Tasks Section (Reversible Undo, never sent to Recycle Bin) */}
+              {completedTodayTasks.length > 0 && (
+                <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowCompletedMissions(!showCompletedMissions)}
+                    style={{
+                      background: 'rgba(16, 185, 129, 0.08)',
+                      border: '1px solid rgba(16, 185, 129, 0.2)',
+                      borderRadius: '10px',
+                      padding: '6px 12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      color: '#34d399',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      width: '100%',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <CheckCircle2 size={14} />
+                      <span>Completed Today ({completedTodayTasks.length})</span>
+                    </div>
+                    {showCompletedMissions ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  </button>
+
+                  {showCompletedMissions && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', paddingLeft: '4px' }}>
+                      {completedTodayTasks.map((t) => (
+                        <div
+                          key={t.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '0.55rem 0.75rem',
+                            borderRadius: '10px',
+                            background: 'rgba(16, 185, 129, 0.05)',
+                            border: '1px solid rgba(16, 185, 129, 0.15)',
+                            gap: '8px',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                            <div
+                              style={{
+                                width: '20px',
+                                height: '20px',
+                                borderRadius: '50%',
+                                background: '#10b981',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: '#fff',
+                                flexShrink: 0,
+                              }}
+                            >
+                              <Check size={12} strokeWidth={3} />
+                            </div>
+                            <div style={{ minWidth: 0 }}>
+                              <span
+                                style={{
+                                  fontSize: '0.82rem',
+                                  color: '#94a3b8',
+                                  textDecoration: 'line-through',
+                                  overflowWrap: 'anywhere',
+                                }}
+                              >
+                                {t.title}
+                              </span>
+                              {t.completedAt && (
+                                <span style={{ fontSize: '0.68rem', color: '#64748b', marginLeft: '6px' }}>
+                                  at {new Date(t.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleToggleMission(t.id, true)}
+                            style={{
+                              background: 'none',
+                              border: '1px solid rgba(148, 163, 184, 0.25)',
+                              borderRadius: '6px',
+                              padding: '2px 8px',
+                              color: '#94a3b8',
+                              fontSize: '0.7rem',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              whiteSpace: 'nowrap',
+                            }}
+                            title="Undo completion and restore to active"
+                          >
+                            <RotateCcw size={10} /> Undo
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
@@ -915,35 +1027,117 @@ export default function AnimeFantasyDashboard({
           </div>
         )}
 
-        {/* Next Milestone Card */}
-        {widgets.showMilestone && (
+        {/* Snapchat-Style Streak Engine Card */}
+        {widgets.showMilestone && streakData && (
           <div
             className="dash-milestone-card"
             style={{
               background: 'rgba(18, 12, 38, 0.75)',
               backdropFilter: 'blur(16px)',
               borderRadius: '20px',
-              border: '1px solid rgba(192, 132, 252, 0.25)',
+              border: streakData.flameIntensity === 'super'
+                ? '1px solid rgba(236, 72, 153, 0.45)'
+                : streakData.flameIntensity === 'blazing'
+                  ? '1px solid rgba(249, 115, 22, 0.45)'
+                  : '1px solid rgba(192, 132, 252, 0.25)',
               padding: 'clamp(0.85rem, 2.5vw, 1.25rem)',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+              boxShadow: streakData.flameIntensity === 'super'
+                ? '0 0 24px rgba(236, 72, 153, 0.25)'
+                : streakData.flameIntensity === 'blazing'
+                  ? '0 0 20px rgba(249, 115, 22, 0.25)'
+                  : '0 8px 32px rgba(0, 0, 0, 0.3)',
               display: 'flex',
-              alignItems: 'center',
-              gap: '1rem',
+              flexDirection: 'column',
+              gap: '0.85rem',
               height: 'fit-content',
               boxSizing: 'border-box',
               width: '100%',
+              position: 'relative',
+              overflow: 'hidden',
             }}
           >
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#facc15', fontSize: '0.78rem', fontWeight: 800 }}>
-                <Trophy size={14} style={{ flexShrink: 0 }} />
-                <span>Next Milestone</span>
-              </div>
-              <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#f8fafc', margin: '3px 0 6px', overflowWrap: 'anywhere' }}>
-                Complete 5 tasks today!
+            {/* Top Row: Flame Avatar & Streak Counts */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                <div
+                  style={{
+                    width: '46px',
+                    height: '46px',
+                    borderRadius: '14px',
+                    background: streakData.flameIntensity === 'super'
+                      ? 'linear-gradient(135deg, #ec4899, #8b5cf6)'
+                      : streakData.flameIntensity === 'blazing'
+                        ? 'linear-gradient(135deg, #ef4444, #f97316)'
+                        : streakData.flameIntensity === 'warm'
+                          ? 'linear-gradient(135deg, #f59e0b, #ea580c)'
+                          : 'rgba(255, 255, 255, 0.08)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#ffffff',
+                    boxShadow: streakData.flameIntensity === 'super'
+                      ? '0 0 20px rgba(236, 72, 153, 0.6)'
+                      : streakData.flameIntensity === 'blazing'
+                        ? '0 0 16px rgba(239, 68, 68, 0.6)'
+                        : streakData.flameIntensity === 'warm'
+                          ? '0 0 12px rgba(245, 158, 11, 0.5)'
+                          : 'none',
+                    flexShrink: 0,
+                    animation: streakData.currentStreak > 0 ? 'pulse 2s infinite' : 'none',
+                  }}
+                >
+                  <Flame size={24} fill={streakData.currentStreak > 0 ? '#ffffff' : 'none'} />
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span
+                      style={{
+                        fontSize: '1.25rem',
+                        fontWeight: 900,
+                        color: '#f8fafc',
+                        letterSpacing: '-0.02em',
+                      }}
+                    >
+                      {streakData.currentStreak}
+                    </span>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#f97316' }}>
+                      DAY STREAK 🔥
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Trophy size={11} color="#facc15" />
+                    <span>Best Record: </span>
+                    <strong style={{ color: '#facc15' }}>{streakData.bestStreak} Days</strong>
+                  </div>
+                </div>
               </div>
 
-              {/* Progress Bar */}
+              {/* Today Goal Badge */}
+              <div
+                style={{
+                  textAlign: 'right',
+                  padding: '4px 10px',
+                  borderRadius: '10px',
+                  background: streakData.todayQualified
+                    ? 'rgba(16, 185, 129, 0.15)'
+                    : 'rgba(255, 255, 255, 0.05)',
+                  border: streakData.todayQualified
+                    ? '1px solid rgba(16, 185, 129, 0.35)'
+                    : '1px solid rgba(255, 255, 255, 0.08)',
+                }}
+              >
+                <div style={{ fontSize: '0.68rem', color: streakData.todayQualified ? '#34d399' : '#94a3b8', fontWeight: 700 }}>
+                  {streakData.todayQualified ? 'Goal Met! 🎯' : 'Daily Goal'}
+                </div>
+                <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#f8fafc' }}>
+                  {streakData.todayCompletedCount} / {streakData.dailyGoal}
+                </div>
+              </div>
+            </div>
+
+            {/* Daily Goal Progress Bar */}
+            <div>
               <div
                 style={{
                   height: '6px',
@@ -954,34 +1148,87 @@ export default function AnimeFantasyDashboard({
               >
                 <div
                   style={{
-                    width: `${Math.min(100, (completedCount / 5) * 100)}%`,
+                    width: `${Math.min(100, (streakData.todayCompletedCount / streakData.dailyGoal) * 100)}%`,
                     height: '100%',
-                    background: 'linear-gradient(90deg, #ec4899, #a855f7)',
+                    background: streakData.todayQualified
+                      ? 'linear-gradient(90deg, #10b981, #06b6d4)'
+                      : 'linear-gradient(90deg, #f97316, #ec4899)',
                     borderRadius: '999px',
+                    transition: 'width 0.4s ease',
                   }}
                 />
               </div>
-              <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '4px', textAlign: 'right' }}>
-                {completedCount} / 5
-              </div>
             </div>
 
-            {/* Gift Box Icon */}
+            {/* 7-Day Weekly Activity Calendar Strip (Mon - Sun) */}
             <div
               style={{
-                width: '42px',
-                height: '42px',
-                borderRadius: '12px',
-                background: 'linear-gradient(135deg, #f59e0b, #ec4899)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#ffffff',
-                boxShadow: '0 0 16px rgba(245, 158, 11, 0.4)',
-                flexShrink: 0,
+                display: 'grid',
+                gridTemplateColumns: 'repeat(7, 1fr)',
+                gap: '6px',
+                borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+                paddingTop: '0.65rem',
               }}
             >
-              <Gift size={20} />
+              {streakData.weeklyActivity.map((day) => {
+                return (
+                  <div
+                    key={day.date}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '4px 2px',
+                      borderRadius: '8px',
+                      background: day.isToday
+                        ? 'rgba(168, 85, 247, 0.15)'
+                        : 'transparent',
+                      border: day.isToday
+                        ? '1px solid rgba(168, 85, 247, 0.4)'
+                        : '1px solid transparent',
+                    }}
+                    title={`${day.date}: ${day.completedCount} task(s) completed`}
+                  >
+                    <span
+                      style={{
+                        fontSize: '0.66rem',
+                        fontWeight: 700,
+                        color: day.isToday ? '#c084fc' : '#64748b',
+                      }}
+                    >
+                      {day.dayName.slice(0, 1)}
+                    </span>
+                    <div
+                      style={{
+                        width: '20px',
+                        height: '20px',
+                        borderRadius: '50%',
+                        background: day.isQualified
+                          ? 'linear-gradient(135deg, #f97316, #ef4444)'
+                          : day.completedCount > 0
+                            ? 'rgba(249, 115, 22, 0.25)'
+                            : 'rgba(255, 255, 255, 0.05)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#fff',
+                        boxShadow: day.isQualified ? '0 0 8px rgba(249, 115, 22, 0.4)' : 'none',
+                      }}
+                    >
+                      {day.isQualified ? (
+                        <Flame size={12} fill="#ffffff" />
+                      ) : day.completedCount > 0 ? (
+                        <span style={{ fontSize: '0.64rem', fontWeight: 800, color: '#f97316' }}>
+                          {day.completedCount}
+                        </span>
+                      ) : (
+                        <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#475569' }} />
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

@@ -108,6 +108,10 @@ import {
 } from '../db/storage';
 import { INITIAL_MILESTONES, INITIAL_PROJECTS } from '../db/seedData';
 import { today, nowISO } from '../utils/dates';
+import { calculateStreak, DEFAULT_DAILY_MISSION_GOAL } from '../utils/streakEngine';
+import type { StreakData } from '../utils/streakEngine';
+import { getMissingRecurringOccurrences, getOverdueTasks } from '../utils/recurringEngine';
+import { DEFAULT_PERSONALIZATION } from '../types';
 
 export type SyncStatus = 'synced' | 'syncing' | 'error' | 'offline';
 
@@ -200,6 +204,14 @@ interface AppContextValue {
   todayCompletionRate: number;
   weightedTodayRate: number;
   weeklyCompletionRate: number;
+
+  // Streak & Daily Rollover Engine
+  currentDate: string;
+  streakData: StreakData;
+  dailyMissionGoal: number;
+  updateDailyMissionGoal: (goal: number) => Promise<void>;
+  generateRecurringTasksForDate: (targetDate?: string) => Promise<void>;
+  carryForwardOverdueTasks: (taskIds?: string[]) => Promise<number>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -1184,8 +1196,123 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [allTasks, updateTask]
   );
 
+  // ── Reactive Current Date & Midnight Rollover Engine ───────────────────────
+  const [currentDate, setCurrentDate] = useState<string>(today());
+
+  useEffect(() => {
+    const checkDateChange = () => {
+      const nowStr = today();
+      if (nowStr !== currentDate) {
+        setCurrentDate(nowStr);
+      }
+    };
+
+    const interval = setInterval(checkDateChange, 30000); // Check every 30s
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') checkDateChange();
+    };
+    const handleFocus = () => checkDateChange();
+
+    window.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [currentDate]);
+
+  // ── Recurring Task Generation (Idempotent, Zero Duplicates) ────────────────
+  const generateRecurringTasksForDate = useCallback(
+    async (targetDateStr: string = currentDate) => {
+      const missing = getMissingRecurringOccurrences(allTasks, targetDateStr);
+      if (missing.length === 0) return;
+
+      for (const occ of missing) {
+        try {
+          await addTask(occ);
+        } catch (err) {
+          logSafeError('Auto-generate recurring task', err);
+        }
+      }
+    },
+    [allTasks, currentDate, addTask]
+  );
+
+  // Auto-generate on boot / when tasks finish loading or date rolls over
+  useEffect(() => {
+    if (!isLoading && allTasks.length > 0) {
+      generateRecurringTasksForDate(currentDate);
+    }
+  }, [currentDate, isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Carry Forward Overdue Tasks ───────────────────────────────────────────
+  const carryForwardOverdueTasks = useCallback(
+    async (taskIds?: string[]): Promise<number> => {
+      const overdue = getOverdueTasks(tasks, currentDate);
+      const toRoll = taskIds
+        ? overdue.filter((t) => taskIds.includes(t.id))
+        : overdue;
+
+      if (toRoll.length === 0) return 0;
+
+      for (const t of toRoll) {
+        await updateTask({
+          ...t,
+          rescheduledFrom: t.dueDate,
+          rescheduledTo: currentDate,
+          dueDate: currentDate,
+          targetDate: currentDate,
+          scheduledDate: currentDate,
+          status: 'not-started',
+          updatedAt: nowISO(),
+        });
+      }
+      return toRoll.length;
+    },
+    [tasks, currentDate, updateTask]
+  );
+
+  // ── Streak Engine & Daily Mission Goal ────────────────────────────────────
+  const dailyMissionGoal = settings.personalization?.dailyMissionGoal || DEFAULT_DAILY_MISSION_GOAL;
+  const bestStreakSaved = settings.personalization?.bestStreak || 0;
+
+  const streakData = useMemo(() => {
+    return calculateStreak(
+      tasks,
+      dailyRecords,
+      dailyMissionGoal,
+      bestStreakSaved,
+      currentDate
+    );
+  }, [tasks, dailyRecords, dailyMissionGoal, bestStreakSaved, currentDate]);
+
+  // Automatically update bestStreak in settings if newly achieved
+  useEffect(() => {
+    if (streakData.bestStreak > bestStreakSaved) {
+      updateSettings({
+        personalization: {
+          ...(settings.personalization || DEFAULT_PERSONALIZATION),
+          bestStreak: streakData.bestStreak,
+        },
+      });
+    }
+  }, [streakData.bestStreak, bestStreakSaved, settings.personalization, updateSettings]);
+
+  const updateDailyMissionGoal = useCallback(
+    async (goal: number) => {
+      await updateSettings({
+        personalization: {
+          ...(settings.personalization || DEFAULT_PERSONALIZATION),
+          dailyMissionGoal: Math.max(1, goal),
+        },
+      });
+    },
+    [settings.personalization, updateSettings]
+  );
+
   // ── Computed Lists & Metrics ─────────────────────────────────────────────
-  const currentDate = today();
 
   const todaysTasks = tasks.filter(
     (t) => (t.targetDate || t.dueDate) === currentDate && t.status !== 'rescheduled'
@@ -1798,6 +1925,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         todayCompletionRate,
         weightedTodayRate,
         weeklyCompletionRate,
+        currentDate,
+        streakData,
+        dailyMissionGoal,
+        updateDailyMissionGoal,
+        generateRecurringTasksForDate,
+        carryForwardOverdueTasks,
       }}
     >
       {children}

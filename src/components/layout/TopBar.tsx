@@ -43,6 +43,7 @@ const SECTION_LABELS: Record<NavSection, string> = {
   vault: 'Digital Vault — Personal Resource Library',
   uploads: 'Media Vault & Uploads',
   groceries: 'Grocery List — Smart Shopping Command',
+  placement: 'Placement Training HQ — Anime Command Center',
 };
 
 export default function TopBar({

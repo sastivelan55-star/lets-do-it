@@ -24,6 +24,8 @@ import {
   Archive,
   Calendar,
   Edit3,
+  Clock,
+  RotateCcw,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import TaskRecycleBinModal from '../components/taskBuilder/TaskRecycleBinModal';
@@ -48,6 +50,7 @@ interface QuestItem {
   startTime?: string;
   endTime?: string;
   isScheduledToday?: boolean;
+  recurring?: 'none' | 'daily' | 'weekly' | 'weekdays';
 }
 
 export default function TaskBuilderPage() {
@@ -317,6 +320,7 @@ export default function TaskBuilderPage() {
         isScheduledToday:
           (t.targetDate || t.dueDate || '').slice(0, 10) === today() &&
           Boolean(t.startTime || t.plannedStartTime),
+        recurring: t.recurring,
       };
     });
   }, [tasks]);
@@ -344,6 +348,10 @@ export default function TaskBuilderPage() {
     });
   }, [quests, filterRank, filterElem, searchQuery]);
 
+  const activeQuests = useMemo(() => filteredQuests.filter((q) => !q.cleared), [filteredQuests]);
+  const completedQuests = useMemo(() => filteredQuests.filter((q) => q.cleared), [filteredQuests]);
+  const [showCompletedSection, setShowCompletedSection] = useState(true);
+
   // ── QUEST ACTIONS ───────────────────────────────────────────────────────────
   const handleToggleClear = async (q: QuestItem) => {
     if (!q.cleared) {
@@ -365,7 +373,12 @@ export default function TaskBuilderPage() {
       if (q.realTaskId) {
         const original = tasks.find((t) => t.id === q.realTaskId);
         if (original) {
-          await updateTask({ ...original, status: 'not-started' });
+          await updateTask({
+            ...original,
+            status: 'not-started',
+            completedAt: undefined,
+            updatedAt: new Date().toISOString(),
+          });
         }
       }
     }
@@ -451,6 +464,8 @@ export default function TaskBuilderPage() {
   const [mDur, setMDur] = useState(25);
   const [mNotes, setMNotes] = useState('');
   const [mDate, setMDate] = useState(today());
+  const [mStartTime, setMStartTime] = useState('');
+  const [mRecurring, setMRecurring] = useState<'none' | 'daily' | 'weekly' | 'weekdays'>('none');
 
   const handleDetailedSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -466,6 +481,10 @@ export default function TaskBuilderPage() {
       lifeArea: 'growth',
       dueDate: chosenDate,
       targetDate: chosenDate,
+      scheduledDate: chosenDate,
+      startTime: mStartTime || undefined,
+      plannedStartTime: mStartTime || undefined,
+      recurring: mRecurring !== 'none' ? mRecurring : undefined,
       estimatedMinutes: mDur,
       description: mNotes.trim() ? `${mNotes.trim()}\n[Element: ${mElem}]` : `[Element: ${mElem}]`,
     });
@@ -475,6 +494,8 @@ export default function TaskBuilderPage() {
     setMTitle('');
     setMNotes('');
     setMDate(today());
+    setMStartTime('');
+    setMRecurring('none');
   };
 
   // Edit Quest Modal state
@@ -486,6 +507,7 @@ export default function TaskBuilderPage() {
   const [editDate, setEditDate] = useState(today());
   const [editStartTime, setEditStartTime] = useState('');
   const [editEndTime, setEditEndTime] = useState('');
+  const [editRecurring, setEditRecurring] = useState<'none' | 'daily' | 'weekly' | 'weekdays'>('none');
   const [editNotes, setEditNotes] = useState('');
 
   const openEditModal = (q: QuestItem) => {
@@ -498,6 +520,7 @@ export default function TaskBuilderPage() {
     setEditDate(q.targetDate || today());
     setEditStartTime(q.startTime || '');
     setEditEndTime(q.endTime || '');
+    setEditRecurring(q.recurring || 'none');
     setEditNotes(q.notes || '');
   };
 
@@ -521,6 +544,7 @@ export default function TaskBuilderPage() {
       startTime: editStartTime || undefined,
       plannedStartTime: editStartTime || undefined,
       endTime: editEndTime || undefined,
+      recurring: editRecurring !== 'none' ? editRecurring : undefined,
       estimatedMinutes: editDur,
       description: editNotes.trim(),
     });
@@ -1589,41 +1613,53 @@ export default function TaskBuilderPage() {
           {/* ── VIEW 1: QUEST LOG BOARD ───────────────────────────────────────── */}
           {currentView === 'board' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-              {filteredQuests.length === 0 ? (
-                <div className="anime-glass" style={{ borderRadius: '20px', padding: '3rem', textAlign: 'center' }}>
-                  <Scroll size={36} color="rgba(0, 240, 255, 0.5)" style={{ margin: '0 auto 0.75rem' }} />
-                  <h3 style={{ margin: '0 0 0.5rem', fontFamily: 'Orbitron, sans-serif', fontSize: '0.95rem', color: '#ffffff' }}>
-                    NO QUEST DIRECTIVES IN RANGE
-                  </h3>
-                  <p style={{ margin: '0 0 1.25rem', fontSize: '0.8rem', color: '#94a3b8' }}>
-                    Post a new bounty using the quick bar above or click below to launch your next mission.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      playAnimeSound('click');
-                      setIsDetailedModalOpen(true);
-                    }}
-                    className="persona-btn"
-                    style={{
-                      padding: '0.65rem 1.4rem',
-                      color: '#ffffff',
-                      fontFamily: 'Orbitron, sans-serif',
-                      fontSize: '0.78rem',
-                      fontWeight: 800,
-                      letterSpacing: '0.04em',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      border: 'none',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <Plus size={16} /> + NEW MISSION
-                  </button>
-                </div>
+              {activeQuests.length === 0 ? (
+                completedQuests.length === 0 ? (
+                  <div className="anime-glass" style={{ borderRadius: '20px', padding: '3rem', textAlign: 'center' }}>
+                    <Scroll size={36} color="rgba(0, 240, 255, 0.5)" style={{ margin: '0 auto 0.75rem' }} />
+                    <h3 style={{ margin: '0 0 0.5rem', fontFamily: 'Orbitron, sans-serif', fontSize: '0.95rem', color: '#ffffff' }}>
+                      NO QUEST DIRECTIVES IN RANGE
+                    </h3>
+                    <p style={{ margin: '0 0 1.25rem', fontSize: '0.8rem', color: '#94a3b8' }}>
+                      Post a new bounty using the quick bar above or click below to launch your next mission.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        playAnimeSound('click');
+                        setIsDetailedModalOpen(true);
+                      }}
+                      className="persona-btn"
+                      style={{
+                        padding: '0.65rem 1.4rem',
+                        color: '#ffffff',
+                        fontFamily: 'Orbitron, sans-serif',
+                        fontSize: '0.78rem',
+                        fontWeight: 800,
+                        letterSpacing: '0.04em',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        border: 'none',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <Plus size={16} /> + NEW MISSION
+                    </button>
+                  </div>
+                ) : (
+                  <div className="anime-glass" style={{ borderRadius: '16px', padding: '1.5rem', textAlign: 'center', border: '1px solid rgba(0, 255, 163, 0.3)' }}>
+                    <Check size={28} color="#00FFA3" style={{ margin: '0 auto 0.5rem' }} />
+                    <h3 style={{ margin: '0 0 0.25rem', fontFamily: 'Orbitron, sans-serif', fontSize: '0.9rem', color: '#00FFA3' }}>
+                      ALL ACTIVE DIRECTIVES CLEARED!
+                    </h3>
+                    <p style={{ margin: 0, fontSize: '0.75rem', color: '#94a3b8' }}>
+                      Check your completed directives archive below or initialize a new quest.
+                    </p>
+                  </div>
+                )
               ) : (
-                filteredQuests.map((q) => {
+                activeQuests.map((q) => {
                   const rConf = getRankConfig(q.rank);
                   const eConf = getElementConfig(q.element);
                   const isTarget = q.id === targetQuestId;
@@ -1927,6 +1963,151 @@ export default function TaskBuilderPage() {
                     </div>
                   );
                 })
+              )}
+
+              {/* Completed Quests Archive */}
+              {completedQuests.length > 0 && (
+                <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowCompletedSection(!showCompletedSection)}
+                    className="anime-glass"
+                    style={{
+                      borderRadius: '12px',
+                      padding: '0.75rem 1rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      color: '#00FFA3',
+                      border: '1px solid rgba(0, 255, 163, 0.3)',
+                      background: 'rgba(0, 255, 163, 0.05)',
+                      cursor: 'pointer',
+                      width: '100%',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Check size={16} color="#00FFA3" strokeWidth={3} />
+                      <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '0.82rem', fontWeight: 800 }}>
+                        COMPLETED DIRECTIVES ARCHIVE ({completedQuests.length})
+                      </span>
+                    </div>
+                    <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                      {showCompletedSection ? 'Hide ▲' : 'Show ▼'}
+                    </span>
+                  </button>
+
+                  {showCompletedSection && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+                      {completedQuests.map((q) => {
+                        const rConf = getRankConfig(q.rank);
+                        const eConf = getElementConfig(q.element);
+
+                        return (
+                          <div
+                            key={q.id}
+                            id={`quest-card-${q.id}`}
+                            className="anime-glass"
+                            style={{
+                              borderRadius: '12px',
+                              padding: '0.85rem 1rem',
+                              border: '1px solid rgba(0, 255, 163, 0.2)',
+                              background: 'rgba(0, 255, 163, 0.03)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '1rem',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+                              <div
+                                style={{
+                                  width: '22px',
+                                  height: '22px',
+                                  borderRadius: '6px',
+                                  background: '#00FFA3',
+                                  color: '#070A12',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  flexShrink: 0,
+                                }}
+                              >
+                                <Check size={14} strokeWidth={3} />
+                              </div>
+
+                              <div style={{ minWidth: 0, flex: 1 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                  <span
+                                    className={`anime-badge ${rConf.badge}`}
+                                    style={{ fontSize: '9px', fontFamily: 'Orbitron, sans-serif', fontWeight: 800, padding: '1px 6px' }}
+                                  >
+                                    {rConf.label}
+                                  </span>
+                                  <span style={{ fontSize: '9px', fontFamily: 'monospace' }} className={eConf.color}>
+                                    {q.element}
+                                  </span>
+                                  <span
+                                    style={{
+                                      fontSize: '0.84rem',
+                                      fontWeight: 700,
+                                      color: '#94a3b8',
+                                      textDecoration: 'line-through',
+                                      overflowWrap: 'anywhere',
+                                    }}
+                                  >
+                                    {q.title}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                              <span style={{ fontSize: '11px', fontFamily: 'monospace', color: '#FFD700' }}>
+                                +{q.expReward} EXP
+                              </span>
+
+                              <button
+                                type="button"
+                                onClick={() => handleToggleClear(q)}
+                                title="Undo completion & restore to active quests"
+                                style={{
+                                  background: 'rgba(255, 255, 255, 0.05)',
+                                  border: '1px solid rgba(0, 240, 255, 0.3)',
+                                  borderRadius: '6px',
+                                  padding: '4px 10px',
+                                  color: '#00F0FF',
+                                  fontSize: '0.72rem',
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                }}
+                              >
+                                ↩ Restore
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteQuest(q)}
+                                title="Dismiss to Recycle Bin"
+                                style={{
+                                  background: 'transparent',
+                                  border: 'none',
+                                  color: '#64748b',
+                                  cursor: 'pointer',
+                                  padding: '4px',
+                                }}
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           )}
@@ -2275,6 +2456,58 @@ export default function TaskBuilderPage() {
                 />
               </div>
 
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: '0.75rem' }}>
+                <div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', color: '#c084fc', marginBottom: '4px' }}>
+                    <Clock size={12} color="#c084fc" />
+                    Timetable Start Time
+                  </label>
+                  <input
+                    type="time"
+                    value={mStartTime}
+                    onChange={(e) => setMStartTime(e.target.value)}
+                    style={{
+                      width: '100%',
+                      background: '#070A12',
+                      border: '1px solid rgba(192, 132, 252, 0.4)',
+                      borderRadius: '10px',
+                      padding: '0.55rem',
+                      color: '#ffffff',
+                      fontSize: '0.82rem',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', color: '#38bdf8', marginBottom: '4px' }}>
+                    <RotateCcw size={12} color="#38bdf8" />
+                    Recurrence Engine
+                  </label>
+                  <select
+                    value={mRecurring}
+                    onChange={(e) => setMRecurring(e.target.value as any)}
+                    style={{
+                      width: '100%',
+                      background: '#070A12',
+                      border: '1px solid rgba(56, 189, 248, 0.4)',
+                      borderRadius: '10px',
+                      padding: '0.55rem',
+                      color: '#ffffff',
+                      fontSize: '0.82rem',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  >
+                    <option value="none">One-time Mission</option>
+                    <option value="daily">Repeats Daily</option>
+                    <option value="weekdays">Weekdays (Mon-Fri)</option>
+                    <option value="weekly">Repeats Weekly</option>
+                  </select>
+                </div>
+              </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 120px), 1fr))', gap: '0.75rem' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', color: '#94a3b8', marginBottom: '4px' }}>
@@ -2550,6 +2783,32 @@ export default function TaskBuilderPage() {
                       boxSizing: 'border-box',
                     }}
                   />
+                </div>
+
+                <div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', color: '#38bdf8', marginBottom: '4px' }}>
+                    <RotateCcw size={12} color="#38bdf8" />
+                    Recurrence Engine
+                  </label>
+                  <select
+                    value={editRecurring}
+                    onChange={(e) => setEditRecurring(e.target.value as any)}
+                    style={{
+                      width: '100%',
+                      background: '#070A12',
+                      border: '1px solid rgba(56, 189, 248, 0.4)',
+                      borderRadius: '10px',
+                      padding: '0.55rem',
+                      color: '#ffffff',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  >
+                    <option value="none">One-time Mission</option>
+                    <option value="daily">Repeats Daily</option>
+                    <option value="weekdays">Weekdays (Mon-Fri)</option>
+                    <option value="weekly">Repeats Weekly</option>
+                  </select>
                 </div>
               </div>
 
