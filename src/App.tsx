@@ -178,7 +178,13 @@ function AppContent() {
   }, []);
 
   const PAGE_MAP: Record<NavSection, React.ReactNode> = {
-    home:       <HomePage onNavigateSection={(sec) => setSection(sec as NavSection)} />,
+    home: (
+      <HomePage
+        onNavigateSection={(sec) => setSection(sec as NavSection)}
+        onOpenQuickCapture={() => setIsQuickCaptureOpen(true)}
+        onOpenSearch={() => setIsSearchOpen(true)}
+      />
+    ),
     tasks:      <TaskBuilderPage onNavigateSection={(sec) => setSection(sec as NavSection)} />,
     pulse:      <PulseFlowPage />,
     notes:      <KnowledgePage initialTab="notes" />,

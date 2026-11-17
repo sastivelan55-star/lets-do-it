@@ -1,134 +1,59 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Sparkles,
-  Calendar,
-  Clock,
-  CalendarCheck,
-} from 'lucide-react';
-import AnimeFantasyDashboard from '../components/dashboard/AnimeFantasyDashboard';
+import { useState } from 'react';
+import PremiumHomeDashboard from '../components/dashboard/PremiumHomeDashboard';
 import DailyTimetable from '../components/timetable/DailyTimetable';
-import DailyExecutionDashboard from '../components/dashboard/DailyExecutionDashboard';
 
-export type HomeTab = 'dashboard' | 'timeline' | 'companion';
+export type HomeTab = 'dashboard' | 'timeline';
 
 interface HomePageProps {
   initialTab?: HomeTab;
   onNavigateSection?: (section: string) => void;
+  onOpenQuickCapture?: () => void;
+  onOpenSearch?: () => void;
 }
 
-export default function HomePage({ initialTab = 'dashboard', onNavigateSection }: HomePageProps) {
+export default function HomePage({
+  initialTab = 'dashboard',
+  onNavigateSection,
+  onOpenQuickCapture,
+  onOpenSearch,
+}: HomePageProps) {
   const [activeTab, setActiveTab] = useState<HomeTab>(initialTab === 'timeline' ? 'timeline' : 'dashboard');
-  const [currentTime, setCurrentTime] = useState(new Date());
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const formattedTime = currentTime.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: true,
-  });
-
-  const formattedDate = currentTime.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  });
-
-  const TABS: { id: HomeTab; label: string; icon: React.ReactNode; color: string }[] = [
-    { id: 'dashboard', label: 'Daily Execution',   icon: <CalendarCheck size={15} />, color: '#38bdf8' },
-    { id: 'companion', label: 'Anime Companion',   icon: <Sparkles size={15} />,      color: '#ec4899' },
-    { id: 'timeline',  label: 'Daily Timetable',   icon: <Clock size={15} />,         color: '#a855f7' },
-  ];
+  if (activeTab === 'timeline') {
+    return (
+      <div style={{ maxWidth: '1680px', margin: '0 auto', padding: '1rem 1.5rem' }}>
+        <button
+          type="button"
+          onClick={() => setActiveTab('dashboard')}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            marginBottom: '1rem',
+            background: 'rgba(255, 255, 255, 0.05)',
+            border: '1px solid rgba(168, 85, 247, 0.3)',
+            borderRadius: '10px',
+            padding: '6px 14px',
+            color: '#c084fc',
+            fontSize: '0.8rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          ← Back to Command Center
+        </button>
+        <DailyTimetable onNavigateSection={onNavigateSection} />
+      </div>
+    );
+  }
 
   return (
-    <div className="composite-page" style={{ maxWidth: '100vw', overflowX: 'hidden', boxSizing: 'border-box', width: '100%' }}>
-      {/* Subtab Navigation Bar with Live Time & Date */}
-      <header className="composite-header" style={{ marginBottom: '0.75rem' }}>
-        <div className="composite-header-top">
-          {/* Time & Date Display */}
-          <div>
-            <h1
-              className="composite-title"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                fontFamily: 'var(--font-display)',
-                fontWeight: 800,
-                fontSize: 'clamp(1.25rem, 4.5vw, 1.65rem)',
-                color: '#f8fafc',
-                letterSpacing: '0.02em',
-                textShadow: '0 0 16px rgba(192, 132, 252, 0.4)',
-                margin: 0,
-              }}
-            >
-              <Clock size={20} color="#ec4899" style={{ filter: 'drop-shadow(0 0 8px rgba(236, 72, 153, 0.6))', flexShrink: 0 }} />
-              <span>{formattedTime}</span>
-            </h1>
-
-            <p
-              className="composite-subtitle"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                color: '#c084fc',
-                fontWeight: 600,
-                fontSize: '0.82rem',
-                marginTop: '3px',
-                letterSpacing: '0.02em',
-              }}
-            >
-              <Calendar size={13} color="#38bdf8" style={{ flexShrink: 0 }} />
-              <span>{formattedDate}</span>
-            </p>
-          </div>
-
-          {/* Subtab Section Buttons */}
-          <div className="section-tabs" role="tablist" aria-label="Home sub-sections">
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                role="tab"
-                aria-selected={activeTab === tab.id}
-                className={`section-tab ${activeTab === tab.id ? 'active' : ''}`}
-                onClick={() => setActiveTab(tab.id)}
-              >
-                <span style={{ color: activeTab === tab.id ? tab.color : 'inherit', display: 'flex' }}>
-                  {tab.icon}
-                </span>
-                <span>{tab.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </header>
-
-      {/* Content Area */}
-      <div className="composite-content" style={{ maxWidth: '100vw', overflowX: 'hidden', boxSizing: 'border-box', width: '100%' }}>
-        {activeTab === 'dashboard' && (
-          <DailyExecutionDashboard
-            onNavigateSection={onNavigateSection}
-            onOpenTaskBuilder={() => onNavigateSection && onNavigateSection('tasks')}
-            onOpenTimetable={() => setActiveTab('timeline')}
-          />
-        )}
-        {activeTab === 'companion' && (
-          <AnimeFantasyDashboard
-            onNavigateSection={onNavigateSection}
-            onOpenTaskBuilder={() => onNavigateSection && onNavigateSection('tasks')}
-            onOpenTimetable={() => setActiveTab('timeline')}
-          />
-        )}
-        {activeTab === 'timeline' && <DailyTimetable onNavigateSection={onNavigateSection} />}
-      </div>
-    </div>
+    <PremiumHomeDashboard
+      onNavigateSection={onNavigateSection}
+      onOpenQuickCapture={onOpenQuickCapture}
+      onOpenSearch={onOpenSearch}
+      onOpenTimetable={() => setActiveTab('timeline')}
+      onOpenTaskBuilder={() => onNavigateSection && onNavigateSection('tasks')}
+    />
   );
 }
