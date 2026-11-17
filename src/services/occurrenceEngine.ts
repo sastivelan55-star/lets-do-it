@@ -41,6 +41,10 @@ export function getTasksForDate(
     let include = false;
 
     if (isRecurring) {
+      // If recurrenceStartDate is configured, do not repeat prior to that date
+      if (task.recurrenceStartDate && targetDate < task.recurrenceStartDate) {
+        continue;
+      }
       // For recurring tasks use shouldRunOnDate against the template's own scheduled date
       const templateDate =
         (task.scheduledDate || task.targetDate || task.dueDate || '').slice(0, 10) || undefined;
@@ -135,4 +139,53 @@ export function computeDailySummary(
   const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
 
   return { date, total, completed, pending, percentage };
+}
+
+/**
+ * Identify overdue one-time tasks:
+ * - scheduled date is strictly before targetDate
+ * - status is NOT completed and NOT rescheduled
+ * - not deleted and not recurring
+ */
+export function getOverdueTasksForDate(tasks: Task[], targetDate: string): Task[] {
+  return tasks.filter((t) => {
+    if (t.isDeleted) return false;
+    if (t.recurring && t.recurring !== 'none') return false;
+    if (t.status === 'completed' || t.status === 'rescheduled') return false;
+    const taskDate = (t.scheduledDate || t.targetDate || t.dueDate || '').slice(0, 10);
+    return taskDate !== '' && taskDate < targetDate;
+  });
+}
+
+/**
+ * Identify unscheduled backlog tasks:
+ * - no date set or empty
+ * - not completed, not deleted, not recurring
+ */
+export function getUnscheduledTasks(tasks: Task[]): Task[] {
+  return tasks.filter((t) => {
+    if (t.isDeleted) return false;
+    if (t.recurring && t.recurring !== 'none') return false;
+    if (t.status === 'completed') return false;
+    const taskDate = (t.scheduledDate || t.targetDate || t.dueDate || '').slice(0, 10);
+    return !taskDate;
+  });
+}
+
+/**
+ * Identify upcoming tasks scheduled after targetDate:
+ */
+export function getUpcomingTasksForDate(tasks: Task[], targetDate: string): Task[] {
+  return tasks
+    .filter((t) => {
+      if (t.isDeleted) return false;
+      if (t.recurring && t.recurring !== 'none') return false;
+      const taskDate = (t.scheduledDate || t.targetDate || t.dueDate || '').slice(0, 10);
+      return taskDate !== '' && taskDate > targetDate;
+    })
+    .sort((a, b) => {
+      const da = (a.scheduledDate || a.targetDate || a.dueDate || '').slice(0, 10);
+      const db = (b.scheduledDate || b.targetDate || b.dueDate || '').slice(0, 10);
+      return da.localeCompare(db);
+    });
 }

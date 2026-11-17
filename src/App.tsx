@@ -179,7 +179,7 @@ function AppContent() {
 
   const PAGE_MAP: Record<NavSection, React.ReactNode> = {
     home:       <HomePage onNavigateSection={(sec) => setSection(sec as NavSection)} />,
-    tasks:      <TaskBuilderPage />,
+    tasks:      <TaskBuilderPage onNavigateSection={(sec) => setSection(sec as NavSection)} />,
     pulse:      <PulseFlowPage />,
     notes:      <KnowledgePage initialTab="notes" />,
     calendar:   <PlannerPage />,

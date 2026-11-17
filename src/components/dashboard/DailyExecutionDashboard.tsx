@@ -27,13 +27,17 @@ import {
   MoreVertical,
   Trash2,
   ListTodo,
+  Inbox,
 } from 'lucide-react';
 import { format, parseISO, addDays, subDays, startOfWeek } from 'date-fns';
 import { useDailyExecution } from '../../hooks/useDailyExecution';
 import { useApp } from '../../context/AppContext';
 import { today, formatDateLong, getGreeting, formatTime } from '../../utils/dates';
 import { ALL_CHARACTERS, type AnimeCharacter } from '../../data/animeCharacters';
-import type { DailyTaskOccurrence } from '../../types';
+import type { DailyTaskOccurrence, Task } from '../../types';
+import FloatingTimePicker, { type TimePickerResult } from '../common/FloatingTimePicker';
+import DailyRecurrenceToggle from '../common/DailyRecurrenceToggle';
+import { getOverdueTasksForDate, getUnscheduledTasks } from '../../services/occurrenceEngine';
 
 // ─── Visual Constants & Styling ──────────────────────────────────────────────
 
@@ -88,14 +92,17 @@ export default function DailyExecutionDashboard({
   const [completedOpen, setCompletedOpen] = useState(true);
   const [celebrationText, setCelebrationText] = useState<string | null>(null);
 
-  // Quick Time Schedule Modal State
-  const [timeModalTask, setTimeModalTask] = useState<DailyTaskOccurrence | null>(null);
-  const [timeModalStart, setTimeModalStart] = useState('08:00');
-  const [timeModalEnd, setTimeModalEnd] = useState('');
+  // Floating Time Picker Popover State (Anchored, non-shifting portal)
+  const [timePickerTask, setTimePickerTask] = useState<DailyTaskOccurrence | Task | null>(null);
+  const [timePickerAnchor, setTimePickerAnchor] = useState<HTMLElement | null>(null);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
+  // Sections collapse/expand state
+  const [overdueOpen, setOverdueOpen] = useState(true);
+  const [unscheduledOpen, setUnscheduledOpen] = useState(false);
+
   const { occurrences, summary, isLoading, error, toggleCompletion } = useDailyExecution(selectedDate);
-  const { tasks, settings, streakData, updateTask, removeTask } = useApp();
+  const { tasks, settings, streakData, updateTask, removeTask, completeTask } = useApp();
 
   // Active Anime Character Companion from settings
   const activeChar = useMemo(() => {
@@ -239,31 +246,51 @@ export default function DailyExecutionDashboard({
     }
   };
 
-  // Quick Schedule Modal Handlers
-  const handleOpenTimeModal = (occurrence: DailyTaskOccurrence) => {
-    setTimeModalTask(occurrence);
-    setTimeModalStart(occurrence.startTime || '08:00');
-    setTimeModalEnd(occurrence.endTime || '');
-    setActiveMenuId(null);
-  };
+  // Overdue and Unscheduled tasks to guarantee full visibility of all tasks in the system
+  const overdueTasks = useMemo(() => {
+    return getOverdueTasksForDate(tasks, selectedDate);
+  }, [tasks, selectedDate]);
 
-  const handleSaveTimeModal = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!timeModalTask) return;
+  const unscheduledTasks = useMemo(() => {
+    return getUnscheduledTasks(tasks);
+  }, [tasks]);
 
+  const handleCarryForward = async (task: Task) => {
     await updateTask({
-      ...timeModalTask.originalTask,
-      startTime: timeModalStart,
-      plannedStartTime: timeModalStart,
-      endTime: timeModalEnd || undefined,
+      ...task,
       targetDate: selectedDate,
       dueDate: selectedDate,
       scheduledDate: selectedDate,
       updatedAt: new Date().toISOString(),
     });
+    setCelebrationText(`Carried forward "${task.title}" to ${selectedDate} 🚀`);
+    setTimeout(() => setCelebrationText(null), 2500);
+  };
 
-    setTimeModalTask(null);
-    setCelebrationText(`Scheduled "${timeModalTask.title}" at ${timeModalStart}`);
+  const handleCarryForwardAll = async () => {
+    if (overdueTasks.length === 0) return;
+    for (const t of overdueTasks) {
+      await updateTask({
+        ...t,
+        targetDate: selectedDate,
+        dueDate: selectedDate,
+        scheduledDate: selectedDate,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+    setCelebrationText(`Carried forward all ${overdueTasks.length} overdue tasks to ${selectedDate}! 🔥`);
+    setTimeout(() => setCelebrationText(null), 3000);
+  };
+
+  const handleScheduleToday = async (task: Task) => {
+    await updateTask({
+      ...task,
+      targetDate: selectedDate,
+      dueDate: selectedDate,
+      scheduledDate: selectedDate,
+      updatedAt: new Date().toISOString(),
+    });
+    setCelebrationText(`Scheduled "${task.title}" for today 🎯`);
     setTimeout(() => setCelebrationText(null), 2500);
   };
 
@@ -994,6 +1021,170 @@ export default function DailyExecutionDashboard({
               </div>
             )}
 
+            {/* ── Overdue / Pending from Previous Days Section ── */}
+            {overdueTasks.length > 0 && (
+              <div
+                style={{
+                  marginBottom: '1rem',
+                  padding: '1rem 1.15rem',
+                  background: 'rgba(239, 68, 68, 0.08)',
+                  borderRadius: '16px',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '8px',
+                    marginBottom: overdueOpen ? '0.75rem' : 0,
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setOverdueOpen(!overdueOpen)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      color: '#f87171',
+                      fontWeight: 800,
+                      fontSize: '0.88rem',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <AlertCircle size={16} />
+                    <span>Pending from Previous Days ({overdueTasks.length})</span>
+                    {overdueOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleCarryForwardAll}
+                    style={{
+                      background: 'rgba(239, 68, 68, 0.2)',
+                      border: '1px solid rgba(239, 68, 68, 0.45)',
+                      borderRadius: '8px',
+                      padding: '4px 10px',
+                      color: '#fca5a5',
+                      fontSize: '0.74rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <RotateCcw size={12} /> Carry Forward All to Today
+                  </button>
+                </div>
+
+                {overdueOpen && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {overdueTasks.map((task) => (
+                      <div
+                        key={task.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '8px 12px',
+                          borderRadius: '10px',
+                          background: 'rgba(15, 10, 30, 0.6)',
+                          border: '1px solid rgba(239, 68, 68, 0.2)',
+                          gap: '8px',
+                        }}
+                      >
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ fontSize: '0.84rem', fontWeight: 600, color: '#f8fafc' }}>
+                            {task.title}
+                          </div>
+                          <div style={{ fontSize: '0.7rem', color: '#fca5a5', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                            <span>Due: {task.dueDate || task.targetDate || 'Past'}</span>
+                            <span>•</span>
+                            <span style={{ textTransform: 'capitalize' }}>{task.priority} Priority</span>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <DailyRecurrenceToggle
+                            task={task}
+                            size="sm"
+                            onToggle={(updated: Task) => updateTask(updated)}
+                          />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              setTimePickerAnchor(e.currentTarget);
+                              setTimePickerTask(task);
+                            }}
+                            style={{
+                              background: 'rgba(255, 255, 255, 0.05)',
+                              border: '1px solid rgba(255, 255, 255, 0.1)',
+                              borderRadius: '6px',
+                              padding: '3px 8px',
+                              color: '#c084fc',
+                              fontSize: '0.72rem',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                            }}
+                          >
+                            <Clock size={11} /> Set Time
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleCarryForward(task)}
+                            style={{
+                              background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.3), rgba(139, 92, 246, 0.3))',
+                              border: '1px solid rgba(236, 72, 153, 0.5)',
+                              borderRadius: '6px',
+                              padding: '3px 10px',
+                              color: '#fff',
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                          >
+                            Move to Today
+                          </button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              await completeTask(task.id);
+                              setCelebrationText(`Completed "${task.title}"! 🔥`);
+                              setTimeout(() => setCelebrationText(null), 2500);
+                            }}
+                            style={{
+                              background: 'rgba(16, 185, 129, 0.2)',
+                              border: '1px solid rgba(16, 185, 129, 0.4)',
+                              borderRadius: '6px',
+                              padding: '3px 8px',
+                              color: '#34d399',
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            ✓ Done
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* SECTION J: Meaningful Empty States */}
             {!isLoading && occurrences.length === 0 && (
               <div
@@ -1025,32 +1216,94 @@ export default function DailyExecutionDashboard({
                 </div>
                 <div>
                   <div style={{ fontSize: '1rem', fontWeight: 800, color: '#f8fafc', marginBottom: '4px' }}>
-                    No missions scheduled for this date
+                    {overdueTasks.length > 0
+                      ? `${overdueTasks.length} Pending Missions From Previous Days`
+                      : unscheduledTasks.length > 0
+                      ? `${unscheduledTasks.length} Missions in Backlog Ready to Schedule`
+                      : 'No missions scheduled for this date'}
                   </div>
-                  <div style={{ fontSize: '0.78rem', color: '#94a3b8', maxWidth: '320px', margin: '0 auto', lineHeight: 1.4 }}>
-                    Start planning your day by scheduling tasks or creating your daily habits in the Task Builder.
+                  <div style={{ fontSize: '0.78rem', color: '#94a3b8', maxWidth: '360px', margin: '0 auto', lineHeight: 1.4 }}>
+                    {overdueTasks.length > 0
+                      ? 'You have incomplete missions from earlier dates. Bring them forward to today with one click or review them above.'
+                      : unscheduledTasks.length > 0
+                      ? 'You have tasks in your backlog without a scheduled date. Pick what you want to tackle today.'
+                      : 'Start planning your day by scheduling tasks or creating your daily habits in the Task Builder.'}
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => (onOpenTaskBuilder ? onOpenTaskBuilder() : onNavigateSection && onNavigateSection('tasks'))}
-                  style={{
-                    marginTop: '6px',
-                    background: 'linear-gradient(135deg, #ec4899, #8b5cf6)',
-                    border: 'none',
-                    borderRadius: '10px',
-                    padding: '8px 18px',
-                    fontWeight: 700,
-                    fontSize: '0.82rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    color: '#fff',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <Plus size={14} /> Create or Schedule Task
-                </button>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                  {overdueTasks.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleCarryForwardAll}
+                      style={{
+                        background: 'linear-gradient(135deg, #ef4444, #ec4899)',
+                        border: 'none',
+                        borderRadius: '10px',
+                        padding: '8px 18px',
+                        fontWeight: 700,
+                        fontSize: '0.82rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        color: '#fff',
+                        cursor: 'pointer',
+                        boxShadow: '0 0 16px rgba(239, 68, 68, 0.4)',
+                      }}
+                    >
+                      <RotateCcw size={14} /> Carry Forward All ({overdueTasks.length})
+                    </button>
+                  )}
+
+                  {unscheduledTasks.length > 0 && overdueTasks.length === 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setUnscheduledOpen(true)}
+                      style={{
+                        background: 'linear-gradient(135deg, #0ea5e9, #8b5cf6)',
+                        border: 'none',
+                        borderRadius: '10px',
+                        padding: '8px 18px',
+                        fontWeight: 700,
+                        fontSize: '0.82rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        color: '#fff',
+                        cursor: 'pointer',
+                        boxShadow: '0 0 16px rgba(14, 165, 233, 0.4)',
+                      }}
+                    >
+                      <Inbox size={14} /> Pick Backlog Missions ({unscheduledTasks.length})
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => (onOpenTaskBuilder ? onOpenTaskBuilder() : onNavigateSection && onNavigateSection('tasks'))}
+                    style={{
+                      background:
+                        overdueTasks.length > 0 || unscheduledTasks.length > 0
+                          ? 'rgba(255, 255, 255, 0.08)'
+                          : 'linear-gradient(135deg, #ec4899, #8b5cf6)',
+                      border:
+                        overdueTasks.length > 0 || unscheduledTasks.length > 0
+                          ? '1px solid rgba(255, 255, 255, 0.2)'
+                          : 'none',
+                      borderRadius: '10px',
+                      padding: '8px 18px',
+                      fontWeight: 700,
+                      fontSize: '0.82rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      color: '#fff',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Plus size={14} /> Create New Mission
+                  </button>
+                </div>
               </div>
             )}
 
@@ -1179,25 +1432,40 @@ export default function DailyExecutionDashboard({
                     </div>
 
                     {/* Actions Menu */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                      {/* Daily Recurrence Toggle */}
+                      <DailyRecurrenceToggle
+                        task={occ.originalTask}
+                        size="sm"
+                        onToggle={async (updated: Task) => {
+                          await updateTask(updated);
+                        }}
+                      />
+
+                      {/* Set Time Floating Button */}
                       <button
                         type="button"
-                        onClick={() => handleOpenTimeModal(occ)}
+                        onClick={(e) => {
+                          setTimePickerAnchor(e.currentTarget);
+                          setTimePickerTask(occ);
+                        }}
                         style={{
-                          background: 'rgba(255, 255, 255, 0.05)',
-                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          background: occ.startTime ? 'rgba(192, 132, 252, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                          border: occ.startTime ? '1px solid rgba(192, 132, 252, 0.4)' : '1px solid rgba(255, 255, 255, 0.1)',
                           borderRadius: '8px',
                           padding: '4px 8px',
-                          color: '#c084fc',
+                          color: occ.startTime ? '#c084fc' : '#94a3b8',
                           fontSize: '0.72rem',
                           cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'center',
                           gap: '3px',
+                          fontWeight: 600,
+                          transition: 'all 0.15s ease',
                         }}
-                        title="Set Scheduled Time"
+                        title="Set Scheduled Time (Floating Popover)"
                       >
-                        <Clock size={12} /> {occ.startTime ? 'Reschedule' : 'Set Time'}
+                        <Clock size={12} /> {occ.startTime ? occ.startTime : 'Set Time'}
                       </button>
 
                       <button
@@ -1282,98 +1550,127 @@ export default function DailyExecutionDashboard({
               })}
             </div>
 
-            {/* Quick Time Schedule Modal */}
-            {timeModalTask && (
-              <form
-                onSubmit={handleSaveTimeModal}
+            {/* ── Unscheduled Backlog Tray ── */}
+            {unscheduledTasks.length > 0 && (
+              <div
                 style={{
                   marginTop: '1rem',
-                  padding: '1rem',
-                  background: 'rgba(25, 14, 46, 0.95)',
-                  borderRadius: '12px',
-                  border: '1px solid rgba(168, 85, 247, 0.45)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '10px',
-                  flexWrap: 'wrap',
+                  padding: '0.85rem 1.15rem',
+                  background: 'rgba(56, 189, 248, 0.04)',
+                  borderRadius: '16px',
+                  border: '1px dashed rgba(56, 189, 248, 0.25)',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Clock size={16} color="#c084fc" />
-                  <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f8fafc' }}>
-                    Set time for "{timeModalTask.title}":
-                  </span>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                  }}
+                  onClick={() => setUnscheduledOpen(!unscheduledOpen)}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#38bdf8' }}>
+                    <Inbox size={15} />
+                    <span style={{ fontWeight: 700, fontSize: '0.84rem' }}>
+                      Unscheduled Backlog ({unscheduledTasks.length} tasks ready to schedule)
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#38bdf8', fontSize: '0.75rem' }}>
+                    <span>{unscheduledOpen ? 'Hide Backlog' : 'Show & Pick'}</span>
+                    {unscheduledOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                  <label style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    Start:
-                    <input
-                      type="time"
-                      value={timeModalStart}
-                      onChange={(e) => setTimeModalStart(e.target.value)}
-                      style={{
-                        background: 'rgba(255, 255, 255, 0.08)',
-                        border: '1px solid rgba(168, 85, 247, 0.4)',
-                        borderRadius: '6px',
-                        padding: '4px 6px',
-                        color: '#fff',
-                        fontSize: '0.78rem',
-                      }}
-                    />
-                  </label>
-
-                  <label style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    End:
-                    <input
-                      type="time"
-                      value={timeModalEnd}
-                      onChange={(e) => setTimeModalEnd(e.target.value)}
-                      style={{
-                        background: 'rgba(255, 255, 255, 0.08)',
-                        border: '1px solid rgba(168, 85, 247, 0.4)',
-                        borderRadius: '6px',
-                        padding: '4px 6px',
-                        color: '#fff',
-                        fontSize: '0.78rem',
-                      }}
-                    />
-                  </label>
-
-                  <button
-                    type="submit"
-                    style={{
-                      background: '#10b981',
-                      border: 'none',
-                      borderRadius: '6px',
-                      padding: '4px 12px',
-                      color: '#fff',
-                      fontWeight: 700,
-                      fontSize: '0.78rem',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Save
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setTimeModalTask(null)}
-                    style={{
-                      background: 'none',
-                      border: '1px solid rgba(255, 255, 255, 0.2)',
-                      borderRadius: '6px',
-                      padding: '4px 8px',
-                      color: '#94a3b8',
-                      fontSize: '0.78rem',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
+                {unscheduledOpen && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '0.75rem' }}>
+                    {unscheduledTasks.slice(0, 10).map((task) => (
+                      <div
+                        key={task.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '7px 12px',
+                          borderRadius: '10px',
+                          background: 'rgba(15, 10, 30, 0.5)',
+                          border: '1px solid rgba(56, 189, 248, 0.15)',
+                          gap: '8px',
+                        }}
+                      >
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#f8fafc' }}>
+                            {task.title}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <DailyRecurrenceToggle
+                            task={task}
+                            size="sm"
+                            onToggle={(updated: Task) => updateTask(updated)}
+                          />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              setTimePickerAnchor(e.currentTarget);
+                              setTimePickerTask(task);
+                            }}
+                            style={{
+                              background: 'rgba(255, 255, 255, 0.05)',
+                              border: '1px solid rgba(255, 255, 255, 0.1)',
+                              borderRadius: '6px',
+                              padding: '3px 8px',
+                              color: '#c084fc',
+                              fontSize: '0.72rem',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                            }}
+                          >
+                            <Clock size={11} /> Set Time
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleScheduleToday(task)}
+                            style={{
+                              background: 'rgba(56, 189, 248, 0.2)',
+                              border: '1px solid rgba(56, 189, 248, 0.4)',
+                              borderRadius: '6px',
+                              padding: '3px 10px',
+                              color: '#38bdf8',
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            + Today
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    {unscheduledTasks.length > 10 && (
+                      <div style={{ textAlign: 'center', paddingTop: '4px' }}>
+                        <button
+                          type="button"
+                          onClick={() => onNavigateSection && onNavigateSection('tasks')}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#94a3b8',
+                            fontSize: '0.74rem',
+                            cursor: 'pointer',
+                            textDecoration: 'underline',
+                          }}
+                        >
+                          View all {unscheduledTasks.length} backlog tasks in Tasks Hub →
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             )}
 
             {/* Collapsible Completed Missions Section */}
@@ -1897,6 +2194,72 @@ export default function DailyExecutionDashboard({
           </div>
         </div>
       </div>
+
+      {/* Anchored Floating Time Picker (Rendered via Document Body Portal) */}
+      <FloatingTimePicker
+        isOpen={Boolean(timePickerTask && timePickerAnchor)}
+        anchorEl={timePickerAnchor}
+        initialStartTime={
+          timePickerTask
+            ? 'originalTask' in timePickerTask
+              ? timePickerTask.startTime
+              : timePickerTask.startTime || timePickerTask.plannedStartTime
+            : undefined
+        }
+        initialEndTime={
+          timePickerTask
+            ? 'originalTask' in timePickerTask
+              ? timePickerTask.endTime
+              : timePickerTask.endTime
+            : undefined
+        }
+        initialDate={
+          timePickerTask
+            ? 'originalTask' in timePickerTask
+              ? timePickerTask.occurrenceDate || selectedDate
+              : timePickerTask.targetDate || timePickerTask.dueDate || selectedDate
+            : selectedDate
+        }
+        taskTitle={timePickerTask?.title || 'Set Time'}
+        onSave={async (result: TimePickerResult) => {
+          if (!timePickerTask) return;
+          const original = 'originalTask' in timePickerTask ? timePickerTask.originalTask : timePickerTask;
+          const updatedDate = result.date || result.targetDate || selectedDate;
+          await updateTask({
+            ...original,
+            startTime: result.startTime || undefined,
+            plannedStartTime: result.startTime || undefined,
+            endTime: result.endTime || undefined,
+            targetDate: updatedDate,
+            dueDate: updatedDate,
+            scheduledDate: updatedDate,
+            updatedAt: new Date().toISOString(),
+          });
+          setTimePickerTask(null);
+          setTimePickerAnchor(null);
+          setCelebrationText(`Scheduled "${timePickerTask.title}" at ${result.startTime || 'specified time'}`);
+          setTimeout(() => setCelebrationText(null), 2500);
+        }}
+        onCancel={() => {
+          setTimePickerTask(null);
+          setTimePickerAnchor(null);
+        }}
+        onClear={async () => {
+          if (!timePickerTask) return;
+          const original = 'originalTask' in timePickerTask ? timePickerTask.originalTask : timePickerTask;
+          await updateTask({
+            ...original,
+            startTime: undefined,
+            plannedStartTime: undefined,
+            endTime: undefined,
+            updatedAt: new Date().toISOString(),
+          });
+          setTimePickerTask(null);
+          setTimePickerAnchor(null);
+          setCelebrationText(`Cleared scheduled time for "${timePickerTask.title}"`);
+          setTimeout(() => setCelebrationText(null), 2500);
+        }}
+      />
     </div>
   );
 }

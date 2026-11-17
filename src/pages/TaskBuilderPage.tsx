@@ -26,12 +26,15 @@ import {
   Edit3,
   Clock,
   RotateCcw,
+  ListTodo,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import TaskRecycleBinModal from '../components/taskBuilder/TaskRecycleBinModal';
 import { today } from '../utils/dates';
 import type { Task, LifeArea } from '../types';
 import TimetableScheduledBadge from '../components/common/TimetableScheduledBadge';
+import ModernTaskManager from '../components/tasks/ModernTaskManager';
+import DailyRecurrenceToggle from '../components/common/DailyRecurrenceToggle';
 
 interface QuestItem {
   id: string;
@@ -53,7 +56,7 @@ interface QuestItem {
   recurring?: 'none' | 'daily' | 'weekly' | 'weekdays';
 }
 
-export default function TaskBuilderPage() {
+export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSection?: (section: string) => void } = {}) {
   const {
     tasks,
     deletedTasks,
@@ -68,7 +71,7 @@ export default function TaskBuilderPage() {
   } = useApp();
 
   // Navigation tab
-  const [currentView, setCurrentView] = useState<'board' | 'bounty' | 'matrix' | 'hunterCard'>('board');
+  const [currentView, setCurrentView] = useState<'manager' | 'board' | 'bounty' | 'matrix' | 'hunterCard'>('manager');
 
   // Filters
   const [filterRank, setFilterRank] = useState<'ALL' | 'S' | 'A' | 'B' | 'C'>('ALL');
@@ -840,6 +843,7 @@ export default function TaskBuilderPage() {
           }}
         >
           {[
+            { id: 'manager', label: 'TASKS HUB', icon: <ListTodo size={13} /> },
             { id: 'board', label: '任務 QUESTS', icon: <Scroll size={13} /> },
             { id: 'bounty', label: '討伐 BOUNTY', icon: <Skull size={13} /> },
             { id: 'matrix', label: '作戦 RAID ZONES', icon: <Shield size={13} /> },
@@ -994,21 +998,30 @@ export default function TaskBuilderPage() {
         </div>
       </header>
 
-      {/* ── MAIN INTERFACE GRID ──────────────────────────────────────────────── */}
-      <div
-        style={{
-          position: 'relative',
-          zIndex: 20,
-          maxWidth: '1600px',
-          margin: '0 auto',
-          padding: '1.5rem',
-          display: 'grid',
-          gridTemplateColumns: 'minmax(300px, 340px) minmax(0, 1fr)',
-          gap: '1.5rem',
-          alignItems: 'start',
-        }}
-        className="cal-layout-grid"
-      >
+      {/* ── TASKS HUB (Google Tasks-Inspired Modern Task Manager) ──────────────── */}
+      {currentView === 'manager' ? (
+        <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '1.25rem 1.5rem' }}>
+          <ModernTaskManager
+            onOpenTaskBuilderView={() => setCurrentView('board')}
+            onNavigateSection={onNavigateSection}
+          />
+        </div>
+      ) : (
+        /* ── MAIN INTERFACE GRID ──────────────────────────────────────────────── */
+        <div
+          style={{
+            position: 'relative',
+            zIndex: 20,
+            maxWidth: '1600px',
+            margin: '0 auto',
+            padding: '1.5rem',
+            display: 'grid',
+            gridTemplateColumns: 'minmax(300px, 340px) minmax(0, 1fr)',
+            gap: '1.5rem',
+            alignItems: 'start',
+          }}
+          className="cal-layout-grid"
+        >
         {/* ── LEFT SIDEBAR: HUNTER STATUS & AWAKEN MODE ──────────────────────── */}
         <aside style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {/* Hunter Profile & Rank Card */}
@@ -1896,6 +1909,16 @@ export default function TaskBuilderPage() {
 
                         {/* Actions */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                          {q.realTaskId && (() => {
+                            const rt = tasks.find((t) => t.id === q.realTaskId);
+                            return rt ? (
+                              <DailyRecurrenceToggle
+                                task={rt}
+                                size="sm"
+                                onToggle={(updated: Task) => updateTask(updated)}
+                              />
+                            ) : null;
+                          })()}
                           <button
                             type="button"
                             onClick={() => {
@@ -2356,6 +2379,7 @@ export default function TaskBuilderPage() {
           )}
         </main>
       </div>
+      )}
 
       {/* ── MODAL: ISSUE GUILD CONTRACT ──────────────────────────────────────── */}
       {isDetailedModalOpen && (

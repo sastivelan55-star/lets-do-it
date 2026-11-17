@@ -57,6 +57,24 @@ export interface Task {
   orderIndex?: number;      // Sort order among siblings at the same hierarchy level
   isDeleted?: boolean;      // Soft delete flag for Recycle Bin
   deletedAt?: string;       // ISO datetime of deletion
+  isStarred?: boolean;      // Starred/favorited task flag
+  listId?: string;          // Associated Custom Task List ID
+  recurrenceStartDate?: string; // Date when recurrence begins YYYY-MM-DD
+  reminderDate?: string;    // Reminder date YYYY-MM-DD
+  reminderTime?: string;    // Reminder time HH:mm
+  reminderEnabled?: boolean; // Whether reminder alert is active
+  inlineSubtasks?: { id: string; title: string; completed: boolean }[]; // Inline subtask items
+}
+
+export interface CustomTaskList {
+  id: string;
+  name: string;
+  color: string;
+  icon?: string;
+  orderIndex?: number;
+  userId?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface HierarchicalTask extends Task {

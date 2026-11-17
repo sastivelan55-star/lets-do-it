@@ -26,19 +26,68 @@ export interface DbTaskRow {
   order_index?: number | null;
   is_deleted?: boolean | null;
   deleted_at?: string | null;
+  is_starred?: boolean | null;
+  list_id?: string | null;
+  recurrence_start_date?: string | null;
+  reminder_date?: string | null;
+  reminder_time?: string | null;
+  reminder_enabled?: boolean | null;
+  inline_subtasks?: any;
 }
 
 export function dbRowToTask(row: DbTaskRow): Task {
   const assignedDate = row.due_date ?? new Date().toISOString().slice(0, 10);
   
-  // Safely extract parentRecurringId if encoded in notes: [recur_parent:UUID]
+  // Safely extract metadata if encoded in notes
   let parentRecurringId: string | undefined = undefined;
+  let isStarred: boolean = Boolean(row.is_starred);
+  let listId: string | undefined = row.list_id ?? undefined;
+  let recurrenceStartDate: string | undefined = row.recurrence_start_date ?? undefined;
+  let reminderDate: string | undefined = row.reminder_date ?? undefined;
+  let reminderTime: string | undefined = row.reminder_time ?? undefined;
+  let reminderEnabled: boolean = Boolean(row.reminder_enabled);
+  let inlineSubtasks: { id: string; title: string; completed: boolean }[] | undefined =
+    Array.isArray(row.inline_subtasks) ? row.inline_subtasks : undefined;
+
   let cleanNotes = row.notes ?? undefined;
-  if (row.notes && row.notes.includes('[recur_parent:')) {
-    const match = row.notes.match(/\[recur_parent:([^\]]+)\]/);
-    if (match) {
-      parentRecurringId = match[1];
-      cleanNotes = row.notes.replace(/\[recur_parent:[^\]]+\]\s?/, '').trim() || undefined;
+
+  if (row.notes) {
+    if (row.notes.includes('[recur_parent:')) {
+      const match = row.notes.match(/\[recur_parent:([^\]]+)\]/);
+      if (match) {
+        parentRecurringId = match[1];
+        cleanNotes = cleanNotes?.replace(/\[recur_parent:[^\]]+\]\s?/, '');
+      }
+    }
+    if (row.notes.includes('[starred:true]')) {
+      isStarred = true;
+      cleanNotes = cleanNotes?.replace(/\[starred:true\]\s?/, '');
+    }
+    if (row.notes.includes('[list:')) {
+      const match = row.notes.match(/\[list:([^\]]+)\]/);
+      if (match) {
+        listId = match[1];
+        cleanNotes = cleanNotes?.replace(/\[list:[^\]]+\]\s?/, '');
+      }
+    }
+    if (row.notes.includes('[recur_start:')) {
+      const match = row.notes.match(/\[recur_start:([^\]]+)\]/);
+      if (match) {
+        recurrenceStartDate = match[1];
+        cleanNotes = cleanNotes?.replace(/\[recur_start:[^\]]+\]\s?/, '');
+      }
+    }
+    if (row.notes.includes('[reminder:')) {
+      const match = row.notes.match(/\[reminder:([^:]+):([^\]]+)\]/);
+      if (match) {
+        reminderDate = match[1];
+        reminderTime = match[2];
+        reminderEnabled = true;
+        cleanNotes = cleanNotes?.replace(/\[reminder:[^\]]+\]\s?/, '');
+      }
+    }
+    if (cleanNotes) {
+      cleanNotes = cleanNotes.trim() || undefined;
     }
   }
 
@@ -70,6 +119,13 @@ export function dbRowToTask(row: DbTaskRow): Task {
     orderIndex: row.order_index ?? 0,
     isDeleted: Boolean(row.is_deleted),
     deletedAt: row.deleted_at ?? undefined,
+    isStarred,
+    listId,
+    recurrenceStartDate,
+    reminderDate,
+    reminderTime,
+    reminderEnabled,
+    inlineSubtasks,
   };
 }
 
@@ -112,21 +168,36 @@ export function taskToDbRow(task: Partial<Task>, userId: string): Partial<DbTask
   }
   if (task.recurring !== undefined) row.recurring_rule = task.recurring || null;
   
-  // Combine notes and parentRecurringId tag
-  if (task.notes !== undefined || task.parentRecurringId !== undefined) {
-    let finalNotes = task.notes || '';
-    if (task.parentRecurringId) {
-      if (!finalNotes.includes(`[recur_parent:${task.parentRecurringId}]`)) {
-        finalNotes = `[recur_parent:${task.parentRecurringId}] ${finalNotes}`.trim();
-      }
-    }
-    row.notes = finalNotes || null;
+  // Combine notes and metadata tags
+  let finalNotes = task.notes || '';
+  if (task.parentRecurringId && !finalNotes.includes(`[recur_parent:${task.parentRecurringId}]`)) {
+    finalNotes = `[recur_parent:${task.parentRecurringId}] ${finalNotes}`.trim();
   }
+  if (task.isStarred && !finalNotes.includes('[starred:true]')) {
+    finalNotes = `[starred:true] ${finalNotes}`.trim();
+  }
+  if (task.listId && !finalNotes.includes(`[list:${task.listId}]`)) {
+    finalNotes = `[list:${task.listId}] ${finalNotes}`.trim();
+  }
+  if (task.recurrenceStartDate && !finalNotes.includes(`[recur_start:${task.recurrenceStartDate}]`)) {
+    finalNotes = `[recur_start:${task.recurrenceStartDate}] ${finalNotes}`.trim();
+  }
+  if (task.reminderEnabled && task.reminderDate && task.reminderTime && !finalNotes.includes(`[reminder:${task.reminderDate}:${task.reminderTime}]`)) {
+    finalNotes = `[reminder:${task.reminderDate}:${task.reminderTime}] ${finalNotes}`.trim();
+  }
+  row.notes = finalNotes || null;
 
   if (task.parentId !== undefined) row.parent_id = task.parentId || null;
   if (task.orderIndex !== undefined) row.order_index = task.orderIndex ?? 0;
   if (task.isDeleted !== undefined) row.is_deleted = task.isDeleted;
   if (task.deletedAt !== undefined) row.deleted_at = task.deletedAt || null;
+  if (task.isStarred !== undefined) row.is_starred = task.isStarred;
+  if (task.listId !== undefined) row.list_id = task.listId || null;
+  if (task.recurrenceStartDate !== undefined) row.recurrence_start_date = task.recurrenceStartDate || null;
+  if (task.reminderDate !== undefined) row.reminder_date = task.reminderDate || null;
+  if (task.reminderTime !== undefined) row.reminder_time = task.reminderTime || null;
+  if (task.reminderEnabled !== undefined) row.reminder_enabled = task.reminderEnabled;
+  if (task.inlineSubtasks !== undefined) row.inline_subtasks = task.inlineSubtasks;
 
   return row;
 }
@@ -430,4 +501,121 @@ export async function seedStarterTasks(userId: string): Promise<Task[]> {
     created.push(task);
   }
   return created;
+}
+
+// ── Custom Task Lists CRUD (Cloud + Local Fallback) ──────────────────────────
+
+import type { CustomTaskList } from '../types';
+
+const LOCAL_CUSTOM_LISTS_KEY = 'lifeos.custom_task_lists.v1';
+
+export const DEFAULT_CUSTOM_LISTS: CustomTaskList[] = [
+  { id: 'list-personal', name: 'Personal', color: '#ec4899', icon: 'User', orderIndex: 0 },
+  { id: 'list-college', name: 'College & Academics', color: '#38bdf8', icon: 'GraduationCap', orderIndex: 1 },
+  { id: 'list-projects', name: 'Projects', color: '#6366f1', icon: 'FolderGit2', orderIndex: 2 },
+  { id: 'list-learning', name: 'Learning & Skills', color: '#10b981', icon: 'BookOpen', orderIndex: 3 },
+  { id: 'list-health', name: 'Health & Routines', color: '#f59e0b', icon: 'Heart', orderIndex: 4 },
+];
+
+function getStoredCustomLists(): CustomTaskList[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_CUSTOM_LISTS_KEY);
+    if (!raw) return DEFAULT_CUSTOM_LISTS;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_CUSTOM_LISTS;
+  } catch {
+    return DEFAULT_CUSTOM_LISTS;
+  }
+}
+
+function persistStoredCustomLists(lists: CustomTaskList[]): void {
+  try {
+    localStorage.setItem(LOCAL_CUSTOM_LISTS_KEY, JSON.stringify(lists));
+  } catch {
+    // ignore
+  }
+}
+
+export async function fetchUserCustomLists(userId?: string): Promise<CustomTaskList[]> {
+  const local = getStoredCustomLists();
+  const supabase = getSupabase();
+  if (!supabase || !userId) return local;
+
+  try {
+    const { data, error } = await supabase
+      .from('custom_task_lists')
+      .select('*')
+      .eq('user_id', userId)
+      .order('order_index', { ascending: true });
+
+    if (error) {
+      logSafeError('Fetch custom lists', error);
+      return local;
+    }
+
+    if (data && data.length > 0) {
+      const cloudLists: CustomTaskList[] = data.map((d: any) => ({
+        id: d.id,
+        name: d.name,
+        color: d.color,
+        icon: d.icon,
+        orderIndex: d.order_index,
+        userId: d.user_id,
+        createdAt: d.created_at,
+        updatedAt: d.updated_at,
+      }));
+      persistStoredCustomLists(cloudLists);
+      return cloudLists;
+    }
+
+    return local;
+  } catch {
+    return local;
+  }
+}
+
+export async function saveUserCustomList(list: CustomTaskList, userId?: string): Promise<CustomTaskList> {
+  const current = getStoredCustomLists();
+  const existingIdx = current.findIndex((l) => l.id === list.id);
+  const updatedList = { ...list, updatedAt: new Date().toISOString() };
+  if (existingIdx >= 0) {
+    current[existingIdx] = updatedList;
+  } else {
+    current.push(updatedList);
+  }
+  persistStoredCustomLists(current);
+
+  const supabase = getSupabase();
+  if (supabase && userId) {
+    try {
+      const payload: any = {
+        id: list.id,
+        user_id: userId,
+        name: list.name,
+        color: list.color,
+        icon: list.icon || 'ListTodo',
+        order_index: list.orderIndex ?? 0,
+      };
+      await supabase.from('custom_task_lists').upsert(payload);
+    } catch (err) {
+      logSafeError('Save custom list cloud', err);
+    }
+  }
+
+  return updatedList;
+}
+
+export async function deleteUserCustomList(listId: string, userId?: string): Promise<void> {
+  const current = getStoredCustomLists();
+  const filtered = current.filter((l) => l.id !== listId);
+  persistStoredCustomLists(filtered);
+
+  const supabase = getSupabase();
+  if (supabase && userId) {
+    try {
+      await supabase.from('custom_task_lists').delete().eq('id', listId).eq('user_id', userId);
+    } catch (err) {
+      logSafeError('Delete custom list cloud', err);
+    }
+  }
 }

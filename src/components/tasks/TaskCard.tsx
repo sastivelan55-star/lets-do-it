@@ -4,6 +4,8 @@ import type { Task } from '../../types';
 import { formatTime, today } from '../../utils/dates';
 import { useApp } from '../../context/AppContext';
 import TaskAssignmentModal from './TaskAssignmentModal';
+import FloatingTimePicker from '../common/FloatingTimePicker';
+import DailyRecurrenceToggle from '../common/DailyRecurrenceToggle';
 import clsx from 'clsx';
 
 interface TaskCardProps {
@@ -39,12 +41,14 @@ const PRIORITY_DOT: Record<string, string> = {
 };
 
 export default function TaskCard({ task, onComplete, onEdit, onDelete, onReschedule, onStart }: TaskCardProps) {
-  const { tasks, customLifeAreas } = useApp();
+  const { tasks, customLifeAreas, updateTask } = useApp();
   const [expanded, setExpanded] = useState(false);
   const [showReschedule, setShowReschedule] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [rescheduleDate, setRescheduleDate] = useState(today());
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [timeAnchor, setTimeAnchor] = useState<HTMLElement | null>(null);
+  const [isTimePickerOpen, setIsTimePickerOpen] = useState(false);
 
   // Dynamic life area lookups
   const matchedArea = customLifeAreas.find((a) => a.id === task.lifeArea);
@@ -125,6 +129,12 @@ export default function TaskCard({ task, onComplete, onEdit, onDelete, onResched
           >
             {areaLabel}
           </span>
+
+          <DailyRecurrenceToggle
+            task={task}
+            size="sm"
+            onToggle={(updated: Task) => updateTask(updated)}
+          />
 
           {/* Convenient small assignment / move button */}
           <button
@@ -208,6 +218,17 @@ export default function TaskCard({ task, onComplete, onEdit, onDelete, onResched
                   <Play size={12} /> Start
                 </button>
               )}
+              <button
+                type="button"
+                className="btn btn-sm btn-secondary"
+                onClick={(e) => {
+                  setTimeAnchor(e.currentTarget);
+                  setIsTimePickerOpen(true);
+                }}
+                title="Set Scheduled Time (Floating Popover)"
+              >
+                <Clock size={12} /> {task.startTime || task.plannedStartTime ? (task.startTime || task.plannedStartTime) : 'Set Time'}
+              </button>
               <button className="btn btn-sm btn-secondary" onClick={() => setShowAssignModal(true)}>
                 <ArrowRightLeft size={12} /> Assign / Move
               </button>
@@ -268,6 +289,45 @@ export default function TaskCard({ task, onComplete, onEdit, onDelete, onResched
           onClose={() => setShowAssignModal(false)}
         />
       )}
+
+      {/* Floating Time Picker */}
+      <FloatingTimePicker
+        isOpen={isTimePickerOpen}
+        anchorEl={timeAnchor}
+        initialStartTime={task.startTime || task.plannedStartTime}
+        initialEndTime={task.endTime}
+        initialDate={task.targetDate || task.dueDate || today()}
+        taskTitle={task.title}
+        onSave={async (res) => {
+          await updateTask({
+            ...task,
+            startTime: res.startTime || undefined,
+            plannedStartTime: res.startTime || undefined,
+            endTime: res.endTime || undefined,
+            targetDate: res.date || task.targetDate || task.dueDate || today(),
+            dueDate: res.date || task.dueDate || task.targetDate || today(),
+            scheduledDate: res.date || task.scheduledDate || today(),
+            updatedAt: new Date().toISOString(),
+          });
+          setIsTimePickerOpen(false);
+          setTimeAnchor(null);
+        }}
+        onCancel={() => {
+          setIsTimePickerOpen(false);
+          setTimeAnchor(null);
+        }}
+        onClear={async () => {
+          await updateTask({
+            ...task,
+            startTime: undefined,
+            plannedStartTime: undefined,
+            endTime: undefined,
+            updatedAt: new Date().toISOString(),
+          });
+          setIsTimePickerOpen(false);
+          setTimeAnchor(null);
+        }}
+      />
     </div>
   );
 }
