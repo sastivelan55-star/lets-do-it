@@ -1956,6 +1956,80 @@ body,
   }
 }
 
+/* ─── Home dashboard: small-screen and installed-app polish ─────────────── */
+.home-dashboard {
+  width: 100%;
+  min-width: 0;
+  overflow-x: clip;
+  padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+}
+
+@media (max-width: 767px) {
+  .home-dashboard {
+    min-height: auto !important;
+    padding: 0.9rem 0.75rem calc(84px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .home-welcome {
+    align-items: stretch !important;
+    gap: 0.9rem !important;
+    margin-bottom: 1.1rem !important;
+  }
+
+  .home-greeting {
+    gap: 0.7rem !important;
+    min-width: 0;
+  }
+
+  .home-greeting h1 {
+    font-size: clamp(1.2rem, 6vw, 1.5rem) !important;
+  }
+
+  .home-greeting p {
+    font-size: 0.78rem !important;
+  }
+
+  .home-date-controls {
+    width: 100%;
+    justify-content: space-between;
+    gap: 3px !important;
+    padding: 4px !important;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .home-date-controls::-webkit-scrollbar { display: none; }
+  .home-date-controls button { flex-shrink: 0; }
+  .home-date-controls > div { margin-left: 0 !important; }
+  .home-date-controls > div button { padding: 0.35rem 0.55rem !important; }
+
+  .home-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.7rem !important;
+    margin-bottom: 1rem !important;
+  }
+
+  .home-stats-grid > div {
+    min-width: 0;
+    padding: 0.85rem !important;
+    border-radius: 16px !important;
+  }
+
+  .home-stats-grid > div > div { gap: 0.65rem !important; }
+  .home-stats-grid > div > div > div:first-child { width: 40px !important; height: 40px !important; }
+  .home-stats-grid > div span { font-size: 1.4rem !important; }
+
+  .premium-dashboard-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 1rem !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .home-stats-grid { grid-template-columns: minmax(0, 1fr) !important; }
+  .home-date-controls > div button { padding: 0.32rem 0.45rem !important; font-size: 0.7rem !important; }
+}
+
 /* ═══════════════════════════════════════════════════════════════
    CYBERPUNK ANIME DARK-MODE DATE INPUTS
    ═══════════════════════════════════════════════════════════════ */

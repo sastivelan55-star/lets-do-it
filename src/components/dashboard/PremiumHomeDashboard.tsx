@@ -517,6 +517,7 @@ export default function PremiumHomeDashboard({
 
   return (
     <div
+      className="home-dashboard"
       style={{
         minHeight: '100vh',
         background: '#090514',
@@ -565,6 +566,7 @@ export default function PremiumHomeDashboard({
 
       {/* ─── SECTION B: WELCOME & DATE NAVIGATION ROW ─────────────────────────── */}
       <div
+        className="home-welcome"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -575,7 +577,7 @@ export default function PremiumHomeDashboard({
         }}
       >
         {/* Left: Companion Avatar & Warm Greeting */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div className="home-greeting" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <div
             style={{
               position: 'relative',
@@ -633,6 +635,7 @@ export default function PremiumHomeDashboard({
 
         {/* Right: Date Navigation & Scope Pills */}
         <div
+          className="home-date-controls"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -738,6 +741,7 @@ export default function PremiumHomeDashboard({
 
       {/* ─── SECTION C: 4 COMPACT STATISTICS CARDS ───────────────────────────── */}
       <div
+        className="home-stats-grid"
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
