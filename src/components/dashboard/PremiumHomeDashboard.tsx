@@ -156,7 +156,11 @@ export default function PremiumHomeDashboard({
   const activeAvatar = useMemo(() => {
     const charId = settings.personalization?.activeCharacterId || 'nami';
     const found = ALL_CHARACTERS.find((c) => c.id === charId);
-    return found?.avatarUrl || found?.artworkUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
+    return (
+      found?.avatarUrl ||
+      found?.artworkUrl ||
+      'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=150&auto=format&fit=crop&q=80'
+    );
   }, [settings.personalization?.activeCharacterId]);
 
   // Toast feedback helper
@@ -519,7 +523,7 @@ export default function PremiumHomeDashboard({
     <div
       className="home-dashboard"
       style={{
-        minHeight: '100vh',
+        minHeight: 0,
         background: '#090514',
         color: '#f8fafc',
         fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
@@ -685,7 +689,8 @@ export default function PremiumHomeDashboard({
             title="Open Calendar Picker"
           >
             <CalendarIcon size={14} color="#c084fc" />
-            <span>{formatDateLong(selectedDate)}</span>
+            <span className="hidden sm:inline">{formatDateLong(selectedDate)}</span>
+            <span className="sm:hidden">{format(parseISO(selectedDate), 'EEE, MMM d')}</span>
           </button>
 
           {/* Next Day Button */}
@@ -890,9 +895,9 @@ export default function PremiumHomeDashboard({
               </div>
             </div>
 
-            <div>
-              <div style={{ fontSize: '0.8rem', color: '#c084fc', fontWeight: 600 }}>Daily Progress</div>
-              <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#f8fafc', marginTop: '2px' }}>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontSize: '0.8rem', color: '#c084fc', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Daily Progress</div>
+              <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#f8fafc', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {progressStatusText}
               </div>
             </div>

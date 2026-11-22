@@ -1328,8 +1328,29 @@ export default function FloatingAiAssistant({ onNavigate }: FloatingAiAssistantP
         @keyframes nova-pulse { 0%,100%{transform:scale(1);opacity:0.5}50%{transform:scale(1.15);opacity:0.8} }
         @keyframes nova-dot { 0%,100%{transform:scale(0.6);opacity:0.4}50%{transform:scale(1.2);opacity:1} }
         @keyframes nova-slide-in { from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)} }
-        @media (max-width:640px){
-          .nova-floating-trigger{bottom:76px!important;right:16px!important;width:52px!important;height:52px!important}
+        @media (max-width: 768px) {
+          .nova-floating-trigger {
+            bottom: calc(68px + env(safe-area-inset-bottom, 10px)) !important;
+            right: 14px !important;
+            width: 48px !important;
+            height: 48px !important;
+          }
+          .nova-floating-minimized {
+            bottom: calc(68px + env(safe-area-inset-bottom, 10px)) !important;
+            right: 12px !important;
+            left: 12px !important;
+            max-width: calc(100vw - 24px) !important;
+          }
+          .nova-floating-dialog {
+            bottom: 0 !important;
+            right: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            max-width: 100vw !important;
+            height: calc(100vh - 54px) !important;
+            max-height: calc(100vh - 54px) !important;
+            border-radius: 20px 20px 0 0 !important;
+          }
         }
       `}</style>
     </>

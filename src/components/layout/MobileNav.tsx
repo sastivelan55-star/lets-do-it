@@ -91,6 +91,8 @@ export default function MobileNav({ active, onNavigate }: MobileNavProps) {
           zIndex: 100,
           paddingLeft: '0.25rem',
           paddingRight: '0.25rem',
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          minHeight: '56px',
         }}
       >
         {PRIMARY_NAV.map((item) => {

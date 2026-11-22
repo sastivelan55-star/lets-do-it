@@ -816,7 +816,6 @@ export default function DailyExecutionDashboard({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'minmax(0, 1.65fr) minmax(280px, 1fr)',
           gap: '1.25rem',
           width: '100%',
           boxSizing: 'border-box',

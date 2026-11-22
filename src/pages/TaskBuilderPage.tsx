@@ -572,10 +572,17 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
       w = canvas.width = window.innerWidth;
       h = canvas.height = window.innerHeight;
     };
-    window.addEventListener('resize', onResize);
 
-    const petals: any[] = [];
-    for (let i = 0; i < 35; i++) {
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const isNarrow = window.matchMedia('(max-width: 767px)').matches;
+    if (prefersReducedMotion || isNarrow) return;
+    window.addEventListener('resize', onResize);
+    const particleCount = 28;
+    const petals: Array<{
+      x: number; y: number; size: number; speedX: number; speedY: number;
+      rotation: number; rotationSpeed: number; color: string; isHex: boolean;
+    }> = [];
+    for (let i = 0; i < particleCount; i++) {
       petals.push({
         x: Math.random() * w,
         y: Math.random() * h,
@@ -589,7 +596,8 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
       });
     }
 
-    let animId: number;
+    let animId: number | undefined;
+    let isPageVisible = !document.hidden;
     const animate = () => {
       ctx.clearRect(0, 0, w, h);
       petals.forEach((p) => {
@@ -618,13 +626,25 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
         }
         ctx.restore();
       });
-      animId = requestAnimationFrame(animate);
+      if (isPageVisible) animId = requestAnimationFrame(animate);
     };
 
-    animate();
+    const onVisibilityChange = () => {
+      isPageVisible = !document.hidden;
+      if (!isPageVisible && animId !== undefined) {
+        cancelAnimationFrame(animId);
+        animId = undefined;
+      } else if (isPageVisible && !prefersReducedMotion && animId === undefined) {
+        animate();
+      }
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    if (!prefersReducedMotion) animate();
     return () => {
-      cancelAnimationFrame(animId);
+      if (animId !== undefined) cancelAnimationFrame(animId);
       window.removeEventListener('resize', onResize);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, []);
 
@@ -728,6 +748,7 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
 
       {/* ── TOP CYBER-GUILD COMMAND BAR ─────────────────────────────────────── */}
       <header
+        className="task-builder-command-bar"
         style={{
           height: '64px',
           padding: '0 1.5rem',
@@ -744,7 +765,7 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
         }}
       >
         {/* Brand Title */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+        <div className="task-builder-brand" style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
           <div
             style={{
               position: 'relative',
@@ -798,7 +819,7 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
             </div>
           </div>
 
-          <div>
+          <div className="hidden sm:block">
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span
                 style={{
@@ -833,6 +854,7 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
 
         {/* Center View Navigation Tabs */}
         <nav
+          className="task-builder-view-tabs"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -840,6 +862,10 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
             borderRadius: '12px',
             background: 'rgba(12, 16, 31, 0.9)',
             border: '1px solid rgba(255, 255, 255, 0.1)',
+            overflowX: 'auto',
+            whiteSpace: 'nowrap',
+            scrollbarWidth: 'none',
+            maxWidth: '100%',
           }}
         >
           {[
@@ -882,7 +908,7 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
         </nav>
 
         {/* Right Telemetry & Sound Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <div className="task-builder-telemetry hidden md:flex" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
           {/* Combo Multiplier */}
           <div
             style={{

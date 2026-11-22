@@ -93,6 +93,17 @@ export default function ModernTaskManager({
   const [isNewListOpen, setIsNewListOpen] = useState(false);
   const [newListName, setNewListName] = useState('');
   const [newListColor, setNewListColor] = useState('#8b5cf6');
+  const [compactWorkspace, setCompactWorkspace] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(max-width: 1099px)').matches : true,
+  );
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 1099px)');
+    const apply = () => setCompactWorkspace(media.matches);
+    apply();
+    media.addEventListener('change', apply);
+    return () => media.removeEventListener('change', apply);
+  }, []);
 
   // Load custom task lists
   useEffect(() => {
@@ -354,13 +365,32 @@ export default function ModernTaskManager({
     }
   };
 
+  const primaryViews = useMemo(() => [
+    { id: 'all' as TaskViewId, label: 'All Tasks', icon: <ListTodo size={15} />, count: counts.all, color: '#818cf8' },
+    { id: 'my-day' as TaskViewId, label: 'My Day', icon: <Sparkles size={15} />, count: counts.myDay, color: '#38bdf8' },
+    { id: 'upcoming' as TaskViewId, label: 'Upcoming', icon: <Calendar size={15} />, count: counts.upcoming, color: '#a855f7' },
+    { id: 'routines' as TaskViewId, label: 'Daily Routines', icon: <Repeat size={15} />, count: counts.routines, color: '#ec4899' },
+    { id: 'starred' as TaskViewId, label: 'Starred', icon: <Star size={15} />, count: counts.starred, color: '#facc15' },
+    { id: 'completed' as TaskViewId, label: 'Completed', icon: <CheckCircle2 size={15} />, count: counts.completed, color: '#34d399' },
+  ], [counts]);
+
+  const activeViewLabel = useMemo(() => {
+    const found = primaryViews.find((v) => v.id === activeView);
+    if (found) return found.label;
+    if (activeView.startsWith('list-')) {
+      const list = customLists.find((l) => l.id === activeView);
+      if (list) return list.name;
+    }
+    return 'Tasks';
+  }, [activeView, primaryViews, customLists]);
+
   return (
     <div
       className="modern-task-manager"
       style={{
         display: 'grid',
-        gridTemplateColumns: 'minmax(220px, 260px) 1fr',
-        gap: '1.25rem',
+        gridTemplateColumns: compactWorkspace ? 'minmax(0, 1fr)' : 'minmax(220px, 260px) minmax(0, 1fr)',
+        gap: compactWorkspace ? '0.75rem' : '1.25rem',
         width: '100%',
         maxWidth: '1440px',
         margin: '0 auto',
@@ -368,194 +398,390 @@ export default function ModernTaskManager({
         boxSizing: 'border-box',
       }}
     >
-      {/* ─── SIDEBAR NAVIGATION (Google Tasks-Inspired Views) ─────────────── */}
-      <aside
-        style={{
-          background: 'rgba(18, 12, 38, 0.75)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          borderRadius: '20px',
-          border: '1px solid rgba(192, 132, 252, 0.22)',
-          padding: '1rem',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '0.85rem',
-          height: 'fit-content',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px' }}>
-          <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <ListTodo size={18} color="#c084fc" /> Task Hub
-          </span>
-          {onOpenTaskBuilderView && (
-            <button
-              type="button"
-              onClick={onOpenTaskBuilderView}
-              style={{
-                background: 'rgba(236, 72, 153, 0.15)',
-                border: '1px solid rgba(236, 72, 153, 0.3)',
-                borderRadius: '6px',
-                padding: '2px 6px',
-                color: '#ec4899',
-                fontSize: '0.68rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-              title="Switch to RPG Quest Board"
-            >
-              RPG Mode
-            </button>
-          )}
-        </div>
-
-        {/* Primary Views */}
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          {[
-            { id: 'all', label: 'All Tasks', icon: <ListTodo size={16} />, count: counts.all, color: '#818cf8' },
-            { id: 'my-day', label: 'My Day', icon: <Sparkles size={16} />, count: counts.myDay, color: '#38bdf8' },
-            { id: 'upcoming', label: 'Upcoming', icon: <Calendar size={16} />, count: counts.upcoming, color: '#a855f7' },
-            { id: 'routines', label: 'Daily Routines', icon: <Repeat size={16} />, count: counts.routines, color: '#ec4899' },
-            { id: 'starred', label: 'Starred', icon: <Star size={16} />, count: counts.starred, color: '#facc15' },
-            { id: 'completed', label: 'Completed', icon: <CheckCircle2 size={16} />, count: counts.completed, color: '#34d399' },
-          ].map((item) => {
-            const isActive = activeView === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setActiveView(item.id as TaskViewId)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '8px 12px',
-                  borderRadius: '10px',
-                  border: isActive ? `1px solid ${item.color}55` : '1px solid transparent',
-                  background: isActive ? `${item.color}1f` : 'transparent',
-                  color: isActive ? '#f8fafc' : '#94a3b8',
-                  fontSize: '0.82rem',
-                  fontWeight: isActive ? 700 : 500,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                  textAlign: 'left',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ color: isActive ? item.color : '#94a3b8', display: 'flex' }}>
-                    {item.icon}
-                  </span>
-                  <span>{item.label}</span>
-                </div>
-                {item.count > 0 && (
-                  <span
-                    style={{
-                      fontSize: '0.7rem',
-                      fontWeight: 700,
-                      background: isActive ? item.color : 'rgba(255, 255, 255, 0.08)',
-                      color: isActive ? '#ffffff' : '#94a3b8',
-                      padding: '1px 6px',
-                      borderRadius: '999px',
-                    }}
-                  >
-                    {item.count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </nav>
-
-        {/* Custom Lists Section */}
-        <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '0.85rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px', padding: '0 4px' }}>
-            <span style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Lists
+      {/* ─── SIDEBAR NAVIGATION (Desktop: Persistent Left Panel) ─────────── */}
+      {!compactWorkspace && (
+        <aside
+          className="task-manager-sidebar"
+          style={{
+            background: 'rgba(18, 12, 38, 0.75)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            borderRadius: '20px',
+            border: '1px solid rgba(192, 132, 252, 0.22)',
+            padding: '1rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.85rem',
+            height: 'fit-content',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px' }}>
+            <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <ListTodo size={18} color="#c084fc" /> Task Hub
             </span>
-            <button
-              type="button"
-              onClick={() => setIsNewListOpen(true)}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#38bdf8',
-                cursor: 'pointer',
-                padding: '2px',
-                display: 'flex',
-              }}
-              title="Create new list"
-            >
-              <Plus size={14} />
-            </button>
+            {onOpenTaskBuilderView && (
+              <button
+                type="button"
+                onClick={onOpenTaskBuilderView}
+                style={{
+                  background: 'rgba(236, 72, 153, 0.15)',
+                  border: '1px solid rgba(236, 72, 153, 0.3)',
+                  borderRadius: '6px',
+                  padding: '2px 6px',
+                  color: '#ec4899',
+                  fontSize: '0.68rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+                title="Switch to RPG Quest Board"
+              >
+                RPG Mode
+              </button>
+            )}
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-            {customLists.map((l) => {
-              const isActive = activeView === l.id;
-              const listCount = tasks.filter((t) => !t.isDeleted && t.status !== 'completed' && t.listId === l.id).length;
-
+          {/* Primary Views */}
+          <nav className="task-manager-views" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            {primaryViews.map((item) => {
+              const isActive = activeView === item.id;
               return (
-                <div
-                  key={l.id}
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setActiveView(item.id)}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    padding: '6px 10px',
-                    borderRadius: '8px',
-                    background: isActive ? `${l.color}22` : 'transparent',
-                    border: isActive ? `1px solid ${l.color}55` : '1px solid transparent',
+                    padding: '8px 12px',
+                    borderRadius: '10px',
+                    border: isActive ? `1px solid ${item.color}55` : '1px solid transparent',
+                    background: isActive ? `${item.color}1f` : 'transparent',
+                    color: isActive ? '#f8fafc' : '#94a3b8',
+                    fontSize: '0.82rem',
+                    fontWeight: isActive ? 700 : 500,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    textAlign: 'left',
                   }}
                 >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ color: isActive ? item.color : '#94a3b8', display: 'flex' }}>
+                      {item.icon}
+                    </span>
+                    <span>{item.label}</span>
+                  </div>
+                  {item.count > 0 && (
+                    <span
+                      style={{
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        background: isActive ? item.color : 'rgba(255, 255, 255, 0.08)',
+                        color: isActive ? '#ffffff' : '#94a3b8',
+                        padding: '1px 6px',
+                        borderRadius: '999px',
+                      }}
+                    >
+                      {item.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* Custom Lists Section */}
+          <div className="task-manager-lists" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '0.85rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px', padding: '0 4px' }}>
+              <span style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Lists
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsNewListOpen(true)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#38bdf8',
+                  cursor: 'pointer',
+                  padding: '2px',
+                  display: 'flex',
+                }}
+                title="Create new list"
+              >
+                <Plus size={14} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              {customLists.map((l) => {
+                const isActive = activeView === l.id;
+                const listCount = tasks.filter((t) => !t.isDeleted && t.status !== 'completed' && t.listId === l.id).length;
+
+                return (
+                  <div
+                    key={l.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '6px 10px',
+                      borderRadius: '8px',
+                      background: isActive ? `${l.color}22` : 'transparent',
+                      border: isActive ? `1px solid ${l.color}55` : '1px solid transparent',
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setActiveView(l.id as TaskViewId)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: isActive ? '#f8fafc' : '#cbd5e1',
+                        fontSize: '0.8rem',
+                        fontWeight: isActive ? 700 : 500,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        flex: 1,
+                        minWidth: 0,
+                        textAlign: 'left',
+                      }}
+                    >
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: l.color, flexShrink: 0 }} />
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {l.name}
+                      </span>
+                    </button>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      {listCount > 0 && (
+                        <span style={{ fontSize: '0.68rem', color: '#94a3b8', background: 'rgba(255, 255, 255, 0.06)', padding: '0 5px', borderRadius: '4px' }}>
+                          {listCount}
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteList(l.id)}
+                        style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: '2px' }}
+                        title="Delete list"
+                      >
+                        <Trash2 size={11} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </aside>
+      )}
+
+      {/* ─── MAIN CONTENT AREA ────────────────────────────────────────────── */}
+      <main className="task-manager-content" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', minWidth: 0 }}>
+        {/* Mobile / Tablet Compact View Selector Bar */}
+        {compactWorkspace && (
+          <div
+            className="task-manager-mobile-selector"
+            style={{
+              background: 'rgba(18, 12, 38, 0.75)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+              borderRadius: '16px',
+              border: '1px solid rgba(192, 132, 252, 0.22)',
+              padding: '0.75rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.65rem',
+            }}
+          >
+            {/* Header row: Current View Title & Quick Actions */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                <ListTodo size={17} color="#c084fc" style={{ flexShrink: 0 }} />
+                <span
+                  style={{
+                    fontSize: '0.92rem',
+                    fontWeight: 800,
+                    color: '#f8fafc',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {activeViewLabel}
+                </span>
+                <span
+                  style={{
+                    fontSize: '0.68rem',
+                    fontWeight: 700,
+                    background: 'rgba(168, 85, 247, 0.2)',
+                    color: '#c084fc',
+                    padding: '1px 7px',
+                    borderRadius: '999px',
+                    border: '1px solid rgba(168, 85, 247, 0.3)',
+                    flexShrink: 0,
+                  }}
+                >
+                  {sortedTasks.length}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                <button
+                  type="button"
+                  onClick={() => setIsNewListOpen(true)}
+                  style={{
+                    background: 'rgba(56, 189, 248, 0.15)',
+                    border: '1px solid rgba(56, 189, 248, 0.3)',
+                    borderRadius: '8px',
+                    padding: '3px 8px',
+                    color: '#38bdf8',
+                    fontSize: '0.7rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                  title="Create new list"
+                >
+                  <Plus size={12} />
+                  <span>List</span>
+                </button>
+
+                {onOpenTaskBuilderView && (
                   <button
+                    type="button"
+                    onClick={onOpenTaskBuilderView}
+                    style={{
+                      background: 'rgba(236, 72, 153, 0.15)',
+                      border: '1px solid rgba(236, 72, 153, 0.3)',
+                      borderRadius: '8px',
+                      padding: '3px 8px',
+                      color: '#ec4899',
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                    title="Switch to RPG Quest Board"
+                  >
+                    RPG Mode
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Horizontal Scrolling Filter Pills */}
+            <div
+              className="task-manager-views"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                overflowX: 'auto',
+                whiteSpace: 'nowrap',
+                scrollbarWidth: 'none',
+                WebkitOverflowScrolling: 'touch',
+                paddingBottom: '2px',
+              }}
+            >
+              {primaryViews.map((item) => {
+                const isActive = activeView === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setActiveView(item.id)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '5px 10px',
+                      borderRadius: '999px',
+                      border: isActive ? `1px solid ${item.color}` : '1px solid rgba(255, 255, 255, 0.1)',
+                      background: isActive ? `${item.color}25` : 'rgba(255, 255, 255, 0.04)',
+                      color: isActive ? '#ffffff' : '#94a3b8',
+                      fontSize: '0.75rem',
+                      fontWeight: isActive ? 700 : 500,
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <span style={{ color: isActive ? item.color : '#94a3b8', display: 'flex' }}>
+                      {item.icon}
+                    </span>
+                    <span>{item.label}</span>
+                    {item.count > 0 && (
+                      <span
+                        style={{
+                          fontSize: '0.64rem',
+                          fontWeight: 700,
+                          background: isActive ? item.color : 'rgba(255, 255, 255, 0.1)',
+                          color: '#ffffff',
+                          padding: '0 5px',
+                          borderRadius: '999px',
+                          marginLeft: '2px',
+                        }}
+                      >
+                        {item.count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+
+              {/* Custom Lists in the scrollable bar */}
+              {customLists.map((l) => {
+                const isActive = activeView === l.id;
+                const listCount = tasks.filter((t) => !t.isDeleted && t.status !== 'completed' && t.listId === l.id).length;
+                return (
+                  <button
+                    key={l.id}
                     type="button"
                     onClick={() => setActiveView(l.id as TaskViewId)}
                     style={{
-                      background: 'none',
-                      border: 'none',
-                      color: isActive ? '#f8fafc' : '#cbd5e1',
-                      fontSize: '0.8rem',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '5px 10px',
+                      borderRadius: '999px',
+                      border: isActive ? `1px solid ${l.color}` : '1px solid rgba(255, 255, 255, 0.1)',
+                      background: isActive ? `${l.color}25` : 'rgba(255, 255, 255, 0.04)',
+                      color: isActive ? '#ffffff' : '#cbd5e1',
+                      fontSize: '0.75rem',
                       fontWeight: isActive ? 700 : 500,
                       cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      flex: 1,
-                      minWidth: 0,
-                      textAlign: 'left',
+                      flexShrink: 0,
                     }}
                   >
-                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: l.color, flexShrink: 0 }} />
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {l.name}
-                    </span>
-                  </button>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: l.color }} />
+                    <span>{l.name}</span>
                     {listCount > 0 && (
-                      <span style={{ fontSize: '0.68rem', color: '#94a3b8', background: 'rgba(255, 255, 255, 0.06)', padding: '0 5px', borderRadius: '4px' }}>
+                      <span
+                        style={{
+                          fontSize: '0.64rem',
+                          fontWeight: 700,
+                          background: isActive ? l.color : 'rgba(255, 255, 255, 0.1)',
+                          color: '#ffffff',
+                          padding: '0 5px',
+                          borderRadius: '999px',
+                          marginLeft: '2px',
+                        }}
+                      >
                         {listCount}
                       </span>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteList(l.id)}
-                      style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: '2px' }}
-                      title="Delete list"
-                    >
-                      <Trash2 size={11} />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      </aside>
-
-      {/* ─── MAIN CONTENT AREA ────────────────────────────────────────────── */}
-      <main style={{ display: 'flex', flexDirection: 'column', gap: '1rem', minWidth: 0 }}>
+        )}
         {/* Top Control Bar: Search, Filters, Sort */}
         <div
+          className="task-manager-controls"
           style={{
             background: 'rgba(18, 12, 38, 0.75)',
             backdropFilter: 'blur(16px)',
@@ -648,6 +874,7 @@ export default function ModernTaskManager({
 
         {/* Quick Add Task Input Box (Google Tasks-Style) */}
         <form
+          className="task-manager-quick-add"
           onSubmit={handleQuickAdd}
           style={{
             background: 'rgba(18, 12, 38, 0.85)',
@@ -1054,6 +1281,7 @@ export default function ModernTaskManager({
           onClick={() => setSelectedTask(null)}
         >
           <div
+            className="task-detail-sheet"
             style={{
               width: '100%',
               maxWidth: '480px',

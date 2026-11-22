@@ -719,7 +719,7 @@ export default function PlacementHQPage() {
         </HudBracket>
 
         {/* ── MAIN GRID ───────────────────────────────────────────── */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '1.25rem', alignItems: 'start' }}>
+        <div className="placement-main-grid" style={{ display: 'grid', gap: '1.25rem', alignItems: 'start', minWidth: 0 }}>
 
           {/* Left column */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
