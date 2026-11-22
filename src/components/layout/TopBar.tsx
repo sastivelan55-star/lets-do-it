@@ -79,7 +79,7 @@ export default function TopBar({
 
   return (
     <header
-      className="top-bar"
+      className="top-bar app-topbar"
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -99,6 +99,7 @@ export default function TopBar({
       {/* Left: Active Section Indicator & Global Search Trigger */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, maxWidth: '520px', minWidth: 0 }}>
         <div
+          className="topbar-section-label hidden sm:inline-flex"
           style={{
             fontSize: '0.75rem',
             fontWeight: 700,
@@ -111,7 +112,6 @@ export default function TopBar({
             border: '1px solid rgba(192, 132, 252, 0.3)',
             whiteSpace: 'nowrap',
           }}
-          className="hidden sm:inline-flex"
         >
           {SECTION_LABELS[activeSection] || 'Life OS'}
         </div>
@@ -120,7 +120,7 @@ export default function TopBar({
           type="button"
           onClick={onOpenSearch}
           aria-label="Search anything across Life OS (Ctrl + K)"
-          className="topbar-search-btn"
+          className="topbar-search-btn topbar-search"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -177,7 +177,7 @@ export default function TopBar({
       </div>
 
       {/* Right Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexShrink: 0 }}>
+      <div className="topbar-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexShrink: 0 }}>
         {/* Quick Capture Button */}
         <button
           type="button"

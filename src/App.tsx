@@ -206,6 +206,7 @@ function AppContent() {
 
   return (
     <div className="app-layout" style={{ maxWidth: '100vw', overflowX: 'hidden', boxSizing: 'border-box', width: '100%' }}>
+      <a className="skip-link" href="#main-content">Skip to main content</a>
       {/* Sidebar — desktop only (exact 7 destinations) */}
       {!isMobile && (
         <Sidebar
@@ -229,7 +230,9 @@ function AppContent() {
           onNavigate={setSection}
           activeSection={section}
         />
-        {PAGE_MAP[section]}
+        <div className="route-transition" key={section}>
+          {PAGE_MAP[section]}
+        </div>
       </main>
 
       {/* Mobile bottom nav */}

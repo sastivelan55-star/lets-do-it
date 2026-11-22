@@ -85,6 +85,7 @@ export default function Sidebar({ active, onNavigate, collapsed, onToggle }: Sid
     >
       {/* Brand Header */}
       <div
+        className="sidebar-brand-header"
         style={{
           padding: collapsed ? '1.25rem 0' : '1.25rem 1rem',
           display: 'flex',
@@ -95,6 +96,7 @@ export default function Sidebar({ active, onNavigate, collapsed, onToggle }: Sid
         }}
       >
         <div
+          className="sidebar-brand"
           style={{
             width: '38px',
             height: '38px',
@@ -111,7 +113,7 @@ export default function Sidebar({ active, onNavigate, collapsed, onToggle }: Sid
           <Sparkles size={20} color="white" />
         </div>
         {!collapsed && (
-          <div style={{ overflow: 'hidden' }}>
+          <div className="sidebar-brand-copy" style={{ overflow: 'hidden' }}>
             <div
               style={{
                 color: '#f8fafc',
@@ -182,12 +184,13 @@ export default function Sidebar({ active, onNavigate, collapsed, onToggle }: Sid
       )}
 
       {/* Nav items — 8 anime fantasy destinations */}
-      <nav style={{ flex: 1, padding: '0.85rem 0.55rem', overflowY: 'auto', overflowX: 'hidden' }}>
+      <nav className="sidebar-nav" aria-label="Primary navigation" style={{ flex: 1, padding: '0.85rem 0.55rem', overflowY: 'auto', overflowX: 'hidden' }}>
         {NAV_ITEMS.map((item) => {
           const activeItem = isItemActive(item.id);
           return (
             <button
               key={item.id}
+              className={`sidebar-nav-item${activeItem ? ' is-active' : ''}`}
               onClick={() => onNavigate(item.id)}
               data-tooltip={collapsed ? item.label : undefined}
               style={{
@@ -260,6 +263,7 @@ export default function Sidebar({ active, onNavigate, collapsed, onToggle }: Sid
       {/* Anime Encouragement Note */}
       {!collapsed && showSidebarDeco && (
         <div
+          className="sidebar-encouragement"
           style={{
             padding: '0.75rem 1rem',
             textAlign: 'center',
@@ -268,6 +272,7 @@ export default function Sidebar({ active, onNavigate, collapsed, onToggle }: Sid
           }}
         >
           <div
+            className="sidebar-brand-mark"
             style={{
               fontFamily: 'cursive, var(--font-display), sans-serif',
               fontSize: '0.88rem',
@@ -291,6 +296,7 @@ export default function Sidebar({ active, onNavigate, collapsed, onToggle }: Sid
 
       {/* User profile & Sign Out */}
       <div
+        className="sidebar-account"
         style={{
           borderTop: '1px solid rgba(168, 85, 247, 0.15)',
           padding: collapsed ? '0.75rem 0.25rem' : '0.75rem 1rem',
@@ -321,7 +327,7 @@ export default function Sidebar({ active, onNavigate, collapsed, onToggle }: Sid
               >
                 {settings.displayName ? settings.displayName[0].toUpperCase() : 'S'}
               </div>
-              <div style={{ overflow: 'hidden' }}>
+          <div className="sidebar-brand-copy" style={{ overflow: 'hidden' }}>
                 <p
                   style={{
                     margin: 0,
@@ -380,6 +386,7 @@ export default function Sidebar({ active, onNavigate, collapsed, onToggle }: Sid
 
       {/* Collapse toggle */}
       <button
+        className="sidebar-collapse"
         onClick={onToggle}
         style={{
           display: 'flex',
