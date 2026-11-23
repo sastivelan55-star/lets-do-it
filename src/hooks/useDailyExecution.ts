@@ -16,6 +16,7 @@ import { formatSafeErrorMessage, logSafeError } from '../utils/errorUtils';
 export function useDailyExecution(selectedDate: string): {
   occurrences: DailyTaskOccurrence[];
   summary: DailyExecutionSummary;
+  completions: DailyTaskCompletion[];
   isLoading: boolean;
   error: string | null;
   toggleCompletion: (taskId: string, currentlyCompleted: boolean) => Promise<void>;
@@ -136,7 +137,7 @@ export function useDailyExecution(selectedDate: string): {
         const task = tasks.find((t) => t.id === taskId);
         const isRecurring = task?.recurring && task.recurring !== 'none';
         if (!isRecurring) {
-          await completeTask(taskId);
+          await completeTask(taskId, newCompleted);
         }
       } catch (err) {
         logSafeError('useDailyExecution.toggleCompletion', err);
@@ -153,5 +154,5 @@ export function useDailyExecution(selectedDate: string): {
     setRefreshTick((t) => t + 1);
   }, []);
 
-  return { occurrences, summary, isLoading, error, toggleCompletion, refresh };
+  return { occurrences, summary, completions, isLoading, error, toggleCompletion, refresh };
 }

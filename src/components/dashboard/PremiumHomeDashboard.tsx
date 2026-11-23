@@ -42,7 +42,6 @@ import { useAuth } from '../../context/AuthContext';
 import { today, formatDateLong, getGreeting, formatTime } from '../../utils/dates';
 import { ALL_CHARACTERS } from '../../data/animeCharacters';
 import type { Task, DailyTaskOccurrence, DailyTaskCompletion, TaskPriority } from '../../types';
-import { getOverdueTasksForDate } from '../../services/occurrenceEngine';
 import FloatingTimePicker, { type TimePickerResult } from '../common/FloatingTimePicker';
 
 // ─── Theme & Styling Constants ───────────────────────────────────────────────
@@ -113,7 +112,7 @@ export default function PremiumHomeDashboard({
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Daily Execution engine hook for the selected date
-  const { occurrences, toggleCompletion } = useDailyExecution(selectedDate);
+  const { occurrences, toggleCompletion, completions } = useDailyExecution(selectedDate);
 
   // Active user name and greeting
   const greeting = useMemo(() => getGreeting(), []);
@@ -140,15 +139,49 @@ export default function PremiumHomeDashboard({
 
   // ─── OVERDUE TASKS & ACTIVE MISSIONS MERGE ─────────────────────────────────
 
+  // Fast lookup of per-task completion status for selectedDate
+  const completionMap = useMemo(() => {
+    const map = new Map<string, boolean>();
+    for (const c of completions) {
+      if (c.occurrenceDate.slice(0, 10) === selectedDate) {
+        map.set(c.taskId, c.isCompleted);
+      }
+    }
+    return map;
+  }, [completions, selectedDate]);
+
   // Overdue tasks from previous days to avoid hidden tasks
   const overdueTasks = useMemo(() => {
-    return getOverdueTasksForDate(tasks, selectedDate);
-  }, [tasks, selectedDate]);
+    return tasks.filter((t) => {
+      if (t.isDeleted) return false;
+      if (t.recurring && t.recurring !== 'none') return false;
+      const taskDate = (t.scheduledDate || t.targetDate || t.dueDate || '').slice(0, 10);
+      if (!taskDate || taskDate >= selectedDate) return false;
+
+      // Pending tasks from earlier dates
+      if (t.status !== 'completed' && t.status !== 'rescheduled') return true;
+
+      // Overdue tasks that were marked completed on selectedDate
+      if (completionMap.get(t.id) === true) return true;
+      if (t.completedAt && t.completedAt.slice(0, 10) === selectedDate) return true;
+
+      return false;
+    });
+  }, [tasks, selectedDate, completionMap]);
 
   // Fast lookup set of overdue task IDs
   const overdueTaskIdSet = useMemo(() => {
     return new Set(overdueTasks.map((t) => t.id));
   }, [overdueTasks]);
+
+  // Pending overdue tasks count for the Carry Forward banner
+  const pendingOverdueTasks = useMemo(() => {
+    return overdueTasks.filter((t) => {
+      if (completionMap.get(t.id) === true) return false;
+      if (t.status === 'completed') return false;
+      return true;
+    });
+  }, [overdueTasks, completionMap]);
 
   // All missions for selected date:
   // When viewing today, automatically include any pending overdue missions from previous days
@@ -158,26 +191,32 @@ export default function PremiumHomeDashboard({
       const occurrenceTaskIds = new Set(occurrences.map((o) => o.taskId));
       const overdueOccurrences: DailyTaskOccurrence[] = overdueTasks
         .filter((t) => !occurrenceTaskIds.has(t.id))
-        .map((t) => ({
-          taskId: t.id,
-          title: t.title,
-          lifeArea: t.lifeArea,
-          priority: t.priority,
-          recurring: t.recurring,
-          startTime: t.startTime,
-          endTime: t.endTime,
-          estimatedMinutes: t.estimatedMinutes,
-          notes: t.notes,
-          projectId: t.projectId,
-          occurrenceDate: selectedDate,
-          isCompleted: t.status === 'completed',
-          completedAt: t.completedAt,
-          originalTask: t,
-        }));
+        .map((t) => {
+          const isDone = completionMap.has(t.id)
+            ? completionMap.get(t.id)!
+            : t.status === 'completed';
+
+          return {
+            taskId: t.id,
+            title: t.title,
+            lifeArea: t.lifeArea,
+            priority: t.priority,
+            recurring: t.recurring,
+            startTime: t.startTime,
+            endTime: t.endTime,
+            estimatedMinutes: t.estimatedMinutes,
+            notes: t.notes,
+            projectId: t.projectId,
+            occurrenceDate: selectedDate,
+            isCompleted: isDone,
+            completedAt: t.completedAt,
+            originalTask: t,
+          };
+        });
       return [...occurrences, ...overdueOccurrences];
     }
     return occurrences;
-  }, [occurrences, overdueTasks, selectedDate]);
+  }, [occurrences, overdueTasks, selectedDate, completionMap]);
 
   // Completed tasks count for the selected date
   const completedCount = useMemo(() => {
@@ -198,10 +237,10 @@ export default function PremiumHomeDashboard({
 
   // Handle carry forward all overdue tasks to selected date using batchUpdateTasks
   const handleCarryForwardAll = async () => {
-    if (overdueTasks.length === 0 || isCarryingForward) return;
+    if (pendingOverdueTasks.length === 0 || isCarryingForward) return;
     setIsCarryingForward(true);
     try {
-      const updatedList: Task[] = overdueTasks.map((t) => ({
+      const updatedList: Task[] = pendingOverdueTasks.map((t) => ({
         ...t,
         targetDate: selectedDate,
         dueDate: selectedDate,
@@ -636,7 +675,7 @@ export default function PremiumHomeDashboard({
             </div>
 
             {/* Overdue Banner if prior tasks are pending */}
-            {overdueTasks.length > 0 && (
+            {pendingOverdueTasks.length > 0 && (
               <div
                 style={{
                   display: 'flex',
@@ -651,7 +690,7 @@ export default function PremiumHomeDashboard({
                 }}
               >
                 <span style={{ color: '#fca5a5', fontWeight: 600 }}>
-                  ⚠ You have {overdueTasks.length} pending missions from previous days.
+                  ⚠ You have {pendingOverdueTasks.length} pending missions from previous days.
                 </span>
                 <button
                   type="button"

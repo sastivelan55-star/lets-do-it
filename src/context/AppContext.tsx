@@ -140,7 +140,7 @@ interface AppContextValue {
   // Tasks CRUD
   addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Task>;
   updateTask: (task: Task) => Promise<void>;
-  completeTask: (id: string) => Promise<void>;
+  completeTask: (id: string, forcedCompleted?: boolean) => Promise<void>;
   rescheduleTask: (id: string, newDate: string) => Promise<void>;
   removeTask: (id: string) => Promise<void>;
   restoreTask: (id: string) => Promise<void>;
@@ -785,12 +785,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         updatedAt: nowISO(),
       };
 
-      // Optimistic state update — capture original entity for targeted rollback
-      let originalTask: Task | undefined;
-      setAllTasks((prev) => {
-        originalTask = prev.find((t) => t.id === task.id);
-        return prev.map((t) => (t.id === task.id ? updated : t));
-      });
+      // Optimistic state update
+      setAllTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
       setSyncStatus('syncing');
 
       if (user && isConfigured) {
@@ -800,15 +796,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           saveTask(saved).catch(() => {});
           setSyncStatus('synced');
         } catch (err: unknown) {
-          // Targeted rollback: revert only this task without wiping other concurrent changes
-          if (originalTask) {
-            setAllTasks((prev) => prev.map((t) => (t.id === task.id ? originalTask! : t)));
-          }
-          setSyncStatus('error');
-          logSafeError('Update Task', err);
-          const msg = formatSafeErrorMessage(err, 'Failed to update cloud task');
-          setError(msg);
-          throw err;
+          logSafeError('Update Task (falling back to offline persistence)', err);
+          // Persist the updated task locally so user work is NEVER lost!
+          await saveTask(updated).catch(() => {});
+          setSyncStatus('offline');
         }
       } else {
         await saveTask(updated);
@@ -851,16 +842,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   const completeTask = useCallback(
-    async (id: string) => {
+    async (id: string, forcedCompleted?: boolean) => {
       const current = allTasks.find((t) => t.id === id);
       if (!current) return;
 
       const isCompleted = current.status === 'completed';
-      const newStatus = isCompleted ? 'not-started' : 'completed';
+      const newCompleted = forcedCompleted !== undefined ? forcedCompleted : !isCompleted;
+      const newStatus = newCompleted ? 'completed' : 'not-started';
       const updated: Task = {
         ...current,
         status: newStatus,
-        completedAt: newStatus === 'completed' ? nowISO() : undefined,
+        completedAt: newCompleted ? nowISO() : undefined,
         updatedAt: nowISO(),
       };
 
