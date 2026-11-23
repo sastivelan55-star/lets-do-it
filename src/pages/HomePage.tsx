@@ -40,7 +40,7 @@ export default function HomePage({
             cursor: 'pointer',
           }}
         >
-          ← Back to Command Center
+          ← Back to Dashboard
         </button>
         <DailyTimetable onNavigateSection={onNavigateSection} />
       </div>

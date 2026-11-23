@@ -46,18 +46,6 @@ import FloatingTimePicker, { type TimePickerResult } from '../common/FloatingTim
 
 // ─── Theme & Styling Constants ───────────────────────────────────────────────
 
-const GLASS_CARD: React.CSSProperties = {
-  background: 'rgba(19, 13, 38, 0.85)',
-  backdropFilter: 'blur(20px)',
-  WebkitBackdropFilter: 'blur(20px)',
-  borderRadius: '20px',
-  border: '1px solid rgba(168, 85, 247, 0.2)',
-  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.35)',
-  padding: '1.25rem',
-  position: 'relative',
-  overflow: 'hidden',
-};
-
 // Category Tag Colors matching the reference design
 const CATEGORY_COLORS: Record<string, { bg: string; color: string; border: string }> = {
   habit: { bg: 'rgba(16, 185, 129, 0.18)', color: '#34d399', border: 'rgba(16, 185, 129, 0.4)' },
@@ -92,6 +80,20 @@ export default function PremiumHomeDashboard({
 }: PremiumHomeDashboardProps) {
   const { user } = useAuth();
   const { tasks, settings, updateTask, addTask, batchUpdateTasks } = useApp();
+
+  const isLight = settings.theme === 'light' || settings.appearance?.theme === 'light';
+
+  const glassCardStyle: React.CSSProperties = useMemo(() => ({
+    background: isLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(19, 13, 38, 0.85)',
+    backdropFilter: 'blur(20px)',
+    WebkitBackdropFilter: 'blur(20px)',
+    borderRadius: '20px',
+    border: isLight ? '1px solid rgba(168, 85, 247, 0.16)' : '1px solid rgba(168, 85, 247, 0.2)',
+    boxShadow: isLight ? '0 8px 30px rgba(100, 116, 139, 0.10)' : '0 8px 32px rgba(0, 0, 0, 0.35)',
+    padding: '1.25rem',
+    position: 'relative',
+    overflow: 'hidden',
+  }), [isLight]);
 
   // Selected date state (defaults to today)
   const [selectedDate, setSelectedDate] = useState<string>(today());
@@ -445,8 +447,8 @@ export default function PremiumHomeDashboard({
       className="home-dashboard"
       style={{
         minHeight: 0,
-        background: '#090514',
-        color: '#f8fafc',
+        background: isLight ? '#f1f5f9' : '#090514',
+        color: isLight ? '#0f172a' : '#f8fafc',
         fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
         padding: '1.25rem clamp(1rem, 2.5vw, 2.5rem)',
         maxWidth: '1680px',
@@ -526,7 +528,7 @@ export default function PremiumHomeDashboard({
                 fontSize: 'clamp(1.35rem, 2.5vw, 1.85rem)',
                 fontWeight: 800,
                 letterSpacing: '-0.02em',
-                color: '#ffffff',
+                color: isLight ? '#0f172a' : '#ffffff',
                 fontFamily: 'Inter, system-ui, sans-serif',
               }}
             >
@@ -592,7 +594,7 @@ export default function PremiumHomeDashboard({
       >
         {/* ─── LEFT COLUMN: ONLY TODAY'S MISSIONS ───────────────────────────── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <div style={GLASS_CARD}>
+          <div style={glassCardStyle}>
             {/* Header */}
             <div
               style={{
@@ -620,7 +622,7 @@ export default function PremiumHomeDashboard({
                   <CheckCircle2 size={18} />
                 </div>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: isLight ? '#0f172a' : '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span>Today's Missions</span>
                     <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: 500 }}>
                       • {formatDateLong(selectedDate)}
@@ -731,8 +733,8 @@ export default function PremiumHomeDashboard({
                         justifyContent: 'space-between',
                         padding: '10px 14px',
                         borderRadius: '12px',
-                        background: 'rgba(255, 255, 255, 0.03)',
-                        border: '1px solid rgba(255, 255, 255, 0.07)',
+                        background: isLight ? (isDone ? 'rgba(241, 245, 249, 0.6)' : '#ffffff') : 'rgba(255, 255, 255, 0.03)',
+                        border: isLight ? '1px solid rgba(226, 232, 240, 0.95)' : '1px solid rgba(255, 255, 255, 0.07)',
                         gap: '10px',
                         transition: 'all 0.15s ease',
                       }}
@@ -747,7 +749,7 @@ export default function PremiumHomeDashboard({
                             border: 'none',
                             padding: 0,
                             cursor: 'pointer',
-                            color: isDone ? '#10b981' : 'rgba(255, 255, 255, 0.35)',
+                            color: isDone ? '#10b981' : (isLight ? 'rgba(0, 0, 0, 0.25)' : 'rgba(255, 255, 255, 0.35)'),
                             display: 'flex',
                             flexShrink: 0,
                           }}
@@ -760,7 +762,7 @@ export default function PremiumHomeDashboard({
                           style={{
                             fontSize: '0.88rem',
                             fontWeight: 600,
-                            color: isDone ? '#94a3b8' : '#ffffff',
+                            color: isDone ? '#94a3b8' : (isLight ? '#0f172a' : '#ffffff'),
                             textDecoration: isDone ? 'line-through' : 'none',
                             wordBreak: 'break-word',
                           }}
@@ -900,8 +902,8 @@ export default function PremiumHomeDashboard({
                 marginTop: '1.25rem',
                 padding: '6px 12px',
                 borderRadius: '12px',
-                background: 'rgba(255, 255, 255, 0.04)',
-                border: '1px solid rgba(168, 85, 247, 0.2)',
+                background: isLight ? '#ffffff' : 'rgba(255, 255, 255, 0.04)',
+                border: isLight ? '1px solid rgba(168, 85, 247, 0.25)' : '1px solid rgba(168, 85, 247, 0.2)',
               }}
             >
               <Plus size={16} color="#c084fc" />
@@ -914,7 +916,7 @@ export default function PremiumHomeDashboard({
                   background: 'transparent',
                   border: 'none',
                   outline: 'none',
-                  color: '#ffffff',
+                  color: isLight ? '#0f172a' : '#ffffff',
                   fontSize: '0.84rem',
                   flex: 1,
                 }}
@@ -942,8 +944,8 @@ export default function PremiumHomeDashboard({
         {/* ─── RIGHT COLUMN: UTILITY PANELS (Quick Actions, Calendar, Upcoming, Recent) ─── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {/* ── 1. QUICK ACTIONS (6 Grid Buttons) ── */}
-          <div style={GLASS_CARD}>
-            <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#f8fafc', marginBottom: '0.85rem' }}>
+          <div style={glassCardStyle}>
+            <div style={{ fontSize: '0.92rem', fontWeight: 800, color: isLight ? '#0f172a' : '#f8fafc', marginBottom: '0.85rem' }}>
               Quick Actions
             </div>
 
@@ -1162,7 +1164,7 @@ export default function PremiumHomeDashboard({
           </div>
 
           {/* ── 2. COMPACT MONTHLY CALENDAR WIDGET ── */}
-          <div style={GLASS_CARD}>
+          <div style={glassCardStyle}>
             {/* Header with Month & Controls */}
             <div
               style={{
@@ -1181,7 +1183,7 @@ export default function PremiumHomeDashboard({
                 <ChevronLeft size={16} />
               </button>
 
-              <span style={{ fontSize: '0.88rem', fontWeight: 800, color: '#f8fafc' }}>
+              <span style={{ fontSize: '0.88rem', fontWeight: 800, color: isLight ? '#0f172a' : '#f8fafc' }}>
                 {format(calendarMonth, 'MMMM yyyy')}
               </span>
 
@@ -1242,7 +1244,7 @@ export default function PremiumHomeDashboard({
                       borderRadius: '50%',
                       border: 'none',
                       background: isSelected ? '#8b5cf6' : 'transparent',
-                      color: isSelected ? '#ffffff' : isCurrentMonth ? '#cbd5e1' : 'rgba(255, 255, 255, 0.25)',
+                      color: isSelected ? '#ffffff' : isCurrentMonth ? (isLight ? '#1e293b' : '#cbd5e1') : (isLight ? '#94a3b8' : 'rgba(255, 255, 255, 0.25)'),
                       fontSize: '0.78rem',
                       fontWeight: isSelected || isCurrentToday ? 800 : 500,
                       cursor: 'pointer',
@@ -1304,7 +1306,7 @@ export default function PremiumHomeDashboard({
           </div>
 
           {/* ── 3. UPCOMING TASKS ── */}
-          <div style={GLASS_CARD}>
+          <div style={glassCardStyle}>
             {/* Header */}
             <div
               style={{
@@ -1316,7 +1318,7 @@ export default function PremiumHomeDashboard({
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <CalendarIcon size={16} color="#c084fc" />
-                <span style={{ fontSize: '0.92rem', fontWeight: 800, color: '#f8fafc' }}>
+                <span style={{ fontSize: '0.92rem', fontWeight: 800, color: isLight ? '#0f172a' : '#f8fafc' }}>
                   Upcoming Tasks
                 </span>
               </div>
@@ -1359,8 +1361,8 @@ export default function PremiumHomeDashboard({
                         justifyContent: 'space-between',
                         padding: '8px 12px',
                         borderRadius: '10px',
-                        background: 'rgba(255, 255, 255, 0.03)',
-                        border: '1px solid rgba(255, 255, 255, 0.06)',
+                        background: isLight ? '#ffffff' : 'rgba(255, 255, 255, 0.03)',
+                        border: isLight ? '1px solid rgba(226, 232, 240, 0.95)' : '1px solid rgba(255, 255, 255, 0.06)',
                         cursor: 'pointer',
                       }}
                     >
@@ -1386,7 +1388,7 @@ export default function PremiumHomeDashboard({
                             style={{
                               fontSize: '0.82rem',
                               fontWeight: 600,
-                              color: '#ffffff',
+                              color: isLight ? '#0f172a' : '#ffffff',
                               whiteSpace: 'nowrap',
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
@@ -1411,7 +1413,7 @@ export default function PremiumHomeDashboard({
           </div>
 
           {/* ── 4. RECENT ACTIVITY ── */}
-          <div style={GLASS_CARD}>
+          <div style={glassCardStyle}>
             {/* Header */}
             <div
               style={{
@@ -1423,7 +1425,7 @@ export default function PremiumHomeDashboard({
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Clock size={16} color="#38bdf8" />
-                <span style={{ fontSize: '0.92rem', fontWeight: 800, color: '#f8fafc' }}>
+                <span style={{ fontSize: '0.92rem', fontWeight: 800, color: isLight ? '#0f172a' : '#f8fafc' }}>
                   Recent Activity
                 </span>
               </div>
@@ -1460,7 +1462,8 @@ export default function PremiumHomeDashboard({
                       gap: '10px',
                       padding: '7px 10px',
                       borderRadius: '10px',
-                      background: 'rgba(255, 255, 255, 0.02)',
+                      background: isLight ? '#ffffff' : 'rgba(255, 255, 255, 0.02)',
+                      border: isLight ? '1px solid rgba(226, 232, 240, 0.8)' : '1px solid transparent',
                     }}
                   >
                     <div
@@ -1483,7 +1486,7 @@ export default function PremiumHomeDashboard({
                         style={{
                           fontSize: '0.78rem',
                           fontWeight: 600,
-                          color: '#f8fafc',
+                          color: isLight ? '#0f172a' : '#f8fafc',
                           whiteSpace: 'nowrap',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',

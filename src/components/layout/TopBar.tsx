@@ -2,12 +2,12 @@ import {
   Search,
   Zap,
   Moon,
+  Sun,
   Bell,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import type { NavSection } from '../../App';
-import type { ThemePreset } from '../../types';
 
 interface TopBarProps {
   onOpenSearch: () => void;
@@ -16,34 +16,24 @@ interface TopBarProps {
   activeSection: NavSection;
 }
 
-const THEME_CYCLE: ThemePreset[] = [
-  'purple-fantasy',
-  'pink-sakura',
-  'midnight-blue',
-  'neon-cyberpunk',
-  'lavender-dream',
-  'cyan-galaxy',
-];
-
-const SECTION_LABELS: Record<NavSection, string> = {
-  home: 'Anime Command Center',
+const SECTION_LABELS: Partial<Record<NavSection, string>> = {
   tasks: 'Task System',
-  pulse: 'News — Live Intelligence Feeds',
+  pulse: 'News — Live Feeds',
   notes: 'Knowledge & Notes',
   calendar: 'Calendar Planner',
   projects: 'Projects Hub',
   roadmap: 'Roadmap & Milestones',
   reflection: 'Weekly Reflection',
-  settings: 'Personalization & Settings',
+  settings: 'Settings & Preferences',
   journey: 'My Journey',
   personal: 'Personal Life',
   knowledge: 'Knowledge Base',
-  explore: 'News — Live Intelligence Feeds',
+  explore: 'News',
   review: 'Review & Settings',
-  vault: 'Digital Vault — Personal Resource Library',
-  uploads: 'Media Vault & Uploads',
-  groceries: 'Grocery List — Smart Shopping Command',
-  placement: 'Placement Training HQ — Anime Command Center',
+  vault: 'Digital Vault',
+  uploads: 'Media Vault',
+  groceries: 'Grocery List',
+  placement: 'Placement Training HQ',
 };
 
 export default function TopBar({
@@ -53,17 +43,19 @@ export default function TopBar({
   activeSection,
 }: TopBarProps) {
   const { user } = useAuth();
-  const { settings, updateAppearance, tasks } = useApp();
+  const { settings, updateSettings, tasks } = useApp();
 
-  const currentTheme = settings.appearance?.themePreset || 'purple-fantasy';
+  const isLight = settings.theme === 'light' || settings.appearance?.theme === 'light';
 
-  const handleCycleTheme = async () => {
-    const currentIndex = THEME_CYCLE.indexOf(currentTheme);
-    const nextIndex = (currentIndex + 1) % THEME_CYCLE.length;
-    const nextTheme = THEME_CYCLE[nextIndex];
-    await updateAppearance({
-      ...settings.appearance,
-      themePreset: nextTheme,
+  const handleToggleTheme = async () => {
+    const nextTheme = isLight ? 'dark' : 'light';
+    await updateSettings({
+      theme: nextTheme,
+      appearance: {
+        ...settings.appearance,
+        theme: nextTheme,
+        themePreset: nextTheme === 'light' ? 'clean-light' : 'purple-fantasy',
+      },
     });
   };
 
@@ -85,9 +77,9 @@ export default function TopBar({
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '0.5rem clamp(0.6rem, 2vw, 1.25rem)',
-        background: 'rgba(8, 5, 22, 0.75)',
+        background: isLight ? 'rgba(255, 255, 255, 0.94)' : 'rgba(8, 5, 22, 0.75)',
         backdropFilter: 'blur(20px)',
-        borderBottom: '1px solid rgba(168, 85, 247, 0.18)',
+        borderBottom: isLight ? '1px solid rgba(168, 85, 247, 0.15)' : '1px solid rgba(168, 85, 247, 0.18)',
         position: 'sticky',
         top: 0,
         zIndex: 30,
@@ -98,23 +90,25 @@ export default function TopBar({
     >
       {/* Left: Active Section Indicator & Global Search Trigger */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, maxWidth: '520px', minWidth: 0 }}>
-        <div
-          className="topbar-section-label hidden sm:inline-flex"
-          style={{
-            fontSize: '0.75rem',
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            letterSpacing: '0.06em',
-            color: '#c084fc',
-            background: 'rgba(168, 85, 247, 0.15)',
-            padding: '3px 10px',
-            borderRadius: '8px',
-            border: '1px solid rgba(192, 132, 252, 0.3)',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {SECTION_LABELS[activeSection] || 'Life OS'}
-        </div>
+        {activeSection !== 'home' && SECTION_LABELS[activeSection] ? (
+          <div
+            className="topbar-section-label hidden sm:inline-flex"
+            style={{
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em',
+              color: '#c084fc',
+              background: 'rgba(168, 85, 247, 0.15)',
+              padding: '3px 10px',
+              borderRadius: '8px',
+              border: '1px solid rgba(192, 132, 252, 0.3)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {SECTION_LABELS[activeSection]}
+          </div>
+        ) : null}
 
         <button
           type="button"
@@ -201,13 +195,13 @@ export default function TopBar({
           <span className="hidden sm:inline">Quick Capture</span>
         </button>
 
-        {/* Theme Preset Cycle */}
+        {/* Light / Dark Mode Toggle */}
         <button
           type="button"
-          onClick={handleCycleTheme}
+          onClick={handleToggleTheme}
           className="btn btn-ghost btn-sm topbar-ctrl-btn"
-          title={`Theme: ${currentTheme}. Click to cycle.`}
-          aria-label="Cycle visual theme preset"
+          title={isLight ? 'Light mode active. Click for Dark mode.' : 'Dark mode active. Click for Light mode.'}
+          aria-label="Toggle light and dark theme"
           style={{
             width: '34px',
             height: '34px',
@@ -216,12 +210,14 @@ export default function TopBar({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            border: '1px solid rgba(168, 85, 247, 0.2)',
-            background: 'rgba(255, 255, 255, 0.04)',
-            color: '#c084fc',
+            border: isLight ? '1px solid rgba(245, 158, 11, 0.35)' : '1px solid rgba(168, 85, 247, 0.25)',
+            background: isLight ? 'rgba(245, 158, 11, 0.12)' : 'rgba(255, 255, 255, 0.05)',
+            color: isLight ? '#f59e0b' : '#c084fc',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
           }}
         >
-          <Moon size={15} color="#c084fc" />
+          {isLight ? <Sun size={16} color="#f59e0b" /> : <Moon size={15} color="#c084fc" />}
         </button>
 
         {/* Notification Bell Badge */}

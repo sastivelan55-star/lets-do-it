@@ -248,23 +248,53 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // ── Apply Theme & Appearance ──────────────────────────────────────────────
   function applyTheme(theme: AppSettings['theme'], appearance?: AppearanceSettings) {
     const root = document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else if (theme === 'light') {
+    const isLight = theme === 'light' || appearance?.theme === 'light' || appearance?.themePreset === 'clean-light';
+
+    if (isLight) {
       root.classList.remove('dark');
+      root.classList.add('light');
+      root.setAttribute('data-theme-mode', 'light');
+      root.setAttribute('data-theme-preset', 'clean-light');
+      root.style.setProperty('--bg-base', '#f1f5f9');
+      root.style.setProperty('--bg-surface', '#ffffff');
+      root.style.setProperty('--bg-surface-2', '#f8fafc');
+      root.style.setProperty('--bg-sidebar', '#ffffff');
+      root.style.setProperty('--text-primary', '#0f172a');
+      root.style.setProperty('--text-secondary', '#475569');
+      root.style.setProperty('--text-muted', '#94a3b8');
+      root.style.setProperty('--border', 'rgba(203, 213, 225, 0.7)');
+      root.style.setProperty('--glass-bg', 'rgba(255, 255, 255, 0.85)');
+      root.style.setProperty('--glass-border', 'rgba(203, 213, 225, 0.6)');
+      if (typeof document !== 'undefined' && document.body) {
+        document.body.style.backgroundColor = '#f1f5f9';
+        document.body.style.color = '#0f172a';
+      }
     } else {
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      if (prefersDark) {
-        root.classList.add('dark');
-      } else {
-        root.classList.remove('dark');
+      root.classList.add('dark');
+      root.classList.remove('light');
+      root.setAttribute('data-theme-mode', 'dark');
+      const preset = appearance?.themePreset && appearance.themePreset !== 'clean-light'
+        ? appearance.themePreset
+        : 'purple-fantasy';
+      root.setAttribute('data-theme-preset', preset);
+      // Remove inline variable overrides so dark CSS presets apply cleanly
+      root.style.removeProperty('--bg-base');
+      root.style.removeProperty('--bg-surface');
+      root.style.removeProperty('--bg-surface-2');
+      root.style.removeProperty('--bg-sidebar');
+      root.style.removeProperty('--text-primary');
+      root.style.removeProperty('--text-secondary');
+      root.style.removeProperty('--text-muted');
+      root.style.removeProperty('--border');
+      root.style.removeProperty('--glass-bg');
+      root.style.removeProperty('--glass-border');
+      if (typeof document !== 'undefined' && document.body) {
+        document.body.style.backgroundColor = '#070314';
+        document.body.style.color = '#e2e8f0';
       }
     }
 
     if (appearance) {
-      if (appearance.themePreset) {
-        root.setAttribute('data-theme-preset', appearance.themePreset);
-      }
       if (appearance.accentColor) {
         root.style.setProperty('--accent', appearance.accentColor);
         root.style.setProperty('--accent-glow', `${appearance.accentColor}33`);
@@ -275,18 +305,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (typeof appearance.glassBlur === 'number') {
         root.style.setProperty('--glass-blur', `${appearance.glassBlur}px`);
       }
-      if (typeof appearance.cardTransparency === 'number') {
+      if (typeof appearance.cardTransparency === 'number' && !isLight) {
         const alpha = Math.max(0.2, Math.min(0.95, 1 - appearance.cardTransparency));
         root.style.setProperty('--glass-bg', `rgba(18, 10, 40, ${alpha})`);
       }
 
       // Resolve background wallpaper URL
       let resolvedBgUrl = appearance.backgroundImageUrl?.trim() || '';
-      if (!resolvedBgUrl && appearance.wallpaperId && appearance.wallpaperId !== 'none') {
+      if (!resolvedBgUrl && appearance.wallpaperId && appearance.wallpaperId !== 'none' && !isLight) {
         resolvedBgUrl = `/wallpapers/${appearance.wallpaperId}.svg`;
       }
 
-      if (resolvedBgUrl) {
+      if (resolvedBgUrl && !isLight) {
         root.style.setProperty('--user-bg-image', `url("${resolvedBgUrl}")`);
         root.style.setProperty('--user-bg-overlay-display', 'block');
         const raw = typeof appearance.backgroundOverlayOpacity === 'number'

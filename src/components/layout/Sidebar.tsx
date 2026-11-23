@@ -23,7 +23,6 @@ import {
 import type { NavSection } from '../../App';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
-import { getCharacterById } from '../../data/animeCharacters';
 
 interface SidebarProps {
   active: NavSection;
@@ -64,7 +63,7 @@ export default function Sidebar({ active, onNavigate, collapsed, onToggle }: Sid
   };
 
   const pendingTasksCount = tasks.filter((t) => !t.isDeleted && t.status !== 'completed').length;
-  const activeChar = getCharacterById(settings.personalization?.activeCharacterId || 'nami');
+  const isLight = settings.theme === 'light' || settings.appearance?.theme === 'light';
   const showSidebarDeco = settings.personalization?.sidebarDecorationEnabled !== false;
 
   return (
@@ -76,10 +75,10 @@ export default function Sidebar({ active, onNavigate, collapsed, onToggle }: Sid
         transition: 'width 0.25s cubic-bezier(0.4, 0, 0.2, 1), min-width 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
         display: 'flex',
         flexDirection: 'column',
-        background: 'rgba(8, 5, 20, 0.78)',
+        background: isLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(8, 5, 20, 0.78)',
         backdropFilter: 'blur(20px)',
-        borderRight: '1px solid rgba(168, 85, 247, 0.18)',
-        boxShadow: '4px 0 24px rgba(0, 0, 0, 0.35)',
+        borderRight: isLight ? '1px solid rgba(168, 85, 247, 0.15)' : '1px solid rgba(168, 85, 247, 0.18)',
+        boxShadow: isLight ? '4px 0 24px rgba(100, 116, 139, 0.08)' : '4px 0 24px rgba(0, 0, 0, 0.35)',
         zIndex: 20,
       }}
     >
@@ -209,7 +208,7 @@ export default function Sidebar({ active, onNavigate, collapsed, onToggle }: Sid
                 boxShadow: activeItem
                   ? '0 0 16px rgba(168, 85, 247, 0.35), inset 0 0 10px rgba(168, 85, 247, 0.18)'
                   : 'none',
-                color: activeItem ? '#ffffff' : 'rgba(203, 213, 225, 0.75)',
+                color: activeItem ? '#ffffff' : (isLight ? '#475569' : 'rgba(203, 213, 225, 0.75)'),
                 fontWeight: activeItem ? 700 : 500,
                 fontSize: '0.86rem',
                 cursor: 'pointer',
@@ -288,9 +287,6 @@ export default function Sidebar({ active, onNavigate, collapsed, onToggle }: Sid
           >
             You're doing amazing! ♡
           </div>
-          <div style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: '3px' }}>
-            ✦ {activeChar.name} is with you ✦
-          </div>
         </div>
       )}
 
@@ -333,7 +329,7 @@ export default function Sidebar({ active, onNavigate, collapsed, onToggle }: Sid
                     margin: 0,
                     fontSize: '0.78rem',
                     fontWeight: 700,
-                    color: '#f8fafc',
+                    color: isLight ? '#0f172a' : '#f8fafc',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
