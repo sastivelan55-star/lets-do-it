@@ -212,6 +212,7 @@ interface AppContextValue {
   updateDailyMissionGoal: (goal: number) => Promise<void>;
   generateRecurringTasksForDate: (targetDate?: string) => Promise<void>;
   carryForwardOverdueTasks: (taskIds?: string[]) => Promise<number>;
+  batchUpdateTasks: (tasks: Task[]) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -817,6 +818,38 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [user, isConfigured]
   );
 
+  const batchUpdateTasks = useCallback(
+    async (updatedTasks: Task[]) => {
+      if (updatedTasks.length === 0) return;
+
+      const updatedMap = new Map(updatedTasks.map((t) => [t.id, t]));
+
+      // Single synchronous React state update for instant UI responsiveness
+      setAllTasks((prev) =>
+        prev.map((t) => (updatedMap.has(t.id) ? updatedMap.get(t.id)! : t))
+      );
+
+      // Save all updated tasks locally in IndexedDB / localStorage
+      await Promise.allSettled(updatedTasks.map((t) => saveTask(t)));
+
+      // Sync to cloud if configured
+      if (user && isConfigured) {
+        try {
+          setSyncStatus('syncing');
+          await Promise.allSettled(
+            updatedTasks.map((t) => updateCloudTask(t, user.id))
+          );
+          setSyncStatus('synced');
+        } catch {
+          setSyncStatus('offline');
+        }
+      } else {
+        setSyncStatus('offline');
+      }
+    },
+    [user, isConfigured]
+  );
+
   const completeTask = useCallback(
     async (id: string) => {
       const current = allTasks.find((t) => t.id === id);
@@ -1257,21 +1290,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       if (toRoll.length === 0) return 0;
 
-      for (const t of toRoll) {
-        await updateTask({
-          ...t,
-          rescheduledFrom: t.dueDate,
-          rescheduledTo: currentDate,
-          dueDate: currentDate,
-          targetDate: currentDate,
-          scheduledDate: currentDate,
-          status: 'not-started',
-          updatedAt: nowISO(),
-        });
-      }
+      const updatedList: Task[] = toRoll.map((t) => ({
+        ...t,
+        rescheduledFrom: t.dueDate,
+        rescheduledTo: currentDate,
+        dueDate: currentDate,
+        targetDate: currentDate,
+        scheduledDate: currentDate,
+        status: 'not-started',
+        updatedAt: nowISO(),
+      }));
+
+      await batchUpdateTasks(updatedList);
       return toRoll.length;
     },
-    [tasks, currentDate, updateTask]
+    [tasks, currentDate, batchUpdateTasks]
   );
 
   // ── Streak Engine & Daily Mission Goal ────────────────────────────────────
@@ -1931,6 +1964,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         updateDailyMissionGoal,
         generateRecurringTasksForDate,
         carryForwardOverdueTasks,
+        batchUpdateTasks,
       }}
     >
       {children}

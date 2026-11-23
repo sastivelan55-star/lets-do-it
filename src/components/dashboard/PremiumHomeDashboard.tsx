@@ -92,7 +92,7 @@ export default function PremiumHomeDashboard({
   onOpenTaskBuilder: _onOpenTaskBuilder,
 }: PremiumHomeDashboardProps) {
   const { user } = useAuth();
-  const { tasks, settings, updateTask, addTask } = useApp();
+  const { tasks, settings, updateTask, addTask, batchUpdateTasks } = useApp();
 
   // Selected date state (defaults to today)
   const [selectedDate, setSelectedDate] = useState<string>(today());
@@ -104,6 +104,7 @@ export default function PremiumHomeDashboard({
   // Quick inline add mission input
   const [inlineNewTaskTitle, setInlineNewTaskTitle] = useState('');
   const [isSubmittingInline, setIsSubmittingInline] = useState(false);
+  const [isCarryingForward, setIsCarryingForward] = useState(false);
 
   // Floating time picker popover state
   const [timePickerTask, setTimePickerTask] = useState<DailyTaskOccurrence | Task | null>(null);
@@ -137,43 +138,86 @@ export default function PremiumHomeDashboard({
     setTimeout(() => setToastMessage(null), 2500);
   }, []);
 
-  // ─── DERIVED METRICS FOR TODAY'S MISSIONS ──────────────────────────────────
-
-  // Completed tasks count for the selected date
-  const completedCount = useMemo(() => {
-    return occurrences.filter((o) => o.isCompleted).length;
-  }, [occurrences]);
-
-  // ─── TODAY'S MISSIONS LIST & FILTERS ───────────────────────────────────────
-
-  const filteredMissions = useMemo(() => {
-    if (missionsFilter === 'completed') {
-      return occurrences.filter((o) => o.isCompleted);
-    }
-    if (missionsFilter === 'pending') {
-      return occurrences.filter((o) => !o.isCompleted);
-    }
-    return occurrences;
-  }, [occurrences, missionsFilter]);
+  // ─── OVERDUE TASKS & ACTIVE MISSIONS MERGE ─────────────────────────────────
 
   // Overdue tasks from previous days to avoid hidden tasks
   const overdueTasks = useMemo(() => {
     return getOverdueTasksForDate(tasks, selectedDate);
   }, [tasks, selectedDate]);
 
-  // Handle carry forward all overdue tasks to selected date
+  // Fast lookup set of overdue task IDs
+  const overdueTaskIdSet = useMemo(() => {
+    return new Set(overdueTasks.map((t) => t.id));
+  }, [overdueTasks]);
+
+  // All missions for selected date:
+  // When viewing today, automatically include any pending overdue missions from previous days
+  // so the user never sees an empty "0 of 0 completed" when there are pending missions waiting!
+  const allMissions = useMemo(() => {
+    if (selectedDate === today() && overdueTasks.length > 0) {
+      const occurrenceTaskIds = new Set(occurrences.map((o) => o.taskId));
+      const overdueOccurrences: DailyTaskOccurrence[] = overdueTasks
+        .filter((t) => !occurrenceTaskIds.has(t.id))
+        .map((t) => ({
+          taskId: t.id,
+          title: t.title,
+          lifeArea: t.lifeArea,
+          priority: t.priority,
+          recurring: t.recurring,
+          startTime: t.startTime,
+          endTime: t.endTime,
+          estimatedMinutes: t.estimatedMinutes,
+          notes: t.notes,
+          projectId: t.projectId,
+          occurrenceDate: selectedDate,
+          isCompleted: t.status === 'completed',
+          completedAt: t.completedAt,
+          originalTask: t,
+        }));
+      return [...occurrences, ...overdueOccurrences];
+    }
+    return occurrences;
+  }, [occurrences, overdueTasks, selectedDate]);
+
+  // Completed tasks count for the selected date
+  const completedCount = useMemo(() => {
+    return allMissions.filter((o) => o.isCompleted).length;
+  }, [allMissions]);
+
+  // ─── TODAY'S MISSIONS LIST & FILTERS ───────────────────────────────────────
+
+  const filteredMissions = useMemo(() => {
+    if (missionsFilter === 'completed') {
+      return allMissions.filter((o) => o.isCompleted);
+    }
+    if (missionsFilter === 'pending') {
+      return allMissions.filter((o) => !o.isCompleted);
+    }
+    return allMissions;
+  }, [allMissions, missionsFilter]);
+
+  // Handle carry forward all overdue tasks to selected date using batchUpdateTasks
   const handleCarryForwardAll = async () => {
-    if (overdueTasks.length === 0) return;
-    for (const t of overdueTasks) {
-      await updateTask({
+    if (overdueTasks.length === 0 || isCarryingForward) return;
+    setIsCarryingForward(true);
+    try {
+      const updatedList: Task[] = overdueTasks.map((t) => ({
         ...t,
         targetDate: selectedDate,
         dueDate: selectedDate,
         scheduledDate: selectedDate,
+        rescheduledFrom: t.scheduledDate || t.targetDate || t.dueDate,
+        rescheduledTo: selectedDate,
         updatedAt: new Date().toISOString(),
-      });
+      }));
+
+      await batchUpdateTasks(updatedList);
+      showToast(`Carried forward ${updatedList.length} missions to today! 🚀`);
+    } catch {
+      showToast('Failed to carry forward missions');
+    } finally {
+      setIsCarryingForward(false);
     }
-    showToast(`Carried forward ${overdueTasks.length} tasks to ${selectedDate}! 🚀`);
   };
 
   // Inline Quick Add Mission
@@ -566,7 +610,7 @@ export default function PremiumHomeDashboard({
                     cursor: 'pointer',
                   }}
                 >
-                  {completedCount} of {occurrences.length} completed
+                  {completedCount} of {allMissions.length} completed
                   {missionsFilter !== 'all' && ` (${missionsFilter})`}
                 </button>
 
@@ -612,18 +656,22 @@ export default function PremiumHomeDashboard({
                 <button
                   type="button"
                   onClick={handleCarryForwardAll}
+                  disabled={isCarryingForward}
                   style={{
-                    background: 'rgba(239, 68, 68, 0.25)',
+                    background: isCarryingForward ? 'rgba(239, 68, 68, 0.15)' : 'rgba(239, 68, 68, 0.25)',
                     border: '1px solid rgba(239, 68, 68, 0.5)',
                     borderRadius: '6px',
-                    padding: '3px 8px',
+                    padding: '4px 10px',
                     color: '#fff',
                     fontWeight: 700,
                     fontSize: '0.72rem',
-                    cursor: 'pointer',
+                    cursor: isCarryingForward ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
                   }}
                 >
-                  Carry Forward All
+                  {isCarryingForward ? 'Carrying Forward...' : 'Carry Forward All'}
                 </button>
               </div>
             )}
@@ -684,6 +732,22 @@ export default function PremiumHomeDashboard({
 
                       {/* Right: Badges & Actions */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                        {overdueTaskIdSet.has(occ.taskId) && (
+                          <span
+                            style={{
+                              fontSize: '0.68rem',
+                              fontWeight: 700,
+                              padding: '2px 8px',
+                              borderRadius: '999px',
+                              background: 'rgba(239, 68, 68, 0.18)',
+                              color: '#f87171',
+                              border: '1px solid rgba(239, 68, 68, 0.35)',
+                            }}
+                          >
+                            Overdue
+                          </span>
+                        )}
+
                         {occ.priority && (occ.priority === 'high' || occ.priority === 'critical') && (
                           <span
                             style={{
