@@ -781,7 +781,7 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
               style={{
                 width: '100%',
                 height: '100%',
-                background: '#070A12',
+                background: 'var(--bg-surface)',
                 borderRadius: '8px',
                 display: 'flex',
                 alignItems: 'center',
@@ -1154,7 +1154,7 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
                 style={{
                   width: '100%',
                   height: '8px',
-                  background: '#070A12',
+                  background: 'var(--bg-surface)',
                   borderRadius: '999px',
                   border: '1px solid rgba(0, 255, 163, 0.3)',
                   overflow: 'hidden',
@@ -1505,7 +1505,7 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
                   value={quickRank}
                   onChange={(e) => setQuickRank(e.target.value as any)}
                   style={{
-                    background: '#070A12',
+                    background: 'var(--bg-surface)',
                     border: '1px solid rgba(0, 240, 255, 0.3)',
                     borderRadius: '12px',
                     padding: '0.55rem 0.85rem',
@@ -1535,7 +1535,7 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
                     onChange={(e) => setQuickDate(e.target.value)}
                     title="Target Operation Date (Synced with Home)"
                     style={{
-                      background: '#070A12',
+                      background: 'var(--bg-surface)',
                       border: '1px solid rgba(0, 240, 255, 0.35)',
                       borderRadius: '12px',
                       padding: '0.52rem 0.75rem 0.52rem 2rem',
@@ -1727,7 +1727,7 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
                               height: '24px',
                               borderRadius: '8px',
                               border: q.cleared ? 'none' : '1px solid rgba(255, 255, 255, 0.25)',
-                              background: q.cleared ? '#00FFA3' : '#070A12',
+                              background: q.cleared ? '#00FFA3' : 'var(--bg-surface)',
                               color: q.cleared ? '#070A12' : 'transparent',
                               display: 'flex',
                               alignItems: 'center',
@@ -2466,11 +2466,11 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
                   placeholder="Ex: Slay the Memory Leak Leviathan"
                   style={{
                     width: '100%',
-                    background: '#070A12',
+                    background: 'var(--bg-surface)',
                     border: '1px solid rgba(0, 240, 255, 0.3)',
                     borderRadius: '10px',
                     padding: '0.65rem 0.85rem',
-                    color: '#ffffff',
+                    color: 'var(--text-primary)',
                     fontSize: '0.82rem',
                     outline: 'none',
                     boxSizing: 'border-box',
@@ -2490,7 +2490,7 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
                   onChange={(e) => setMDate(e.target.value)}
                   style={{
                     width: '100%',
-                    background: '#070A12',
+                    background: 'var(--bg-surface)',
                     border: '1px solid rgba(0, 240, 255, 0.4)',
                     borderRadius: '10px',
                     padding: '0.65rem 0.85rem',
@@ -2518,11 +2518,11 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
                     onChange={(e) => setMStartTime(e.target.value)}
                     style={{
                       width: '100%',
-                      background: '#070A12',
+                      background: 'var(--bg-surface)',
                       border: '1px solid rgba(192, 132, 252, 0.4)',
                       borderRadius: '10px',
                       padding: '0.55rem',
-                      color: '#ffffff',
+                      color: 'var(--text-primary)',
                       fontSize: '0.82rem',
                       outline: 'none',
                       boxSizing: 'border-box',
@@ -2540,11 +2540,11 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
                     onChange={(e) => setMRecurring(e.target.value as any)}
                     style={{
                       width: '100%',
-                      background: '#070A12',
+                      background: 'var(--bg-surface)',
                       border: '1px solid rgba(56, 189, 248, 0.4)',
                       borderRadius: '10px',
                       padding: '0.55rem',
-                      color: '#ffffff',
+                      color: 'var(--text-primary)',
                       fontSize: '0.82rem',
                       outline: 'none',
                       boxSizing: 'border-box',
@@ -2568,11 +2568,11 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
                     onChange={(e) => setMRank(e.target.value as any)}
                     style={{
                       width: '100%',
-                      background: '#070A12',
+                      background: 'var(--bg-surface)',
                       border: '1px solid rgba(255, 255, 255, 0.1)',
                       borderRadius: '10px',
                       padding: '0.55rem',
-                      color: '#ffffff',
+                      color: 'var(--text-primary)',
                       outline: 'none',
                     }}
                   >
@@ -2592,11 +2592,11 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
                     onChange={(e) => setMElem(e.target.value as any)}
                     style={{
                       width: '100%',
-                      background: '#070A12',
+                      background: 'var(--bg-surface)',
                       border: '1px solid rgba(255, 255, 255, 0.1)',
                       borderRadius: '10px',
                       padding: '0.55rem',
-                      color: '#ffffff',
+                      color: 'var(--text-primary)',
                       outline: 'none',
                     }}
                   >
@@ -2616,11 +2616,11 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
                     onChange={(e) => setMDur(parseInt(e.target.value, 10))}
                     style={{
                       width: '100%',
-                      background: '#070A12',
+                      background: 'var(--bg-surface)',
                       border: '1px solid rgba(255, 255, 255, 0.1)',
                       borderRadius: '10px',
                       padding: '0.55rem',
-                      color: '#ffffff',
+                      color: 'var(--text-primary)',
                       outline: 'none',
                     }}
                   >
@@ -2643,11 +2643,11 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
                   placeholder="Acceptance criteria, code links, or boss weak points..."
                   style={{
                     width: '100%',
-                    background: '#070A12',
+                    background: 'var(--bg-surface)',
                     border: '1px solid rgba(255, 255, 255, 0.1)',
                     borderRadius: '10px',
                     padding: '0.65rem 0.85rem',
-                    color: '#ffffff',
+                    color: 'var(--text-primary)',
                     fontSize: '0.8rem',
                     outline: 'none',
                     resize: 'none',
@@ -2751,11 +2751,11 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
                   onChange={(e) => setEditTitle(e.target.value)}
                   style={{
                     width: '100%',
-                    background: '#070A12',
+                    background: 'var(--bg-surface)',
                     border: '1px solid rgba(0, 240, 255, 0.3)',
                     borderRadius: '10px',
                     padding: '0.65rem 0.85rem',
-                    color: '#ffffff',
+                    color: 'var(--text-primary)',
                     fontSize: '0.82rem',
                     outline: 'none',
                     boxSizing: 'border-box',
@@ -2775,7 +2775,7 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
                   onChange={(e) => setEditDate(e.target.value)}
                   style={{
                     width: '100%',
-                    background: '#070A12',
+                    background: 'var(--bg-surface)',
                     border: '1px solid rgba(0, 240, 255, 0.4)',
                     borderRadius: '10px',
                     padding: '0.6rem 0.85rem',
@@ -2803,11 +2803,11 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
                     className="cyber-date-picker"
                     style={{
                       width: '100%',
-                      background: '#070A12',
+                      background: 'var(--bg-surface)',
                       border: '1px solid rgba(168, 85, 247, 0.4)',
                       borderRadius: '10px',
                       padding: '0.55rem',
-                      color: '#ffffff',
+                      color: 'var(--text-primary)',
                       outline: 'none',
                       boxSizing: 'border-box',
                     }}
@@ -2824,11 +2824,11 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
                     className="cyber-date-picker"
                     style={{
                       width: '100%',
-                      background: '#070A12',
+                      background: 'var(--bg-surface)',
                       border: '1px solid rgba(168, 85, 247, 0.4)',
                       borderRadius: '10px',
                       padding: '0.55rem',
-                      color: '#ffffff',
+                      color: 'var(--text-primary)',
                       outline: 'none',
                       boxSizing: 'border-box',
                     }}
@@ -2845,11 +2845,11 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
                     onChange={(e) => setEditRecurring(e.target.value as any)}
                     style={{
                       width: '100%',
-                      background: '#070A12',
+                      background: 'var(--bg-surface)',
                       border: '1px solid rgba(56, 189, 248, 0.4)',
                       borderRadius: '10px',
                       padding: '0.55rem',
-                      color: '#ffffff',
+                      color: 'var(--text-primary)',
                       outline: 'none',
                       boxSizing: 'border-box',
                     }}
@@ -2872,11 +2872,11 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
                     onChange={(e) => setEditRank(e.target.value as any)}
                     style={{
                       width: '100%',
-                      background: '#070A12',
+                      background: 'var(--bg-surface)',
                       border: '1px solid rgba(255, 255, 255, 0.1)',
                       borderRadius: '10px',
                       padding: '0.55rem',
-                      color: '#ffffff',
+                      color: 'var(--text-primary)',
                       outline: 'none',
                     }}
                   >
@@ -2896,11 +2896,11 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
                     onChange={(e) => setEditElem(e.target.value as any)}
                     style={{
                       width: '100%',
-                      background: '#070A12',
+                      background: 'var(--bg-surface)',
                       border: '1px solid rgba(255, 255, 255, 0.1)',
                       borderRadius: '10px',
                       padding: '0.55rem',
-                      color: '#ffffff',
+                      color: 'var(--text-primary)',
                       outline: 'none',
                     }}
                   >
@@ -2920,11 +2920,11 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
                     onChange={(e) => setEditDur(parseInt(e.target.value, 10))}
                     style={{
                       width: '100%',
-                      background: '#070A12',
+                      background: 'var(--bg-surface)',
                       border: '1px solid rgba(255, 255, 255, 0.1)',
                       borderRadius: '10px',
                       padding: '0.55rem',
-                      color: '#ffffff',
+                      color: 'var(--text-primary)',
                       outline: 'none',
                     }}
                   >
@@ -2947,11 +2947,11 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
                   placeholder="Acceptance criteria, code links, or boss weak points..."
                   style={{
                     width: '100%',
-                    background: '#070A12',
+                    background: 'var(--bg-surface)',
                     border: '1px solid rgba(255, 255, 255, 0.1)',
                     borderRadius: '10px',
                     padding: '0.65rem 0.85rem',
-                    color: '#ffffff',
+                    color: 'var(--text-primary)',
                     fontSize: '0.8rem',
                     outline: 'none',
                     resize: 'none',

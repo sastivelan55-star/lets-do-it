@@ -47,19 +47,11 @@ export default function UniversalSearchModal({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Global Ctrl+K / Cmd+K listener
+  // Close on Escape when open (Ctrl+K / Cmd+K is handled globally in App.tsx)
   useEffect(() => {
+    if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        if (isOpen) {
-          onClose();
-        } else {
-          // Trigger open via custom event if closed
-          window.dispatchEvent(new CustomEvent('lifeos:open-search'));
-        }
-      }
-      if (isOpen && e.key === 'Escape') {
+      if (e.key === 'Escape') {
         onClose();
       }
     };

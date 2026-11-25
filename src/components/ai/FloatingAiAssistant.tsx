@@ -675,10 +675,10 @@ export default function FloatingAiAssistant({ onNavigate }: FloatingAiAssistantP
           className="nova-floating-trigger"
           style={{
             position: 'fixed',
-            bottom: '24px',
-            right: '24px',
-            width: '58px',
-            height: '58px',
+            bottom: '16px',
+            right: '16px',
+            width: '50px',
+            height: '50px',
             borderRadius: '50%',
             background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 50%, #db2777 100%)',
             border: '2px solid rgba(255,255,255,0.35)',
@@ -711,7 +711,7 @@ export default function FloatingAiAssistant({ onNavigate }: FloatingAiAssistantP
         <div
           onClick={() => setIsMinimized(false)}
           className="nova-floating-minimized"
-          style={{ position: 'fixed', bottom: '24px', right: '24px', background: 'linear-gradient(135deg,rgba(30,41,59,0.95),rgba(15,23,42,0.95))', backdropFilter: 'blur(16px)', border: '1px solid rgba(129,140,248,0.35)', boxShadow: '0 10px 30px rgba(0,0,0,0.5),0 0 20px rgba(99,102,241,0.3)', borderRadius: '999px', padding: '0.55rem 1.1rem', display: 'flex', alignItems: 'center', gap: '0.65rem', cursor: 'pointer', zIndex: 9990, color: '#f8fafc' }}
+          style={{ position: 'fixed', bottom: '16px', right: '16px', background: 'linear-gradient(135deg,rgba(30,41,59,0.95),rgba(15,23,42,0.95))', backdropFilter: 'blur(16px)', border: '1px solid rgba(129,140,248,0.35)', boxShadow: '0 10px 30px rgba(0,0,0,0.5),0 0 20px rgba(99,102,241,0.3)', borderRadius: '999px', padding: '0.55rem 1.1rem', display: 'flex', alignItems: 'center', gap: '0.65rem', cursor: 'pointer', zIndex: 9990, color: '#f8fafc' }}
         >
           <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'linear-gradient(135deg,#3b82f6,#8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 10px rgba(99,102,241,0.6)' }}>
             <Sparkles size={15} color="#fff" />

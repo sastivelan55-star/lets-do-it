@@ -1296,11 +1296,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   // Auto-generate on boot / when tasks finish loading or date rolls over
+  const lastGeneratedDateRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!isLoading && allTasks.length > 0) {
+    if (!isLoading && allTasks.length > 0 && lastGeneratedDateRef.current !== currentDate) {
+      lastGeneratedDateRef.current = currentDate;
       generateRecurringTasksForDate(currentDate);
     }
-  }, [currentDate, isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [currentDate, isLoading, allTasks.length, generateRecurringTasksForDate]);
 
   // ── Carry Forward Overdue Tasks ───────────────────────────────────────────
   const carryForwardOverdueTasks = useCallback(
@@ -1344,8 +1346,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [tasks, dailyRecords, dailyMissionGoal, bestStreakSaved, currentDate]);
 
   // Automatically update bestStreak in settings if newly achieved
+  const lastSavedStreakRef = useRef<number>(bestStreakSaved);
   useEffect(() => {
-    if (streakData.bestStreak > bestStreakSaved) {
+    if (streakData.bestStreak > bestStreakSaved && streakData.bestStreak > lastSavedStreakRef.current) {
+      lastSavedStreakRef.current = streakData.bestStreak;
       updateSettings({
         personalization: {
           ...(settings.personalization || DEFAULT_PERSONALIZATION),

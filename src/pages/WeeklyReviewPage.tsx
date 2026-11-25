@@ -106,7 +106,13 @@ export default function WeeklyReviewPage() {
   }, [weekTasks]);
 
   const overdueThisWeek = useMemo(() => {
-    return tasks.filter((t) => t.dueDate < today() && t.status !== 'completed' && !t.deletedAt).length;
+    return tasks.filter(
+      (t) =>
+        t.dueDate < today() &&
+        t.status !== 'completed' &&
+        !t.deletedAt &&
+        (!t.recurring || t.recurring === 'none')
+    ).length;
   }, [tasks]);
 
   // Open Form for New or Edit
