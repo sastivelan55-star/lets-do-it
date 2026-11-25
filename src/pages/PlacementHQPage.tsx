@@ -103,7 +103,7 @@ const DEFAULT_MODULES: TrainingModule[] = [
   },
 ];
 
-function buildWeekPlan(): DayPlan[] {
+function buildWeekPlan(existingWeekPlan?: DayPlan[]): DayPlan[] {
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const today = new Date();
   const dow = today.getDay(); // 0=Sun
@@ -116,7 +116,8 @@ function buildWeekPlan(): DayPlan[] {
     let status: DayPlan['status'] = 'pending';
     if (dateStr < todayStr) status = 'completed';
     if (dateStr === todayStr) status = 'active';
-    return { date: dateStr, label, status, goals: [] };
+    const existingDay = existingWeekPlan?.find((day) => day.date === dateStr);
+    return { date: dateStr, label, status, goals: existingDay?.goals ?? [] };
   });
 }
 
@@ -142,8 +143,8 @@ function loadState(): PlacementState {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as PlacementState;
-      // Ensure weekPlan is never stale (rebuild each session)
-      return { ...parsed, weekPlan: buildWeekPlan() };
+      // Ensure weekPlan is never stale (rebuild each session while preserving saved goals)
+      return { ...parsed, weekPlan: buildWeekPlan(parsed.weekPlan) };
     }
   } catch {}
   const { level, label } = computeLevel(1250);

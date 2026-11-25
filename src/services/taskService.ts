@@ -202,6 +202,40 @@ export function taskToDbRow(task: Partial<Task>, userId: string): Partial<DbTask
   return row;
 }
 
+// ── Schema Fallback Helpers ──────────────────────────────────────────────────
+
+const EXTENSION_COLUMNS: ReadonlyArray<keyof DbTaskRow> = [
+  'parent_id',
+  'order_index',
+  'is_deleted',
+  'deleted_at',
+  'is_starred',
+  'list_id',
+  'recurrence_start_date',
+  'reminder_date',
+  'reminder_time',
+  'reminder_enabled',
+  'inline_subtasks',
+];
+
+function isMissingColumnError(error: { message?: string; code?: string }): boolean {
+  const msg = (error.message || '').toLowerCase();
+  return (
+    error.code === 'PGRST204' ||
+    error.code === '42703' ||
+    msg.includes('column') ||
+    msg.includes('schema cache')
+  );
+}
+
+function stripExtensionColumns(payload: Partial<DbTaskRow>): Partial<DbTaskRow> {
+  const stripped = { ...payload };
+  for (const col of EXTENSION_COLUMNS) {
+    delete stripped[col];
+  }
+  return stripped;
+}
+
 // ── CRUD Operations ──────────────────────────────────────────────────────────
 
 export async function fetchUserTasks(userId: string): Promise<Task[]> {
@@ -242,12 +276,21 @@ export async function createCloudTask(
     .single();
 
   if (error) {
-    logSafeError('Create task', error);
-    if (error.message?.includes('parent_id') || error.message?.includes('order_index')) {
-      throw new Error(
-        "Database migration required: 'parent_id' or 'order_index' column is missing in Supabase. Run the SQL migration in supabase/migrations/20261023000000_add_task_hierarchy_and_order.sql."
-      );
+    if (isMissingColumnError(error)) {
+      const fallbackPayload = stripExtensionColumns(insertPayload);
+      const { data: retryData, error: retryError } = await supabase
+        .from('tasks')
+        .insert(fallbackPayload)
+        .select()
+        .single();
+
+      if (!retryError && retryData) {
+        return dbRowToTask(retryData as DbTaskRow);
+      }
+      logSafeError('Create task (fallback)', retryError || error);
+      throw new Error(formatSafeErrorMessage(retryError || error, 'Failed to create task'));
     }
+    logSafeError('Create task', error);
     throw new Error(formatSafeErrorMessage(error, 'Failed to create task'));
   }
 
@@ -270,12 +313,23 @@ export async function updateCloudTask(task: Task, userId: string): Promise<Task>
     .single();
 
   if (error) {
-    logSafeError('Update task', error);
-    if (error.message?.includes('parent_id') || error.message?.includes('order_index')) {
-      throw new Error(
-        "Database migration required: 'parent_id' or 'order_index' column is missing in Supabase. Run the SQL migration in supabase/migrations/20261023000000_add_task_hierarchy_and_order.sql."
-      );
+    if (isMissingColumnError(error)) {
+      const fallbackPayload = stripExtensionColumns(updatePayload);
+      const { data: retryData, error: retryError } = await supabase
+        .from('tasks')
+        .update(fallbackPayload)
+        .eq('id', task.id)
+        .eq('user_id', userId)
+        .select()
+        .single();
+
+      if (!retryError && retryData) {
+        return dbRowToTask(retryData as DbTaskRow);
+      }
+      logSafeError('Update task (fallback)', retryError || error);
+      throw new Error(formatSafeErrorMessage(retryError || error, 'Failed to update task'));
     }
+    logSafeError('Update task', error);
     throw new Error(formatSafeErrorMessage(error, 'Failed to update task'));
   }
 

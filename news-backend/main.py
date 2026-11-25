@@ -7,7 +7,7 @@ from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-from config import PORT, FRONTEND_ORIGINS
+from config import PORT, FRONTEND_ORIGINS, FRONTEND_ORIGIN_REGEX
 from database import init_db, get_articles, get_sources_health, get_connection
 from scheduler import start_scheduler, stop_scheduler
 from fetcher import fetch_all_sources
@@ -32,10 +32,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS configuration restricted to frontend origins
+# CORS configuration restricted to frontend origins (including Vercel preview/production deployments)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=FRONTEND_ORIGINS,
+    allow_origin_regex=FRONTEND_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],

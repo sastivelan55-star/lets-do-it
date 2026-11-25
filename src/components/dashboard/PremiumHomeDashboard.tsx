@@ -165,7 +165,13 @@ export default function PremiumHomeDashboard({
 
       // Overdue tasks that were marked completed on selectedDate
       if (completionMap.get(t.id) === true) return true;
-      if (t.completedAt && t.completedAt.slice(0, 10) === selectedDate) return true;
+      if (t.completedAt) {
+        try {
+          if (format(parseISO(t.completedAt), 'yyyy-MM-dd') === selectedDate) return true;
+        } catch {
+          if (t.completedAt.slice(0, 10) === selectedDate) return true;
+        }
+      }
 
       return false;
     });

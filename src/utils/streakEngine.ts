@@ -35,6 +35,15 @@ export interface StreakData {
 
 export const DEFAULT_DAILY_MISSION_GOAL = 3;
 
+function toLocalDateStr(iso: string): string {
+  try {
+    const parsed = parseISO(iso);
+    return Number.isNaN(parsed.getTime()) ? iso.slice(0, 10) : format(parsed, 'yyyy-MM-dd');
+  } catch {
+    return iso.slice(0, 10);
+  }
+}
+
 /**
  * Calculates completed task count for a specific calendar date (YYYY-MM-DD).
  * Checks both Task records (by completedAt or assigned date) and DailyRecord logs.
@@ -47,7 +56,7 @@ export function getCompletedTaskCountForDate(
   const fromTasks = tasks.filter((t) => {
     if (t.isDeleted || t.status !== 'completed') return false;
     if (t.completedAt) {
-      return t.completedAt.slice(0, 10) === dateStr;
+      return toLocalDateStr(t.completedAt) === dateStr;
     }
     const assigned = (t.scheduledDate || t.targetDate || t.dueDate || '').slice(0, 10);
     return assigned === dateStr;
@@ -132,7 +141,7 @@ export function calculateStreak(
   const dateSet = new Set<string>();
   tasks.forEach((t) => {
     if (t.status === 'completed') {
-      if (t.completedAt) dateSet.add(t.completedAt.slice(0, 10));
+      if (t.completedAt) dateSet.add(toLocalDateStr(t.completedAt));
       const assigned = (t.scheduledDate || t.targetDate || t.dueDate || '').slice(0, 10);
       if (assigned) dateSet.add(assigned);
     }

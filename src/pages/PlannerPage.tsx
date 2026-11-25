@@ -41,8 +41,9 @@ export default function PlannerPage() {
 
   // Filtered tasks
   const filtered = tasks.filter((t) => {
-    if (viewMode === 'day' && t.dueDate !== viewDate) return false;
-    if (viewMode === 'week' && !weekDates.includes(t.dueDate)) return false;
+    const taskDate = (t.scheduledDate || t.targetDate || t.dueDate || '').slice(0, 10);
+    if (viewMode === 'day' && taskDate !== viewDate) return false;
+    if (viewMode === 'week' && !weekDates.includes(taskDate)) return false;
     if (areaFilter !== 'all' && t.lifeArea !== areaFilter) return false;
     if (statusFilter !== 'all' && t.status !== statusFilter) return false;
     return true;

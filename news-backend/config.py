@@ -18,8 +18,12 @@ CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-3-haiku-20240307").strip()
 
 # Server & Security
 PORT = int(os.getenv("PORT", "8000"))
-raw_origins = os.getenv("FRONTEND_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000")
-FRONTEND_ORIGINS = [o.strip() for o in raw_origins.split(",") if o.strip()]
+raw_origins = os.getenv(
+    "FRONTEND_ORIGINS",
+    "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,https://*.vercel.app",
+)
+FRONTEND_ORIGINS = [o.strip() for o in raw_origins.split(",") if o.strip() and "*" not in o]
+FRONTEND_ORIGIN_REGEX = os.getenv("FRONTEND_ORIGIN_REGEX", r"^https://.*\.vercel\.app$").strip() or None
 
 # Database path
 DB_PATH = str(backend_dir / "news.db")

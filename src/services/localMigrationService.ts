@@ -102,6 +102,7 @@ export async function migrateLocalDataToCloud(
         !cloudTaskIdSet.has(lt.id) &&
         lt.title &&
         lt.title.trim().length > 0 &&
+        !lt.isDeleted &&
         (!lt.userId || lt.userId === userId)
       ) {
         try {
