@@ -1,172 +1,188 @@
-# LifeMap OS — Personal Progress & Cloud Execution System
+# Life OS — Personal Productivity & Engineering Execution System
 
-LifeMap OS is an engineering-first personal operating system and progress tracker designed for students and developers. It supports balanced growth across Technical Mastery, Communication, Career Readiness, Creativity, and Health with cloud synchronization backed by Supabase PostgreSQL and Row-Level Security (RLS).
+> **File Location:** `C:\lets do it\README.md`
+
+Life OS is an engineering-first personal operating system, daily task execution engine, and productivity command center designed for students, software engineers, and high-performance individuals. It balances technical growth, career readiness, academics, daily habits, and project delivery with real-time cloud synchronization backed by Supabase PostgreSQL and offline resilience via IndexedDB.
 
 ---
 
-## ⚡ Tech Stack
+## 📌 Purpose & Use Cases (What is the use?)
 
-- **Frontend**: React 19, TypeScript, Vite 8
-- **Styling**: Vanilla CSS design system with glassmorphism & dark-mode aesthetics
+Life OS solves the fragmentation of using multiple disconnected apps for tasks, calendars, notes, career tracking, and news. It provides a single unified dashboard to:
+
+1. **Execute Daily Missions with Zero Friction**: Keep track of what needs to be done *today* without getting overwhelmed by hundreds of backlogged items.
+2. **Eliminate Lost or Overdue Work**: Automatically detects pending tasks from previous days and allows carrying them forward in one click.
+3. **Bridge Long-Term Goals and Daily Action**: Connect high-level roadmaps and quarterly project milestones directly to daily hourly schedules and tasks.
+4. **Career & Placement Mastery**: Dedicated placement HQ to practice Data Structures & Algorithms (DSA), technical topics, viva preparation, and resume tracking.
+5. **Work Seamlessly Anywhere (Online & Offline)**: Instant optimistic UI with automatic cloud sync across devices using Supabase, backed by an offline-first IndexedDB engine.
+
+---
+
+## ✨ Comprehensive Features & Modules
+
+### 1. 🏠 Premium Productivity Dashboard (Home)
+- **Dynamic Header & Greeting**: Personalized time-of-day greeting (Good Morning / Afternoon / Evening) with weekday and date tracking.
+- **Date Navigation**: Jump between past, present, and future dates with a single click, or return to "Today" instantly.
+- **Today's Missions**:
+  - Filter by All, Pending, or Completed.
+  - Reversible one-click completion ticks that instantly update progress metrics.
+  - Automatic Overdue Banner displaying pending tasks from previous days with a **Carry Forward All** action.
+  - Inline Quick Add Mission input bar for rapid task entry without opening modals.
+- **Floating Time Picker**: Non-disruptive floating time selector with presets (Morning 9:00 AM, Afternoon 2:00 PM, Evening 6:00 PM, Night 9:00 PM) and quick minute chips (+15m, +30m, +1h).
+- **Quick Actions Palette**: One-click shortcuts for New Task, Go to Calendar, Add List, Browse Templates, Import Tasks, and View Stats.
+- **Interactive Monthly Mini-Calendar**: Visual indicator dots for days with active tasks and completed tasks.
+- **Upcoming Tasks Feed**: Chronologically sorted preview of scheduled deadlines.
+- **Recent Activity Log**: Audit trail of recently created, completed, and updated tasks.
+- **Light & Dark Mode**: One-click top-bar theme toggle with seamless background and glassmorphism styling transition.
+
+### 2. 📋 Tasks Hub & Management System (Google Tasks-Inspired)
+- **Smart Views**:
+  - **All Tasks**: Central repository for all active tasks.
+  - **My Day**: Curated focus list for the current 24-hour cycle.
+  - **Upcoming**: Scheduled future tasks with countdown badges.
+  - **Daily Routines**: Tasks marked with recurring individual daily frequency (`isDaily`).
+  - **Starred**: High-priority bookmarked tasks.
+  - **Completed**: Historical archive of completed tasks with reversible toggle.
+- **Custom Categorized Lists**:
+  - Personal
+  - College & Academics
+  - Projects
+  - Learning & Skills
+  - Health & Routines
+- **Task Attributes**: Priority flags (Critical, High, Medium, Low), life areas, tags, due dates, scheduled time, subtasks checklist, and rich notes.
+- **Task Recycle Bin**: Soft delete with safety restore and permanent purge capabilities.
+
+### 3. ⏱️ Daily Timetable & Hourly Timeline
+- Visual 24-hour schedule grid for time-blocking work sessions, classes, deep work, and habits.
+- Syncs directly with scheduled tasks from the Tasks Hub.
+
+### 4. 📅 Calendar Planner
+- Multi-perspective views (Day, Week, Month) for visualizing upcoming deadlines, exam dates, and project milestones.
+
+### 5. 📁 Projects Hub
+- Multi-project management with progress percentage tracking, deliverables breakdown, and linked tasks.
+
+### 6. 🚀 Strategic Roadmap & Milestones
+- Long-term strategic planner organizing goals across months and quarters with progress visualization.
+
+### 7. 📊 Weekly Reflection & Performance Analytics
+- Automated streak calculation engine for daily habit consistency.
+- Weekly retrospective notes, accomplishment logs, and productivity scoring.
+
+### 8. 🎓 Placement Training HQ
+- Specialized modules for engineering interview preparation:
+  - DSA topic checklists (Arrays, Trees, Graphs, DP, etc.).
+  - Technical core subjects (OS, DBMS, CN, System Design).
+  - Aptitude and mock interview tracking.
+
+### 9. 📝 Knowledge Base & Notes
+- Categorized technical notes, code snippets, documentation bookmarks, and search.
+
+### 10. 🗄️ Digital Vault & Media Uploads
+- Secure resource vault with file upload management integrated with Supabase Storage and resumable TUS protocol.
+
+### 11. 🛒 Smart Grocery List
+- Categorized shopping assistant with item check-offs, quantities, and spending estimates.
+
+### 12. 📰 Jarvis News Intelligence Feed (`news-backend`)
+- Standalone zero-cost Python FastAPI service aggregating 17+ verified RSS news feeds (Chennai, Tamil Nadu, India, and Global).
+- Automatic deduplication, live TV streaming feeds, and optional AI executive briefing.
+
+### 13. 🤖 Nova AI Assistant & Quick Capture
+- Floating AI assistant for task breakdown, planning advice, and context-aware help.
+- Global Quick Capture modal accessible via keyboard shortcut (`Ctrl + K`).
+
+---
+
+## ⚡ Tech Stack & Architecture
+
+- **Frontend Framework**: React 19, TypeScript, Vite 8
+- **Styling**: Modern Neo-Future Glassmorphism design system, Tailwind CSS v4, dynamic CSS custom properties for Light/Dark mode
 - **Cloud Database & Auth**: Supabase PostgreSQL + GoTrue Auth SDK (`@supabase/supabase-js`)
-- **Offline / Demo Mode**: IndexedDB (`idb`) fallback
-- **Testing**: Vitest 5
-- **Linting**: Oxlint
+- **Offline / Local Cache**: IndexedDB (`idb`) for zero-lag offline execution
+- **Icons**: Lucide React
+- **Date Handling**: `date-fns` v4
+- **Backend Service (News)**: Python 3.10+, FastAPI, SQLite, Uvicorn
+- **Testing**: Vitest 5 (25 test suites, 235 passing tests)
+- **Linter**: Oxlint
 
 ---
 
-## 🛠️ Local Development Setup
+## 📁 Project Directory Structure & Address
 
-### 1. Prerequisites
-- Node.js 18+ installed
-- npm or pnpm
+```
+C:\lets do it\
+├── README.md                              <-- THIS FILE (Main Application Documentation)
+├── BUILD_STATUS.md                        <-- Build verification and release status
+├── package.json                           <-- Dependencies and scripts
+├── vite.config.ts                         <-- Vite configuration
+├── index.html                             <-- Single Page App entrypoint
+├── src\
+│   ├── App.tsx                            <-- Root application layout & routing
+│   ├── main.tsx                           <-- React root entrypoint
+│   ├── index.css                          <-- Global CSS tokens & themes (Light/Dark)
+│   ├── components\
+│   │   ├── dashboard\
+│   │   │   └── PremiumHomeDashboard.tsx   <-- Complete Home productivity dashboard
+│   │   ├── layout\
+│   │   │   ├── Sidebar.tsx                <-- Navigation sidebar
+│   │   │   └── TopBar.tsx                 <-- Top navigation & Theme toggle
+│   │   ├── tasks\                         <-- Task management & dialog components
+│   │   ├── timetable\                     <-- Daily timetable timeline components
+│   │   └── common\
+│   │       └── FloatingTimePicker.tsx     <-- Floating time picker popover
+│   ├── pages\
+│   │   ├── HomePage.tsx                   <-- Home page container
+│   │   ├── TaskBuilderPage.tsx            <-- Google Tasks-inspired Tasks Hub
+│   │   ├── PlannerPage.tsx                <-- Calendar planner
+│   │   ├── ProjectsPage.tsx               <-- Projects hub
+│   │   ├── RoadmapPage.tsx                <-- Strategic roadmap
+│   │   ├── WeeklyReviewPage.tsx           <-- Reflection & streak analysis
+│   │   ├── PlacementHQPage.tsx            <-- Placement training hub
+│   │   ├── KnowledgePage.tsx              <-- Knowledge & notes
+│   │   ├── VaultPage.tsx                  <-- Digital vault & uploads
+│   │   ├── GroceryPage.tsx                <-- Grocery checklist
+│   │   ├── PulseFlowPage.tsx              <-- News intelligence feed
+│   │   └── ReviewSettingsPage.tsx         <-- Settings & preferences
+│   ├── context\
+│   │   ├── AppContext.tsx                 <-- Core state, theme engine, data operations
+│   │   └── AuthContext.tsx                <-- Supabase authentication state
+│   ├── db\                                <-- IndexedDB storage and seed data
+│   ├── services\                          <-- Cloud Supabase APIs & sync engines
+│   └── tests\                             <-- Vitest integration and unit test suites
+└── news-backend\                          <-- Python FastAPI RSS news backend
+    ├── README.md                          <-- Backend documentation
+    ├── main.py                            <-- FastAPI application
+    └── requirements.txt                   <-- Python dependencies
+```
 
-### 2. Installation
+---
+
+## 🛠️ Quick Start & Local Development
+
+### 1. Run the Frontend:
 ```bash
-git clone <repo-url>
-cd lets-do-it
+# In C:\lets do it
 npm install
-```
-
-### 3. Environment Variables Configuration
-Copy the provided example file:
-```bash
-cp .env.example .env.local
-```
-
-Fill in your actual Supabase project credentials in `.env.local`:
-```env
-# Supabase Project URL (Dashboard -> Project Settings -> API -> Project URL)
-VITE_SUPABASE_URL=https://your-project-id.supabase.co
-
-# Supabase Anon Public Key (Dashboard -> Project Settings -> API -> anon/public)
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
-> **Security Notice**: Never commit `.env` or `.env.local` to git. Never expose your Supabase `service_role` key in frontend client code.
-
-### 4. Running the App
-```bash
-# Start local Vite development server
 npm run dev
+```
+Open [http://localhost:5173](http://localhost:5173) in your browser.
 
-# Run unit and integration tests
+### 2. Run Tests:
+```bash
 npm run test
+```
 
-# Run linter
-npm run lint
-
-# Compile and create production bundle
+### 3. Run Production Build:
+```bash
 npm run build
 ```
 
----
-
-## 🗄️ Database Setup & SQL Migration
-
-LifeMap OS uses a dedicated `public.tasks` table with strict PostgreSQL Row-Level Security (RLS) policies.
-
-### Steps to Run Migrations:
-1. Open your [Supabase Dashboard](https://supabase.com/dashboard).
-2. Select your project and navigate to **SQL Editor** in the left sidebar.
-3. Open or copy the migration script located at:
-   ```
-   supabase/migrations/20261011000000_create_tasks_table.sql
-   ```
-4. Click **Run** to execute the migration.
-5. This creates:
-   - `public.tasks` table with UUID primary keys and foreign keys referencing `auth.users(id) ON DELETE CASCADE`.
-   - Automatic `updated_at` trigger (`handle_updated_at`).
-   - Performance indexes on `(user_id)`, `(user_id, due_date)`, `(user_id, status)`, and `(user_id, area)`.
-   - **Row-Level Security (RLS)** policies restricting `SELECT`, `INSERT`, `UPDATE`, and `DELETE` strictly to `auth.uid() = user_id`.
-
----
-
-## 🔐 Supabase Authentication & Email Verification Setup
-
-Because Supabase defaults to requiring email confirmation before sign-in (`mailer_autoconfirm = false`), ensure your project authentication is properly configured:
-
-### 1. Site URL & Redirect URLs Configuration
-1. In your Supabase Dashboard, go to **Authentication** -> **URL Configuration**.
-2. **Site URL**:
-   - For local development: `http://localhost:5173`
-   - For production: `https://your-lifemap-deployment.vercel.app`
-3. **Redirect URLs**: Add both local and production URLs to the allow list:
-   - `http://localhost:5173`
-   - `http://localhost:5173/**`
-   - `http://127.0.0.1:5173`
-   - `https://your-lifemap-deployment.vercel.app`
-   - `https://your-lifemap-deployment.vercel.app/**`
-
-### 2. Email Templates & Confirmation Flow
-- Under **Authentication** -> **Email Templates**, verify that the Confirmation template points to:
-  `{{ .SiteURL }}` or `{{ .RedirectTo }}`.
-- When a user signs up, LifeMap OS automatically attaches `options: { emailRedirectTo: window.location.origin }`, directing the user to the active domain (local or Vercel).
-- If a user attempts to sign in prior to confirmation, LifeMap displays:
-  *"Your email has not been verified yet. Please check your inbox for the confirmation email before signing in."*
-- If an account already exists, LifeMap OS flags:
-  *"An account with this email already exists. Please sign in or reset your password."*
-- If a user clicks an expired verification link, LifeMap detects URL error fragments (`#error=...`) and displays:
-  *"The verification or reset link has expired. Please request a new link."*
-
-### 3. Password Reset
-- Users can click **Forgot password?** on the sign-in modal.
-- Clicking the link in the recovery email triggers the in-app password recovery modal (`updateUser({ password })`), allowing the user to establish a new password securely.
-
----
-
-## 🔄 Reversible Task Completion & Data Isolation
-
-1. **Reversible Completion Toggle**:
-   - Clicking the task checkbox toggles between `not-started` and `completed`.
-   - Completed tasks have their timestamp recorded in `completedAt` and `completed_at` in Postgres.
-   - Unchecking a completed task sets `status = 'not-started'` and sets `completed_at = NULL` in Postgres.
-   - Dashboard completion rings, daily progress counts, overdue alerts, and weighted area calculations update immediately and deterministically.
-2. **Optimistic Updates & Server Rollback**:
-   - Status changes update the UI instantly.
-   - If an error occurs during cloud persistence (e.g. network interruption or missing database table), the state is rolled back to its previous value and a descriptive banner is surfaced.
-3. **Account Isolation**:
-   - In cloud mode, tasks are filtered and modified only for the authenticated `user.id`.
-   - Signing out purges all in-memory task states.
-   - Cloud tasks are never persisted into un-scoped offline cache stores, preventing data leakage across accounts.
-
----
-
-## 🚀 Deploying to Vercel
-
-The application is pre-configured for seamless deployment to Vercel using `vercel.json` and Vite.
-
-### Step-by-Step Vercel Deployment:
-
-1. **Push your code to GitHub / GitLab / Bitbucket**:
-   ```bash
-   git add .
-   git commit -m "feat: bug fixes, reversible task completion, and vercel deployment readiness"
-   git push origin main
-   ```
-
-2. **Import Project into Vercel**:
-   - Visit [Vercel Dashboard](https://vercel.com/dashboard) and click **Add New...** -> **Project**.
-   - Select your repository.
-   - Framework Preset: **Vite** (detected automatically).
-   - Root Directory: `./`
-   - Build Command: `npm run build` (or `tsc -b && vite build`)
-   - Output Directory: `dist`
-
-3. **Configure Production Environment Variables**:
-   In the Vercel project configuration, add:
-   - `VITE_SUPABASE_URL`: `https://<your-project-id>.supabase.co`
-   - `VITE_SUPABASE_ANON_KEY`: `<your-supabase-anon-public-key>`
-
-4. **Deploy**:
-   - Click **Deploy**.
-   - Vercel will run `tsc -b && vite build` and deploy the output.
-
-5. **Post-Deployment Verification**:
-   - Copy your production domain (e.g. `https://your-lifemap-app.vercel.app`).
-   - In your Supabase Dashboard under **Authentication -> URL Configuration**, add your production domain to **Site URL** and **Redirect URLs**.
-   - Open the live Vercel URL in your browser:
-     1. Verify the landing screen loads without infinite spinners.
-     2. Create a test account and verify email confirmation.
-     3. Sign in, add tasks, and test reversible completion toggling.
-     4. Refresh the page to confirm cloud persistence.
-     5. Sign out and verify offline demo mode works independently.
+### 4. (Optional) Run News Intelligence Backend:
+```powershell
+cd "C:\lets do it\news-backend"
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+```
