@@ -96,9 +96,14 @@ export async function migrateLocalDataToCloud(
     const cloudNoteIdSet = new Set(cloudData.notes.map((n) => n.id));
     const cloudRecordDateSet = new Set(cloudData.dailyRecords.map((r) => r.date));
 
-    // 1. Migrate Local Tasks that don't exist in cloud
+    // 1. Migrate Local Tasks that don't exist in cloud and belong to this user (or unowned guest)
     for (const lt of localTasks) {
-      if (!cloudTaskIdSet.has(lt.id) && lt.title && lt.title.trim().length > 0) {
+      if (
+        !cloudTaskIdSet.has(lt.id) &&
+        lt.title &&
+        lt.title.trim().length > 0 &&
+        (!lt.userId || lt.userId === userId)
+      ) {
         try {
           await createCloudTask(lt, userId);
           summary.tasksMigrated++;

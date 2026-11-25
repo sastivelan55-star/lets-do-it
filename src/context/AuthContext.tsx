@@ -3,6 +3,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import type { User, Session } from '@supabase/supabase-js';
 import { getSupabase } from '../services/supabaseClient';
 import { isSupabaseConfigured } from '../config/env';
+import { clearAllData } from '../db/storage';
 
 interface AuthContextValue {
   user: User | null;
@@ -215,6 +216,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return params.get('type') === 'recovery';
   });
 
+  const signOut = useCallback(async () => {
+    persistAuthState(null, null);
+    try {
+      localStorage.removeItem(LIFEOS_GUEST_MODE_KEY);
+      localStorage.removeItem('lifeos_supabase_auth_token');
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith('sb-') || key.startsWith('lifeos_')) && key.endsWith('-auth-token')) {
+          localStorage.removeItem(key);
+        }
+      }
+    } catch {}
+    try {
+      await clearAllData();
+    } catch {
+      // Ignore IndexedDB cleanup errors during sign-out
+    }
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        await supabase.auth.signOut();
+      } catch {
+        // Ignore signout network errors
+      }
+    }
+    setUser(null);
+    setSession(null);
+    setIsGuest(false);
+    setIsPasswordRecovery(false);
+    setAuthError(null);
+  }, []);
+
   useEffect(() => {
     // Clean up error params in URL address bar on mount
     if (typeof window !== 'undefined' && (window.location.hash.includes('error=') || window.location.search.includes('error='))) {
@@ -335,7 +368,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isMounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [signOut]);
 
   const signIn = useCallback(
     async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
@@ -502,33 +535,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, []);
-
-  const signOut = useCallback(async () => {
-    persistAuthState(null, null);
-    try {
-      localStorage.removeItem(LIFEOS_GUEST_MODE_KEY);
-      localStorage.removeItem('lifeos_supabase_auth_token');
-      for (let i = localStorage.length - 1; i >= 0; i--) {
-        const key = localStorage.key(i);
-        if (key && (key.startsWith('sb-') || key.startsWith('lifeos_')) && key.endsWith('-auth-token')) {
-          localStorage.removeItem(key);
-        }
-      }
-    } catch {}
-    const supabase = getSupabase();
-    if (supabase) {
-      try {
-        await supabase.auth.signOut();
-      } catch {
-        // Ignore signout network errors
-      }
-    }
-    setUser(null);
-    setSession(null);
-    setIsGuest(false);
-    setIsPasswordRecovery(false);
-    setAuthError(null);
   }, []);
 
   const resetPassword = useCallback(
