@@ -15,10 +15,6 @@ import {
   ArrowRight,
   Check,
   Edit3,
-  ListTodo,
-  FolderPlus,
-  UploadCloud,
-  BarChart2,
   Sparkles,
   RotateCcw,
 } from 'lucide-react';
@@ -39,7 +35,7 @@ import {
 import { useDailyExecution } from '../../hooks/useDailyExecution';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
-import { today, formatDateLong, getGreeting, formatTime } from '../../utils/dates';
+import { today, getGreeting, formatTime } from '../../utils/dates';
 import { ALL_CHARACTERS } from '../../data/animeCharacters';
 import type { Task, DailyTaskOccurrence, DailyTaskCompletion, TaskPriority } from '../../types';
 import FloatingTimePicker, { type TimePickerResult } from '../common/FloatingTimePicker';
@@ -79,7 +75,7 @@ export default function PremiumHomeDashboard({
   onOpenTaskBuilder: _onOpenTaskBuilder,
 }: PremiumHomeDashboardProps) {
   const { user } = useAuth();
-  const { tasks, settings, updateTask, addTask, batchUpdateTasks } = useApp();
+  const { tasks, settings, updateTask, addTask, batchUpdateTasks, removeTask } = useApp();
 
   const isLight = settings.theme === 'light' || settings.appearance?.theme === 'light';
 
@@ -112,9 +108,34 @@ export default function PremiumHomeDashboard({
   const [timePickerAnchor, setTimePickerAnchor] = useState<HTMLElement | null>(null);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [completingIds, setCompletingIds] = useState<Set<string>>(new Set());
 
   // Daily Execution engine hook for the selected date
   const { occurrences, toggleCompletion, completions } = useDailyExecution(selectedDate);
+
+  const handleCompleteMission = useCallback(
+    async (taskId: string, isCurrentlyDone: boolean) => {
+      if (isCurrentlyDone) {
+        await toggleCompletion(taskId, true);
+        return;
+      }
+      setCompletingIds((prev) => {
+        const next = new Set(prev);
+        next.add(taskId);
+        return next;
+      });
+      setTimeout(async () => {
+        await toggleCompletion(taskId, false);
+        await removeTask(taskId);
+        setCompletingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(taskId);
+          return next;
+        });
+      }, 300);
+    },
+    [toggleCompletion, removeTask]
+  );
 
   // Live digital clock (updates every second)
   const [nowTime, setNowTime] = useState<Date>(() => new Date());
@@ -703,10 +724,30 @@ export default function PremiumHomeDashboard({
                 </div>
                 <div>
                   <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: isLight ? '#0f172a' : '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span>Today's Missions</span>
-                    <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: 500 }}>
-                      • {formatDateLong(selectedDate)}
-                    </span>
+                    <span>Today&apos;s Missions</span>
+                    {onOpenQuickCapture && (
+                      <button
+                        type="button"
+                        onClick={onOpenQuickCapture}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '3px 10px',
+                          borderRadius: '8px',
+                          background: isLight ? 'rgba(124, 58, 237, 0.1)' : 'rgba(168, 85, 247, 0.2)',
+                          border: isLight ? '1px solid rgba(124, 58, 237, 0.28)' : '1px solid rgba(168, 85, 247, 0.4)',
+                          color: isLight ? '#6d28d9' : '#e9d5ff',
+                          fontSize: '0.74rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                        }}
+                        title="Quick Capture New Task (Ctrl + K)"
+                      >
+                        <Plus size={13} />
+                        <span>Add Task</span>
+                      </button>
+                    )}
                   </h3>
                 </div>
               </div>
@@ -803,6 +844,7 @@ export default function PremiumHomeDashboard({
                 filteredMissions.map((occ) => {
                   const cat = getCategoryBadge(occ.lifeArea);
                   const isDone = Boolean(occ.isCompleted);
+                  const isCompleting = completingIds.has(occ.taskId);
 
                   return (
                     <div
@@ -813,29 +855,41 @@ export default function PremiumHomeDashboard({
                         justifyContent: 'space-between',
                         padding: '10px 14px',
                         borderRadius: '12px',
-                        background: isLight ? (isDone ? 'rgba(241, 245, 249, 0.6)' : '#ffffff') : 'rgba(255, 255, 255, 0.03)',
-                        border: isLight ? '1px solid rgba(226, 232, 240, 0.95)' : '1px solid rgba(255, 255, 255, 0.07)',
+                        background: isCompleting
+                          ? 'rgba(16, 185, 129, 0.18)'
+                          : isLight
+                            ? (isDone ? 'rgba(241, 245, 249, 0.6)' : '#ffffff')
+                            : 'rgba(255, 255, 255, 0.03)',
+                        border: isCompleting
+                          ? '1px solid rgba(16, 185, 129, 0.5)'
+                          : isLight
+                            ? '1px solid rgba(226, 232, 240, 0.95)'
+                            : '1px solid rgba(255, 255, 255, 0.07)',
                         gap: '10px',
-                        transition: 'all 0.15s ease',
+                        opacity: isCompleting ? 0 : 1,
+                        transform: isCompleting ? 'translateX(16px) scale(0.98)' : 'translateX(0) scale(1)',
+                        transition: 'all 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
                       }}
                     >
                       {/* Left: Checkbox + Title */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
                         <button
                           type="button"
-                          onClick={() => toggleCompletion(occ.taskId, isDone)}
+                          onClick={() => handleCompleteMission(occ.taskId, isDone)}
                           style={{
                             background: 'none',
                             border: 'none',
                             padding: 0,
                             cursor: 'pointer',
-                            color: isDone ? '#10b981' : (isLight ? 'rgba(0, 0, 0, 0.25)' : 'rgba(255, 255, 255, 0.35)'),
+                            color: isDone || isCompleting ? '#10b981' : (isLight ? 'rgba(0, 0, 0, 0.25)' : 'rgba(255, 255, 255, 0.35)'),
                             display: 'flex',
                             flexShrink: 0,
+                            transform: isCompleting ? 'scale(1.25)' : 'scale(1)',
+                            transition: 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)',
                           }}
-                          title={isDone ? 'Mark incomplete' : 'Mark complete'}
+                          title={isDone ? 'Mark incomplete' : 'Complete & move to Recycle Bin'}
                         >
-                          {isDone ? <CheckCircle2 size={20} /> : <Circle size={20} />}
+                          {isDone || isCompleting ? <CheckCircle2 size={20} /> : <Circle size={20} />}
                         </button>
 
                         <span
@@ -1023,192 +1077,6 @@ export default function PremiumHomeDashboard({
 
       {/* ─── RIGHT COLUMN: UTILITY PANELS (Quick Actions, Calendar, Upcoming, Recent) ─── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', paddingBottom: '5rem' }}>
-          {/* ── 1. QUICK ACTIONS (6 Grid Buttons) ── */}
-          <div style={glassCardStyle}>
-            <div style={{ fontSize: '0.92rem', fontWeight: 800, color: isLight ? '#0f172a' : '#f8fafc', marginBottom: '0.85rem' }}>
-              Quick Actions
-            </div>
-
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
-                gap: '0.75rem',
-              }}
-            >
-              {/* Button 1: New Task */}
-              <button
-                type="button"
-                onClick={() => (onOpenQuickCapture ? onOpenQuickCapture() : onNavigateSection && onNavigateSection('tasks'))}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '0.75rem 0.5rem',
-                  borderRadius: '12px',
-                  background: isLight ? 'rgba(248, 250, 252, 0.95)' : 'rgba(255, 255, 255, 0.03)',
-                  border: isLight ? '1px solid rgba(148, 163, 184, 0.3)' : '1px solid rgba(168, 85, 247, 0.2)',
-                  color: 'var(--text-primary)',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <div
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '8px',
-                    background: 'rgba(168, 85, 247, 0.25)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#c084fc',
-                  }}
-                >
-                  <Plus size={16} />
-                </div>
-                <span style={{ fontSize: '0.72rem', fontWeight: 600 }}>New Task</span>
-              </button>
-
-              {/* Button 2: Add List */}
-              <button
-                type="button"
-                onClick={() => onNavigateSection && onNavigateSection('tasks')}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '0.75rem 0.5rem',
-                  borderRadius: '12px',
-                  background: isLight ? 'rgba(248, 250, 252, 0.95)' : 'rgba(255, 255, 255, 0.03)',
-                  border: isLight ? '1px solid rgba(148, 163, 184, 0.3)' : '1px solid rgba(168, 85, 247, 0.2)',
-                  color: 'var(--text-primary)',
-                  cursor: 'pointer',
-                }}
-              >
-                <div
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '8px',
-                    background: 'rgba(168, 85, 247, 0.25)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#c084fc',
-                  }}
-                >
-                  <ListTodo size={16} />
-                </div>
-                <span style={{ fontSize: '0.72rem', fontWeight: 600 }}>Add List</span>
-              </button>
-
-              {/* Button 3: Browse Templates */}
-              <button
-                type="button"
-                onClick={() => onNavigateSection && onNavigateSection('projects')}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '0.75rem 0.5rem',
-                  borderRadius: '12px',
-                  background: isLight ? 'rgba(248, 250, 252, 0.95)' : 'rgba(255, 255, 255, 0.03)',
-                  border: isLight ? '1px solid rgba(148, 163, 184, 0.3)' : '1px solid rgba(168, 85, 247, 0.2)',
-                  color: 'var(--text-primary)',
-                  cursor: 'pointer',
-                }}
-              >
-                <div
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '8px',
-                    background: 'rgba(168, 85, 247, 0.25)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#c084fc',
-                  }}
-                >
-                  <FolderPlus size={16} />
-                </div>
-                <span style={{ fontSize: '0.72rem', fontWeight: 600 }}>Browse Templates</span>
-              </button>
-
-              {/* Button 4: Import Tasks */}
-              <button
-                type="button"
-                onClick={() => onNavigateSection && onNavigateSection('vault')}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '0.75rem 0.5rem',
-                  borderRadius: '12px',
-                  background: isLight ? 'rgba(248, 250, 252, 0.95)' : 'rgba(255, 255, 255, 0.03)',
-                  border: isLight ? '1px solid rgba(148, 163, 184, 0.3)' : '1px solid rgba(168, 85, 247, 0.2)',
-                  color: 'var(--text-primary)',
-                  cursor: 'pointer',
-                }}
-              >
-                <div
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '8px',
-                    background: 'rgba(168, 85, 247, 0.25)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#c084fc',
-                  }}
-                >
-                  <UploadCloud size={16} />
-                </div>
-                <span style={{ fontSize: '0.72rem', fontWeight: 600 }}>Import Tasks</span>
-              </button>
-
-              {/* Button 5: View Stats */}
-              <button
-                type="button"
-                onClick={() => onNavigateSection && onNavigateSection('tasks')}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '0.75rem 0.5rem',
-                  borderRadius: '12px',
-                  background: isLight ? 'rgba(248, 250, 252, 0.95)' : 'rgba(255, 255, 255, 0.03)',
-                  border: isLight ? '1px solid rgba(245, 158, 11, 0.35)' : '1px solid rgba(245, 158, 11, 0.25)',
-                  color: 'var(--text-primary)',
-                  cursor: 'pointer',
-                }}
-              >
-                <div
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '8px',
-                    background: 'rgba(245, 158, 11, 0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#fbbf24',
-                  }}
-                >
-                  <BarChart2 size={16} />
-                </div>
-                <span style={{ fontSize: '0.72rem', fontWeight: 600 }}>View Stats</span>
-              </button>
-            </div>
-          </div>
-
           {/* ── 2. COMPACT MONTHLY CALENDAR WIDGET ── */}
           <div style={glassCardStyle}>
             {/* Header with Month & Controls */}

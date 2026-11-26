@@ -118,6 +118,7 @@ function ProfileIdentityCard({
   const [nameInput, setNameInput] = useState(displayName || 'Sastivelan');
   const [avatarInput, setAvatarInput] = useState(avatarUrl || '');
   const [avatarErr, setAvatarErr] = useState('');
+  const [pendingAvatar, setPendingAvatar] = useState<{ url: string; label: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -143,8 +144,7 @@ function ProfileIdentityCard({
     setAvatarErr('');
     try {
       const dataUrl = await resizeAvatarToDataUrl(file, 160);
-      setAvatarInput(dataUrl);
-      await onSave({ displayName: previewName, avatarUrl: dataUrl, profileAvatar: dataUrl });
+      setPendingAvatar({ url: dataUrl, label: file.name || 'Custom Avatar' });
     } catch (err: unknown) {
       setAvatarErr(formatSafeErrorMessage(err, 'Failed to process avatar image.'));
     } finally {
@@ -152,9 +152,15 @@ function ProfileIdentityCard({
     }
   };
 
-  const handleSelectPresetAvatar = async (url: string) => {
-    setAvatarInput(url);
-    await onSave({ displayName: previewName, avatarUrl: url, profileAvatar: url });
+  const handleSelectPresetAvatar = (url: string, label: string) => {
+    setPendingAvatar({ url, label });
+  };
+
+  const confirmAvatarChange = async () => {
+    if (!pendingAvatar) return;
+    setAvatarInput(pendingAvatar.url);
+    await onSave({ displayName: previewName, avatarUrl: pendingAvatar.url, profileAvatar: pendingAvatar.url });
+    setPendingAvatar(null);
   };
 
   const handleResetProfile = async () => {
@@ -277,7 +283,7 @@ function ProfileIdentityCard({
               <button
                 key={av.id}
                 type="button"
-                onClick={() => handleSelectPresetAvatar(av.url)}
+                onClick={() => handleSelectPresetAvatar(av.url, av.label)}
                 title={av.label}
                 style={{
                   width: '42px',
@@ -297,6 +303,45 @@ function ProfileIdentityCard({
           })}
         </div>
       </div>
+
+      {/* Avatar Change Permission Confirmation Modal */}
+      {pendingAvatar && (
+        <Modal
+          isOpen={true}
+          onClose={() => setPendingAvatar(null)}
+          title="Confirm Avatar Change"
+          maxWidth="400px"
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', textAlign: 'center' }}>
+            <div
+              style={{
+                width: '72px',
+                height: '72px',
+                borderRadius: '50%',
+                padding: '3px',
+                background: 'linear-gradient(135deg, #a855f7, #38bdf8)',
+              }}
+            >
+              <img
+                src={pendingAvatar.url}
+                alt={pendingAvatar.label}
+                style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+              />
+            </div>
+            <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
+              Allow Life OS to update your profile avatar to <strong>{pendingAvatar.label}</strong> across the Home header, Sidebar, and TopBar?
+            </p>
+            <div style={{ display: 'flex', gap: '0.65rem', justifyContent: 'flex-end', width: '100%' }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setPendingAvatar(null)}>
+                Cancel
+              </button>
+              <button type="button" className="btn btn-primary" onClick={confirmAvatarChange}>
+                Confirm Change
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

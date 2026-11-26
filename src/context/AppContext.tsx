@@ -1428,7 +1428,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // ── Milestones & Projects (Cloud Sync + Local Mirror) ───────────────────
   const updateMilestone = useCallback(
     async (milestone: RoadmapMilestone) => {
-      setMilestones((prev) => prev.map((m) => (m.id === milestone.id ? milestone : m)));
+      setMilestones((prev) => {
+        const exists = prev.some((m) => m.id === milestone.id);
+        return exists ? prev.map((m) => (m.id === milestone.id ? milestone : m)) : [...prev, milestone];
+      });
       if (user && isConfigured) {
         await saveCloudMilestone(milestone, user.id);
       } else {

@@ -47,6 +47,26 @@ export default function RoadmapPage() {
   );
   const [sessionForm, setSessionForm] = useState<string | null>(null);
   const [assignExistingMonth, setAssignExistingMonth] = useState<number | null>(null);
+  const [showAddMilestone, setShowAddMilestone] = useState(false);
+  const [newMilestoneTitle, setNewMilestoneTitle] = useState('');
+  const [newMilestoneDesc, setNewMilestoneDesc] = useState('');
+
+  const handleCreateMilestone = async () => {
+    if (!newMilestoneTitle.trim()) return;
+    const nextMonth = milestones.reduce((max, m) => Math.max(max, m.month), 0) + 1;
+    await updateMilestone({
+      id: nanoid(),
+      month: nextMonth,
+      title: newMilestoneTitle.trim(),
+      description: newMilestoneDesc.trim() || 'Custom learning & execution milestone',
+      status: 'not-started',
+      subtasks: [],
+      learningSessions: [],
+    });
+    setNewMilestoneTitle('');
+    setNewMilestoneDesc('');
+    setShowAddMilestone(false);
+  };
 
   // Overall progress includes both milestone subtasks and roadmap tasks
   const roadmapTasks = tasks.filter((t) => t.roadmapMonth != null);
@@ -63,12 +83,24 @@ export default function RoadmapPage() {
     <div className="page-container pb-safe">
       {/* Header */}
       <div style={{ marginBottom: '1.5rem' }}>
-        <h1 style={{ fontSize: '1.6rem', fontWeight: 800, marginBottom: '0.25rem' }}>
-          🗺️ <span className="gradient-text">Personal Learning & Milestone Roadmap</span>
-        </h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-          Fully editable monthly roadmap. Add, edit, reorder tasks, nested subtasks, and track completion seamlessly.
-        </p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <div>
+            <h1 style={{ fontSize: '1.6rem', fontWeight: 800, marginBottom: '0.25rem' }}>
+              🗺️ <span className="gradient-text">Personal Learning & Milestone Roadmap</span>
+            </h1>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+              Fully editable monthly roadmap. Add, edit, reorder tasks, nested subtasks, and track completion seamlessly.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            onClick={() => setShowAddMilestone(true)}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+          >
+            <Plus size={14} /> Add Milestone
+          </button>
+        </div>
 
         {/* Overall progress */}
         <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
@@ -124,6 +156,45 @@ export default function RoadmapPage() {
           />
         ))}
       </div>
+
+      {/* Add Milestone Modal */}
+      {showAddMilestone && (
+        <Modal isOpen={true} onClose={() => setShowAddMilestone(false)} title="Add Roadmap Milestone" maxWidth="480px">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
+                Milestone Title
+              </label>
+              <input
+                className="input"
+                value={newMilestoneTitle}
+                onChange={(e) => setNewMilestoneTitle(e.target.value)}
+                placeholder="e.g., Month 9: System Design Mastery"
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
+                Description
+              </label>
+              <textarea
+                className="input"
+                rows={3}
+                value={newMilestoneDesc}
+                onChange={(e) => setNewMilestoneDesc(e.target.value)}
+                placeholder="Key objectives, topics, or deliverables..."
+              />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setShowAddMilestone(false)}>
+                Cancel
+              </button>
+              <button type="button" className="btn btn-primary" onClick={handleCreateMilestone}>
+                Create Milestone
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {/* Assign Existing Tasks Modal */}
       {assignExistingMonth != null && (
