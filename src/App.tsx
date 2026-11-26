@@ -6,10 +6,8 @@ import Sidebar from './components/layout/Sidebar';
 import MobileNav from './components/layout/MobileNav';
 import HomePage from './pages/HomePage';
 import TaskBuilderPage from './pages/TaskBuilderPage';
-import PlannerPage from './pages/PlannerPage';
 import ProjectsPage from './pages/ProjectsPage';
 import RoadmapPage from './pages/RoadmapPage';
-import WeeklyReviewPage from './pages/WeeklyReviewPage';
 import MyJourneyPage from './pages/MyJourneyPage';
 import PersonalLifePage from './pages/PersonalLifePage';
 import KnowledgePage from './pages/KnowledgePage';
@@ -17,7 +15,6 @@ import ReviewSettingsPage from './pages/ReviewSettingsPage';
 import PulseFlowPage from './pages/PulseFlowPage';
 import VaultPage from './pages/VaultPage';
 import GroceryPage from './pages/GroceryPage';
-import PlacementHQPage from './pages/PlacementHQPage';
 import TopBar from './components/layout/TopBar';
 import UniversalSearchModal from './components/search/UniversalSearchModal';
 import QuickCaptureModal from './components/quickCapture/QuickCaptureModal';
@@ -30,18 +27,14 @@ export type NavSection =
   | 'notes'
   | 'vault'
   | 'groceries'
-  | 'calendar'
   | 'projects'
   | 'roadmap'
-  | 'reflection'
   | 'settings'
   | 'journey'
   | 'personal'
   | 'knowledge'
   | 'explore'
-  | 'review'
-  | 'uploads'
-  | 'placement';
+  | 'uploads';
 
 function LoadingScreen() {
   return (
@@ -188,20 +181,16 @@ function AppContent() {
     tasks:      <TaskBuilderPage onNavigateSection={(sec) => setSection(sec as NavSection)} />,
     pulse:      <PulseFlowPage />,
     notes:      <KnowledgePage initialTab="notes" />,
-    calendar:   <PlannerPage />,
     projects:   <ProjectsPage />,
     roadmap:    <RoadmapPage />,
-    reflection: <WeeklyReviewPage />,
     settings:   <ReviewSettingsPage initialTab="areas" />,
     journey:    <MyJourneyPage />,
     personal:   <PersonalLifePage />,
     knowledge:  <KnowledgePage initialTab="knowledge" />,
     explore:    <PulseFlowPage />,
-    review:     <ReviewSettingsPage initialTab="areas" />,
     vault:      <VaultPage initialTab="uploads" />,
     uploads:    <VaultPage initialTab="uploads" />,
     groceries:  <GroceryPage />,
-    placement:  <PlacementHQPage />,
   };
 
   return (

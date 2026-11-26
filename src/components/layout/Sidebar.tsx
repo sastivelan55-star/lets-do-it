@@ -3,10 +3,8 @@ import {
   LayoutDashboard,
   ListTree,
   FileText,
-  Calendar,
   FolderKanban,
   Rocket,
-  Heart,
   Settings,
   ChevronLeft,
   ChevronRight,
@@ -18,7 +16,6 @@ import {
   Globe,
   FileBox,
   ShoppingCart,
-  GraduationCap,
 } from 'lucide-react';
 import type { NavSection } from '../../App';
 import { useAuth } from '../../context/AuthContext';
@@ -32,33 +29,28 @@ interface SidebarProps {
 }
 
 const NAV_ITEMS: { id: NavSection; label: string; icon: React.ReactNode; color: string }[] = [
-  { id: 'home',       label: 'Home',       icon: <LayoutDashboard size={18} />, color: '#c084fc' },
-  { id: 'tasks',      label: 'Tasks',      icon: <ListTree size={18} />,        color: '#38bdf8' },
-  { id: 'pulse',      label: 'News',       icon: <Globe size={18} />,           color: '#38bdf8' },
-  { id: 'notes',      label: 'Notes',      icon: <FileText size={18} />,        color: '#a855f7' },
-  { id: 'vault',      label: 'Vault',      icon: <FileBox size={18} />,         color: '#c084fc' },
+  { id: 'home',       label: 'Home',         icon: <LayoutDashboard size={18} />, color: '#c084fc' },
+  { id: 'tasks',      label: 'Tasks',        icon: <ListTree size={18} />,        color: '#38bdf8' },
+  { id: 'pulse',      label: 'News',         icon: <Globe size={18} />,           color: '#38bdf8' },
+  { id: 'notes',      label: 'Notes',        icon: <FileText size={18} />,        color: '#a855f7' },
+  { id: 'vault',      label: 'Vault',        icon: <FileBox size={18} />,         color: '#c084fc' },
   { id: 'groceries',  label: 'Grocery List', icon: <ShoppingCart size={18} />,  color: '#10b981' },
-  { id: 'calendar',   label: 'Calendar',   icon: <Calendar size={18} />,        color: '#38bdf8' },
-  { id: 'projects',   label: 'Projects',   icon: <FolderKanban size={18} />,    color: '#ec4899' },
-  { id: 'roadmap',    label: 'Roadmap',    icon: <Rocket size={18} />,          color: '#f59e0b' },
-  { id: 'reflection', label: 'Reflection', icon: <Heart size={18} />,           color: '#10b981' },
-  { id: 'placement',  label: 'Placement HQ', icon: <GraduationCap size={18} />, color: '#a855f7' },
-  { id: 'settings',   label: 'Settings',   icon: <Settings size={18} />,        color: '#94a3b8' },
+  { id: 'projects',   label: 'Projects',     icon: <FolderKanban size={18} />,    color: '#ec4899' },
+  { id: 'roadmap',    label: 'Roadmap',      icon: <Rocket size={18} />,          color: '#f59e0b' },
+  { id: 'settings',   label: 'Settings',     icon: <Settings size={18} />,        color: '#94a3b8' },
 ];
 
 export default function Sidebar({ active, onNavigate, collapsed, onToggle }: SidebarProps) {
   const { user, signOut, isGuest } = useAuth();
   const { syncStatus, tasks, settings } = useApp();
 
-  // Map legacy routes to current 9 items
+  // Map legacy routes to current items
   const isItemActive = (id: NavSection): boolean => {
     if (active === id) return true;
     if (id === 'pulse' && active === 'explore') return true;
     if (id === 'projects' && active === 'journey') return true;
-    if (id === 'reflection' && active === 'personal') return true;
     if (id === 'notes' && active === 'knowledge') return true;
     if (id === 'vault' && active === 'uploads') return true;
-    if (id === 'settings' && active === 'review') return true;
     return false;
   };
 
@@ -208,7 +200,7 @@ export default function Sidebar({ active, onNavigate, collapsed, onToggle }: Sid
                 boxShadow: activeItem
                   ? '0 0 16px rgba(168, 85, 247, 0.35), inset 0 0 10px rgba(168, 85, 247, 0.18)'
                   : 'none',
-                color: activeItem ? '#ffffff' : (isLight ? '#475569' : 'rgba(203, 213, 225, 0.75)'),
+                color: activeItem ? '#ffffff' : 'rgba(226, 232, 240, 0.85)',
                 fontWeight: activeItem ? 700 : 500,
                 fontSize: '0.86rem',
                 cursor: 'pointer',
@@ -329,7 +321,7 @@ export default function Sidebar({ active, onNavigate, collapsed, onToggle }: Sid
                     margin: 0,
                     fontSize: '0.78rem',
                     fontWeight: 700,
-                    color: isLight ? '#0f172a' : '#f8fafc',
+                    color: '#F8FAFC',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',

@@ -170,15 +170,15 @@ export default function UniversalSearchModal({
       action: () => { onNavigate('explore'); onClose(); },
     },
     {
-      id: 'nav-review',
+      id: 'nav-settings',
       type: 'navigation',
-      title: 'Review & Settings',
-      subtitle: 'Weekly retrospectives, life areas, appearance themes & account data',
+      title: 'Settings & Preferences',
+      subtitle: 'Life areas, appearance themes, AI execution & account data',
       icon: <Layers size={15} color="#94a3b8" />,
       color: '#94a3b8',
-      destination: 'review',
+      destination: 'settings',
       badge: 'Destination',
-      action: () => { onNavigate('review'); onClose(); },
+      action: () => { onNavigate('settings'); onClose(); },
     },
   ], [onNavigate, onClose]);
 

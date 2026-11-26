@@ -45,14 +45,14 @@ function GroceryItemCardComponent({
         background: item.isPurchased
           ? 'rgba(16, 185, 129, 0.08)'
           : isHovered
-            ? 'rgba(25, 35, 52, 0.7)'
-            : 'rgba(15, 23, 42, 0.55)',
+            ? 'var(--bg-surface-2)'
+            : 'var(--bg-surface)',
         border: item.isPurchased
           ? '1px solid rgba(16, 185, 129, 0.3)'
-          : `1px solid ${isHovered ? 'rgba(52, 211, 153, 0.4)' : 'rgba(255, 255, 255, 0.07)'}`,
+          : `1px solid ${isHovered ? 'rgba(16, 185, 129, 0.45)' : 'var(--border)'}`,
         boxShadow: isHovered
-          ? '0 6px 20px rgba(0, 0, 0, 0.35)'
-          : '0 2px 8px rgba(0, 0, 0, 0.2)',
+          ? '0 6px 20px rgba(0, 0, 0, 0.1)'
+          : '0 2px 8px rgba(0, 0, 0, 0.05)',
         transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
         opacity: item.isPurchased ? 0.75 : 1,
         gap: '0.75rem',
@@ -104,7 +104,7 @@ function GroceryItemCardComponent({
               style={{
                 fontSize: '0.9rem',
                 fontWeight: 700,
-                color: item.isPurchased ? '#94a3b8' : '#f8fafc',
+                color: item.isPurchased ? 'var(--text-muted)' : 'var(--text-primary)',
                 textDecoration: item.isPurchased ? 'line-through' : 'none',
                 userSelect: 'none',
               }}

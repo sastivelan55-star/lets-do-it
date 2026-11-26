@@ -704,6 +704,7 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
   const targetQuest = quests.find((q) => q.id === targetQuestId);
   const clearedCount = quests.filter((q) => q.cleared).length;
   const expPercent = Math.min(100, Math.round((hunter.currentExp / hunter.maxExp) * 100));
+  const isLight = settings.theme === 'light' || settings.appearance?.theme === 'light';
 
   // Timer format
   const tMin = Math.floor(timerSeconds / 60);
@@ -721,7 +722,7 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
         height: '100%',
         width: '100%',
         position: 'relative',
-        color: '#E2E8F0',
+        color: isLight ? 'var(--text-primary)' : '#E2E8F0',
         fontFamily: 'Rajdhani, Inter, sans-serif',
         overflowY: 'auto',
         overflowX: 'hidden',
@@ -741,31 +742,32 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
           height: '100%',
           pointerEvents: 'none',
           zIndex: 0,
-          opacity: 0.65,
+          opacity: isLight ? 0.08 : 0.65,
         }}
       />
-      <div className="fixed inset-0 scanlines z-10 pointer-events-none opacity-30" />
+      {!isLight && <div className="fixed inset-0 scanlines z-10 pointer-events-none opacity-30" />}
 
       {/* ── TOP CYBER-GUILD COMMAND BAR ─────────────────────────────────────── */}
       <header
         className="task-builder-command-bar"
         style={{
-          height: '64px',
-          padding: '0 1.5rem',
-          borderBottom: '1px solid rgba(0, 240, 255, 0.2)',
-          background: 'rgba(7, 10, 18, 0.92)',
+          minHeight: '60px',
+          padding: '0.6rem 1.25rem',
+          borderBottom: isLight ? '1px solid var(--border)' : '1px solid rgba(0, 240, 255, 0.2)',
+          background: isLight ? 'rgba(255, 255, 255, 0.94)' : 'rgba(7, 10, 18, 0.92)',
           backdropFilter: 'blur(20px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: '1rem',
+          flexWrap: 'wrap',
+          gap: '0.75rem',
           position: 'sticky',
           top: 0,
           zIndex: 30,
         }}
       >
         {/* Brand Title */}
-        <div className="task-builder-brand" style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+        <div className="task-builder-brand" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0, minWidth: 0 }}>
           <div
             style={{
               position: 'relative',
@@ -825,9 +827,10 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
                 style={{
                   fontFamily: 'Orbitron, sans-serif',
                   fontWeight: 900,
-                  fontSize: '1rem',
-                  letterSpacing: '0.06em',
-                  color: '#ffffff',
+                  fontSize: '0.95rem',
+                  letterSpacing: '0.05em',
+                  color: isLight ? '#0f172a' : '#ffffff',
+                  whiteSpace: 'nowrap',
                 }}
               >
                 QUEST // ZERO
@@ -838,15 +841,16 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
                   fontFamily: 'monospace',
                   padding: '1px 6px',
                   borderRadius: '4px',
-                  background: 'rgba(0, 240, 255, 0.1)',
-                  color: '#00F0FF',
-                  border: '1px solid rgba(0, 240, 255, 0.3)',
+                  background: isLight ? 'rgba(99, 102, 241, 0.12)' : 'rgba(0, 240, 255, 0.1)',
+                  color: isLight ? '#4f46e5' : '#00F0FF',
+                  border: isLight ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid rgba(0, 240, 255, 0.3)',
+                  whiteSpace: 'nowrap',
                 }}
               >
                 ギルド・OS
               </span>
             </div>
-            <div style={{ fontSize: '10px', fontFamily: 'monospace', color: '#94a3b8', letterSpacing: '0.08em' }}>
+            <div style={{ fontSize: '10px', fontFamily: 'monospace', color: isLight ? '#64748b' : '#94a3b8', letterSpacing: '0.08em' }}>
               HUNTER TASK FORCE • SYSTEM ONLINE
             </div>
           </div>
@@ -860,12 +864,14 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
             alignItems: 'center',
             padding: '3px',
             borderRadius: '12px',
-            background: 'rgba(12, 16, 31, 0.9)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
+            background: isLight ? 'var(--bg-surface-2)' : 'rgba(12, 16, 31, 0.9)',
+            border: isLight ? '1px solid var(--border)' : '1px solid rgba(255, 255, 255, 0.1)',
             overflowX: 'auto',
             whiteSpace: 'nowrap',
             scrollbarWidth: 'none',
             maxWidth: '100%',
+            minWidth: 0,
+            flexShrink: 1,
           }}
         >
           {[
@@ -890,14 +896,15 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
                   gap: '6px',
                   padding: '0.4rem 0.85rem',
                   borderRadius: '8px',
-                  border: active ? '1px solid rgba(0, 240, 255, 0.45)' : '1px solid transparent',
-                  background: active ? 'linear-gradient(135deg, rgba(0, 240, 255, 0.2), rgba(138, 43, 226, 0.2))' : 'transparent',
-                  color: active ? '#00F0FF' : '#94a3b8',
+                  border: active ? (isLight ? '1px solid rgba(99, 102, 241, 0.45)' : '1px solid rgba(0, 240, 255, 0.45)') : '1px solid transparent',
+                  background: active ? (isLight ? 'rgba(99, 102, 241, 0.14)' : 'linear-gradient(135deg, rgba(0, 240, 255, 0.2), rgba(138, 43, 226, 0.2))') : 'transparent',
+                  color: active ? (isLight ? '#4f46e5' : '#00F0FF') : (isLight ? '#475569' : '#94a3b8'),
                   fontFamily: 'Orbitron, sans-serif',
-                  fontSize: '0.75rem',
+                  fontSize: '0.72rem',
                   fontWeight: 700,
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
+                  flexShrink: 0,
                 }}
               >
                 {tab.icon}

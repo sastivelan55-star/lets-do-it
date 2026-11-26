@@ -51,11 +51,11 @@ export default function GroceryQuickAdd() {
     <form
       onSubmit={handleSubmit}
       style={{
-        background: 'rgba(15, 23, 42, 0.75)',
+        background: 'var(--bg-surface)',
         borderRadius: '16px',
-        border: '1px solid rgba(16, 185, 129, 0.25)',
+        border: '1px solid rgba(16, 185, 129, 0.3)',
         padding: '0.85rem 1rem',
-        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)',
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
         backdropFilter: 'blur(16px)',
         marginBottom: '1rem',
         display: 'flex',
@@ -80,11 +80,11 @@ export default function GroceryQuickAdd() {
           onChange={(e) => setName(e.target.value)}
           style={{
             flex: '1 1 220px',
-            background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
+            background: 'var(--bg-surface-2)',
+            border: '1px solid var(--border)',
             borderRadius: '10px',
             padding: '0.55rem 0.85rem',
-            color: '#f8fafc',
+            color: 'var(--text-primary)',
             fontSize: '0.86rem',
             outline: 'none',
             fontFamily: 'inherit',

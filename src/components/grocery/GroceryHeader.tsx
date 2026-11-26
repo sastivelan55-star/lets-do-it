@@ -45,7 +45,7 @@ export default function GroceryHeader({
   return (
     <div
       style={{
-        background: 'linear-gradient(180deg, rgba(16, 26, 36, 0.75) 0%, rgba(10, 16, 24, 0.7) 100%)',
+        background: 'var(--bg-surface)',
         borderRadius: '20px',
         border: '1px solid rgba(16, 185, 129, 0.22)',
         padding: '1.25rem 1.4rem',
@@ -91,12 +91,12 @@ export default function GroceryHeader({
                   padding: '0.42rem 0.85rem',
                   borderRadius: '12px',
                   background: isActive
-                    ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.28), rgba(5, 150, 105, 0.22))'
-                    : 'rgba(255, 255, 255, 0.04)',
+                    ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(5, 150, 105, 0.2))'
+                    : 'var(--bg-surface-2)',
                   border: isActive
-                    ? '1px solid rgba(52, 211, 153, 0.6)'
-                    : '1px solid rgba(255, 255, 255, 0.08)',
-                  color: isActive ? '#ffffff' : 'rgba(226, 232, 240, 0.75)',
+                    ? '1px solid rgba(16, 185, 129, 0.6)'
+                    : '1px solid var(--border)',
+                  color: isActive ? '#10b981' : 'var(--text-primary)',
                   fontSize: '0.82rem',
                   fontWeight: isActive ? 700 : 500,
                   cursor: 'pointer',
@@ -260,7 +260,7 @@ export default function GroceryHeader({
             fontSize: '0.8rem',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f8fafc', fontWeight: 700 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-primary)', fontWeight: 700 }}>
             <span style={{ color: '#34d399' }}>●</span>
             <span>Shopping Progress</span>
             <span style={{ color: '#94a3b8', fontWeight: 500, fontSize: '0.76rem' }}>
@@ -305,14 +305,14 @@ export default function GroceryHeader({
           style={{
             padding: '0.75rem 0.9rem',
             borderRadius: '12px',
-            background: 'rgba(255, 255, 255, 0.03)',
-            border: '1px solid rgba(255, 255, 255, 0.06)',
+            background: 'var(--bg-surface-2)',
+            border: '1px solid var(--border)',
             display: 'flex',
             flexDirection: 'column',
           }}
         >
-          <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 600 }}>Total Items</span>
-          <span style={{ fontSize: '1.25rem', fontWeight: 800, color: '#f8fafc', marginTop: '2px' }}>
+          <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Total Items</span>
+          <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '2px' }}>
             {progress.total}
           </span>
         </div>

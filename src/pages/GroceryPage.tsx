@@ -125,8 +125,8 @@ function GroceryContent() {
           style={{
             padding: '3.5rem 1.5rem',
             textAlign: 'center',
-            background: 'rgba(15, 23, 42, 0.55)',
-            border: '1px dashed rgba(16, 185, 129, 0.3)',
+            background: 'var(--bg-surface)',
+            border: '1px dashed rgba(16, 185, 129, 0.4)',
             borderRadius: '20px',
             display: 'flex',
             flexDirection: 'column',
@@ -149,10 +149,10 @@ function GroceryContent() {
             <ShoppingCart size={28} />
           </div>
           <div>
-            <h3 style={{ margin: '0 0 0.35rem', fontSize: '1.1rem', fontWeight: 800, color: '#f8fafc' }}>
+            <h3 style={{ margin: '0 0 0.35rem', fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
               Your shopping list is empty
             </h3>
-            <p style={{ margin: 0, fontSize: '0.84rem', color: '#94a3b8', maxWidth: '340px' }}>
+            <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-secondary)', maxWidth: '340px' }}>
               Add groceries above or type an item like &quot;Tomatoes 1 kg&quot; to begin shopping.
             </p>
           </div>
@@ -162,7 +162,7 @@ function GroceryContent() {
           {/* Pending / To Buy Section */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: '4px' }}>
-              <span style={{ fontSize: '0.84rem', fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span style={{ color: '#fbbf24' }}>●</span> To Buy ({filteredPendingItems.length})
               </span>
             </div>

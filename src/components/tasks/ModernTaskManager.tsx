@@ -63,8 +63,14 @@ export default function ModernTaskManager({
   onOpenTaskBuilderView,
   onNavigateSection: _onNavigateSection,
 }: ModernTaskManagerProps) {
-  const { tasks, addTask, updateTask, completeTask, removeTask } = useApp();
+  const { tasks, addTask, updateTask, completeTask, removeTask, settings } = useApp();
   const { user } = useAuth();
+  const isLight = settings.theme === 'light' || settings.appearance?.theme === 'light';
+  const panelBg = isLight ? 'var(--bg-surface)' : 'rgba(18, 12, 38, 0.75)';
+  const panelBorder = isLight ? '1px solid var(--border)' : '1px solid rgba(192, 132, 252, 0.22)';
+  const textMain = isLight ? '#0f172a' : '#f8fafc';
+  const textSub = isLight ? '#475569' : '#94a3b8';
+  const optionBg = isLight ? '#ffffff' : '#1e1438';
 
   // Navigation Views
   const [activeView, setActiveView] = useState<TaskViewId>('all');
@@ -403,11 +409,11 @@ export default function ModernTaskManager({
         <aside
           className="task-manager-sidebar"
           style={{
-            background: 'rgba(18, 12, 38, 0.75)',
+            background: panelBg,
             backdropFilter: 'blur(16px)',
             WebkitBackdropFilter: 'blur(16px)',
             borderRadius: '20px',
-            border: '1px solid rgba(192, 132, 252, 0.22)',
+            border: panelBorder,
             padding: '1rem',
             display: 'flex',
             flexDirection: 'column',
@@ -416,7 +422,7 @@ export default function ModernTaskManager({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px' }}>
-            <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '0.9rem', fontWeight: 800, color: textMain, display: 'flex', alignItems: 'center', gap: '6px' }}>
               <ListTodo size={18} color="#c084fc" /> Task Hub
             </span>
             {onOpenTaskBuilderView && (
@@ -457,7 +463,7 @@ export default function ModernTaskManager({
                     borderRadius: '10px',
                     border: isActive ? `1px solid ${item.color}55` : '1px solid transparent',
                     background: isActive ? `${item.color}1f` : 'transparent',
-                    color: isActive ? '#f8fafc' : '#94a3b8',
+                    color: isActive ? textMain : textSub,
                     fontSize: '0.82rem',
                     fontWeight: isActive ? 700 : 500,
                     cursor: 'pointer',
@@ -585,11 +591,11 @@ export default function ModernTaskManager({
           <div
             className="task-manager-mobile-selector"
             style={{
-              background: 'rgba(18, 12, 38, 0.75)',
+              background: panelBg,
               backdropFilter: 'blur(16px)',
               WebkitBackdropFilter: 'blur(16px)',
               borderRadius: '16px',
-              border: '1px solid rgba(192, 132, 252, 0.22)',
+              border: panelBorder,
               padding: '0.75rem',
               display: 'flex',
               flexDirection: 'column',
@@ -604,7 +610,7 @@ export default function ModernTaskManager({
                   style={{
                     fontSize: '0.92rem',
                     fontWeight: 800,
-                    color: '#f8fafc',
+                    color: textMain,
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
@@ -783,10 +789,10 @@ export default function ModernTaskManager({
         <div
           className="task-manager-controls"
           style={{
-            background: 'rgba(18, 12, 38, 0.75)',
+            background: panelBg,
             backdropFilter: 'blur(16px)',
             borderRadius: '16px',
-            border: '1px solid rgba(192, 132, 252, 0.22)',
+            border: panelBorder,
             padding: '0.75rem 1rem',
             display: 'flex',
             alignItems: 'center',
@@ -817,7 +823,7 @@ export default function ModernTaskManager({
               style={{
                 background: 'transparent',
                 border: 'none',
-                color: '#f8fafc',
+                color: textMain,
                 fontSize: '0.82rem',
                 outline: 'none',
                 width: '100%',
@@ -835,18 +841,18 @@ export default function ModernTaskManager({
                 background: 'rgba(255, 255, 255, 0.06)',
                 border: '1px solid rgba(192, 132, 252, 0.25)',
                 borderRadius: '8px',
-                color: '#cbd5e1',
+                color: isLight ? '#334155' : '#cbd5e1',
                 fontSize: '0.75rem',
                 padding: '6px 8px',
                 outline: 'none',
                 cursor: 'pointer',
               }}
             >
-              <option value="all" style={{ background: '#1e1438' }}>Priority: All</option>
-              <option value="critical" style={{ background: '#1e1438' }}>Critical</option>
-              <option value="high" style={{ background: '#1e1438' }}>High</option>
-              <option value="medium" style={{ background: '#1e1438' }}>Medium</option>
-              <option value="low" style={{ background: '#1e1438' }}>Low</option>
+              <option value="all" style={{ background: optionBg }}>Priority: All</option>
+              <option value="critical" style={{ background: optionBg }}>Critical</option>
+              <option value="high" style={{ background: optionBg }}>High</option>
+              <option value="medium" style={{ background: optionBg }}>Medium</option>
+              <option value="low" style={{ background: optionBg }}>Low</option>
             </select>
 
             {/* Sort Dropdown */}
@@ -857,17 +863,17 @@ export default function ModernTaskManager({
                 background: 'rgba(255, 255, 255, 0.06)',
                 border: '1px solid rgba(192, 132, 252, 0.25)',
                 borderRadius: '8px',
-                color: '#cbd5e1',
+                color: isLight ? '#334155' : '#cbd5e1',
                 fontSize: '0.75rem',
                 padding: '6px 8px',
                 outline: 'none',
                 cursor: 'pointer',
               }}
             >
-              <option value="manual" style={{ background: '#1e1438' }}>Sort: Manual</option>
-              <option value="priority" style={{ background: '#1e1438' }}>Sort: Priority</option>
-              <option value="date" style={{ background: '#1e1438' }}>Sort: Due Date</option>
-              <option value="title" style={{ background: '#1e1438' }}>Sort: Title</option>
+              <option value="manual" style={{ background: optionBg }}>Sort: Manual</option>
+              <option value="priority" style={{ background: optionBg }}>Sort: Priority</option>
+              <option value="date" style={{ background: optionBg }}>Sort: Due Date</option>
+              <option value="title" style={{ background: optionBg }}>Sort: Title</option>
             </select>
           </div>
         </div>
@@ -877,7 +883,7 @@ export default function ModernTaskManager({
           className="task-manager-quick-add"
           onSubmit={handleQuickAdd}
           style={{
-            background: 'rgba(18, 12, 38, 0.85)',
+            background: isLight ? 'var(--bg-surface)' : 'rgba(18, 12, 38, 0.85)',
             border: '1px solid rgba(192, 132, 252, 0.35)',
             borderRadius: '16px',
             padding: '10px 14px',
@@ -911,7 +917,7 @@ export default function ModernTaskManager({
             style={{
               background: 'transparent',
               border: 'none',
-              color: '#f8fafc',
+              color: textMain,
               fontSize: '0.88rem',
               fontWeight: 600,
               outline: 'none',
@@ -964,7 +970,7 @@ export default function ModernTaskManager({
               style={{
                 padding: '3rem 1rem',
                 textAlign: 'center',
-                background: 'rgba(18, 12, 38, 0.5)',
+                background: isLight ? 'var(--bg-surface-2)' : 'rgba(18, 12, 38, 0.5)',
                 borderRadius: '16px',
                 border: '1px dashed rgba(192, 132, 252, 0.25)',
                 color: '#94a3b8',
@@ -991,7 +997,7 @@ export default function ModernTaskManager({
                   key={task.id}
                   onClick={() => setSelectedTask(task)}
                   style={{
-                    background: isCompleted ? 'rgba(18, 12, 38, 0.45)' : 'rgba(18, 12, 38, 0.75)',
+                    background: isCompleted ? (isLight ? 'var(--bg-surface-2)' : 'rgba(18, 12, 38, 0.45)') : panelBg,
                     backdropFilter: 'blur(16px)',
                     border: '1px solid rgba(192, 132, 252, 0.18)',
                     borderRadius: '14px',
@@ -1053,7 +1059,7 @@ export default function ModernTaskManager({
                         style={{
                           fontSize: '0.92rem',
                           fontWeight: 700,
-                          color: isCompleted ? '#94a3b8' : '#f8fafc',
+                          color: isCompleted ? textSub : textMain,
                           textDecoration: isCompleted ? 'line-through' : 'none',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
@@ -1159,7 +1165,7 @@ export default function ModernTaskManager({
                       )}
 
                       {subtasks.length > 0 && (
-                        <span style={{ fontSize: '0.66rem', color: '#cbd5e1', background: 'rgba(255, 255, 255, 0.06)', padding: '1px 5px', borderRadius: '4px' }}>
+                        <span style={{ fontSize: '0.66rem', color: isLight ? '#334155' : '#cbd5e1', background: 'rgba(255, 255, 255, 0.06)', padding: '1px 5px', borderRadius: '4px' }}>
                           {completedSubtasks}/{subtasks.length} subtasks
                         </span>
                       )}
@@ -1333,7 +1339,7 @@ export default function ModernTaskManager({
                   border: 'none',
                   fontSize: '1.25rem',
                   fontWeight: 800,
-                  color: '#f8fafc',
+                  color: textMain,
                   outline: 'none',
                 }}
               />
@@ -1347,7 +1353,7 @@ export default function ModernTaskManager({
                   background: 'rgba(255, 255, 255, 0.04)',
                   border: '1px solid rgba(192, 132, 252, 0.2)',
                   borderRadius: '10px',
-                  color: '#cbd5e1',
+                  color: isLight ? '#334155' : '#cbd5e1',
                   fontSize: '0.82rem',
                   padding: '8px 10px',
                   marginTop: '8px',
@@ -1394,10 +1400,10 @@ export default function ModernTaskManager({
                     outline: 'none',
                   }}
                 >
-                  <option value="critical" style={{ background: '#1e1438' }}>Critical</option>
-                  <option value="high" style={{ background: '#1e1438' }}>High</option>
-                  <option value="medium" style={{ background: '#1e1438' }}>Medium</option>
-                  <option value="low" style={{ background: '#1e1438' }}>Low</option>
+                  <option value="critical" style={{ background: optionBg }}>Critical</option>
+                  <option value="high" style={{ background: optionBg }}>High</option>
+                  <option value="medium" style={{ background: optionBg }}>Medium</option>
+                  <option value="low" style={{ background: optionBg }}>Low</option>
                 </select>
               </div>
 
@@ -1417,11 +1423,11 @@ export default function ModernTaskManager({
                     outline: 'none',
                   }}
                 >
-                  <option value="technical" style={{ background: '#1e1438' }}>Technical</option>
-                  <option value="communication" style={{ background: '#1e1438' }}>Communication</option>
-                  <option value="career" style={{ background: '#1e1438' }}>Career</option>
-                  <option value="creativity" style={{ background: '#1e1438' }}>Creativity</option>
-                  <option value="health" style={{ background: '#1e1438' }}>Health</option>
+                  <option value="technical" style={{ background: optionBg }}>Technical</option>
+                  <option value="communication" style={{ background: optionBg }}>Communication</option>
+                  <option value="career" style={{ background: optionBg }}>Career</option>
+                  <option value="creativity" style={{ background: optionBg }}>Creativity</option>
+                  <option value="health" style={{ background: optionBg }}>Health</option>
                 </select>
               </div>
 
@@ -1441,9 +1447,9 @@ export default function ModernTaskManager({
                     outline: 'none',
                   }}
                 >
-                  <option value="" style={{ background: '#1e1438' }}>None</option>
+                  <option value="" style={{ background: optionBg }}>None</option>
                   {customLists.map((l) => (
-                    <option key={l.id} value={l.id} style={{ background: '#1e1438' }}>
+                    <option key={l.id} value={l.id} style={{ background: optionBg }}>
                       {l.name}
                     </option>
                   ))}
@@ -1453,7 +1459,7 @@ export default function ModernTaskManager({
 
             {/* Recurrence Control */}
             <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '10px 12px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
-              <div style={{ fontSize: '0.76rem', fontWeight: 700, color: '#f8fafc', marginBottom: '6px' }}>
+              <div style={{ fontSize: '0.76rem', fontWeight: 700, color: textMain, marginBottom: '6px' }}>
                 Recurrence & Routine Configuration
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1468,7 +1474,7 @@ export default function ModernTaskManager({
 
             {/* Subtasks Section */}
             <div>
-              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f8fafc', marginBottom: '8px' }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: textMain, marginBottom: '8px' }}>
                 Subtasks Checklist
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -1600,7 +1606,7 @@ export default function ModernTaskManager({
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.72rem', color: '#cbd5e1', marginBottom: '4px' }}>
+              <label style={{ display: 'block', fontSize: '0.72rem', color: isLight ? '#334155' : '#cbd5e1', marginBottom: '4px' }}>
                 List Name
               </label>
               <input
@@ -1624,7 +1630,7 @@ export default function ModernTaskManager({
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.72rem', color: '#cbd5e1', marginBottom: '4px' }}>
+              <label style={{ display: 'block', fontSize: '0.72rem', color: isLight ? '#334155' : '#cbd5e1', marginBottom: '4px' }}>
                 Theme Color
               </label>
               <div style={{ display: 'flex', gap: '8px' }}>

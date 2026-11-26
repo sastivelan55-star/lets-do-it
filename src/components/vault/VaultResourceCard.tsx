@@ -98,7 +98,7 @@ export default function VaultResourceCard({ resource, viewMode }: VaultResourceC
           gap: '0.85rem',
           padding: '0.75rem 1rem',
           borderRadius: '14px',
-          background: isHovered ? 'rgba(25, 18, 52, 0.7)' : 'rgba(15, 11, 32, 0.5)',
+          background: isHovered ? 'var(--bg-surface-2)' : 'var(--bg-surface)',
           border: `1px solid ${isHovered ? 'rgba(168, 85, 247, 0.4)' : 'rgba(255, 255, 255, 0.06)'}`,
           cursor: 'pointer',
           transition: 'all 0.2s ease',
@@ -278,7 +278,7 @@ export default function VaultResourceCard({ resource, viewMode }: VaultResourceC
             height: '140px',
             maxHeight: '140px',
             overflow: 'hidden',
-            background: '#090616',
+            background: 'var(--bg-surface-2)',
           }}
         >
           <img
@@ -358,7 +358,7 @@ export default function VaultResourceCard({ resource, viewMode }: VaultResourceC
         /* Code Snippet Preview Area */
         <div
           style={{
-            background: '#090616',
+            background: 'var(--bg-surface-2)',
             padding: '0.75rem',
             borderBottom: '1px solid rgba(168, 85, 247, 0.15)',
             fontFamily: 'Fira Code, monospace',

@@ -20,20 +20,16 @@ const SECTION_LABELS: Partial<Record<NavSection, string>> = {
   tasks: 'Task System',
   pulse: 'News — Live Feeds',
   notes: 'Knowledge & Notes',
-  calendar: 'Calendar Planner',
   projects: 'Projects Hub',
   roadmap: 'Roadmap & Milestones',
-  reflection: 'Weekly Reflection',
   settings: 'Settings & Preferences',
   journey: 'My Journey',
   personal: 'Personal Life',
   knowledge: 'Knowledge Base',
   explore: 'News',
-  review: 'Review & Settings',
   vault: 'Digital Vault',
   uploads: 'Media Vault',
   groceries: 'Grocery List',
-  placement: 'Placement Training HQ',
 };
 
 export default function TopBar({

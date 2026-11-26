@@ -947,8 +947,8 @@ export default function PremiumHomeDashboard({
           </div>
         </div>
 
-        {/* ─── RIGHT COLUMN: UTILITY PANELS (Quick Actions, Calendar, Upcoming, Recent) ─── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      {/* ─── RIGHT COLUMN: UTILITY PANELS (Quick Actions, Calendar, Upcoming, Recent) ─── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', paddingBottom: '5rem' }}>
           {/* ── 1. QUICK ACTIONS (6 Grid Buttons) ── */}
           <div style={glassCardStyle}>
             <div style={{ fontSize: '0.92rem', fontWeight: 800, color: isLight ? '#0f172a' : '#f8fafc', marginBottom: '0.85rem' }}>
@@ -973,9 +973,9 @@ export default function PremiumHomeDashboard({
                   gap: '6px',
                   padding: '0.75rem 0.5rem',
                   borderRadius: '12px',
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  border: '1px solid rgba(168, 85, 247, 0.2)',
-                  color: '#f8fafc',
+                  background: isLight ? 'rgba(248, 250, 252, 0.95)' : 'rgba(255, 255, 255, 0.03)',
+                  border: isLight ? '1px solid rgba(148, 163, 184, 0.3)' : '1px solid rgba(168, 85, 247, 0.2)',
+                  color: 'var(--text-primary)',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
                 }}
@@ -997,41 +997,7 @@ export default function PremiumHomeDashboard({
                 <span style={{ fontSize: '0.72rem', fontWeight: 600 }}>New Task</span>
               </button>
 
-              {/* Button 2: Go to Calendar */}
-              <button
-                type="button"
-                onClick={() => onNavigateSection && onNavigateSection('calendar')}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '0.75rem 0.5rem',
-                  borderRadius: '12px',
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  border: '1px solid rgba(168, 85, 247, 0.2)',
-                  color: '#f8fafc',
-                  cursor: 'pointer',
-                }}
-              >
-                <div
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '8px',
-                    background: 'rgba(168, 85, 247, 0.25)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#c084fc',
-                  }}
-                >
-                  <CalendarIcon size={16} />
-                </div>
-                <span style={{ fontSize: '0.72rem', fontWeight: 600 }}>Go to Calendar</span>
-              </button>
-
-              {/* Button 3: Add List */}
+              {/* Button 2: Add List */}
               <button
                 type="button"
                 onClick={() => onNavigateSection && onNavigateSection('tasks')}
@@ -1042,9 +1008,9 @@ export default function PremiumHomeDashboard({
                   gap: '6px',
                   padding: '0.75rem 0.5rem',
                   borderRadius: '12px',
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  border: '1px solid rgba(168, 85, 247, 0.2)',
-                  color: '#f8fafc',
+                  background: isLight ? 'rgba(248, 250, 252, 0.95)' : 'rgba(255, 255, 255, 0.03)',
+                  border: isLight ? '1px solid rgba(148, 163, 184, 0.3)' : '1px solid rgba(168, 85, 247, 0.2)',
+                  color: 'var(--text-primary)',
                   cursor: 'pointer',
                 }}
               >
@@ -1065,7 +1031,7 @@ export default function PremiumHomeDashboard({
                 <span style={{ fontSize: '0.72rem', fontWeight: 600 }}>Add List</span>
               </button>
 
-              {/* Button 4: Browse Templates */}
+              {/* Button 3: Browse Templates */}
               <button
                 type="button"
                 onClick={() => onNavigateSection && onNavigateSection('projects')}
@@ -1076,9 +1042,9 @@ export default function PremiumHomeDashboard({
                   gap: '6px',
                   padding: '0.75rem 0.5rem',
                   borderRadius: '12px',
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  border: '1px solid rgba(168, 85, 247, 0.2)',
-                  color: '#f8fafc',
+                  background: isLight ? 'rgba(248, 250, 252, 0.95)' : 'rgba(255, 255, 255, 0.03)',
+                  border: isLight ? '1px solid rgba(148, 163, 184, 0.3)' : '1px solid rgba(168, 85, 247, 0.2)',
+                  color: 'var(--text-primary)',
                   cursor: 'pointer',
                 }}
               >
@@ -1099,7 +1065,7 @@ export default function PremiumHomeDashboard({
                 <span style={{ fontSize: '0.72rem', fontWeight: 600 }}>Browse Templates</span>
               </button>
 
-              {/* Button 5: Import Tasks */}
+              {/* Button 4: Import Tasks */}
               <button
                 type="button"
                 onClick={() => onNavigateSection && onNavigateSection('vault')}
@@ -1110,9 +1076,9 @@ export default function PremiumHomeDashboard({
                   gap: '6px',
                   padding: '0.75rem 0.5rem',
                   borderRadius: '12px',
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  border: '1px solid rgba(168, 85, 247, 0.2)',
-                  color: '#f8fafc',
+                  background: isLight ? 'rgba(248, 250, 252, 0.95)' : 'rgba(255, 255, 255, 0.03)',
+                  border: isLight ? '1px solid rgba(148, 163, 184, 0.3)' : '1px solid rgba(168, 85, 247, 0.2)',
+                  color: 'var(--text-primary)',
                   cursor: 'pointer',
                 }}
               >
@@ -1133,10 +1099,10 @@ export default function PremiumHomeDashboard({
                 <span style={{ fontSize: '0.72rem', fontWeight: 600 }}>Import Tasks</span>
               </button>
 
-              {/* Button 6: View Stats */}
+              {/* Button 5: View Stats */}
               <button
                 type="button"
-                onClick={() => onNavigateSection && onNavigateSection('reflection')}
+                onClick={() => onNavigateSection && onNavigateSection('tasks')}
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
@@ -1144,9 +1110,9 @@ export default function PremiumHomeDashboard({
                   gap: '6px',
                   padding: '0.75rem 0.5rem',
                   borderRadius: '12px',
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  border: '1px solid rgba(245, 158, 11, 0.25)',
-                  color: '#f8fafc',
+                  background: isLight ? 'rgba(248, 250, 252, 0.95)' : 'rgba(255, 255, 255, 0.03)',
+                  border: isLight ? '1px solid rgba(245, 158, 11, 0.35)' : '1px solid rgba(245, 158, 11, 0.25)',
+                  color: 'var(--text-primary)',
                   cursor: 'pointer',
                 }}
               >
@@ -1331,7 +1297,7 @@ export default function PremiumHomeDashboard({
 
               <button
                 type="button"
-                onClick={() => onNavigateSection && onNavigateSection('calendar')}
+                onClick={() => onNavigateSection && onNavigateSection('tasks')}
                 style={{
                   background: 'none',
                   border: 'none',
@@ -1438,7 +1404,7 @@ export default function PremiumHomeDashboard({
 
               <button
                 type="button"
-                onClick={() => onNavigateSection && onNavigateSection('reflection')}
+                onClick={() => onNavigateSection && onNavigateSection('tasks')}
                 style={{
                   background: 'none',
                   border: 'none',

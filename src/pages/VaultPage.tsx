@@ -144,7 +144,8 @@ function VaultResourcesContent() {
 
 export default function VaultPage({ initialTab = 'uploads' }: VaultPageProps) {
   const [activeTab, setActiveTab] = useState<VaultTab>(initialTab);
-  const { uploads } = useApp();
+  const { uploads, settings } = useApp();
+  const isLight = settings.theme === 'light' || settings.appearance?.theme === 'light';
 
   const TABS: { id: VaultTab; label: string; icon: React.ReactNode; color: string; count?: number }[] = [
     {
@@ -220,9 +221,9 @@ export default function VaultPage({ initialTab = 'uploads' }: VaultPageProps) {
                   gap: '0.35rem',
                   padding: '0.4rem 0.85rem',
                   borderRadius: '11px',
-                  background: activeTab === tab.id ? 'rgba(56, 189, 248, 0.18)' : 'rgba(255, 255, 255, 0.04)',
-                  border: activeTab === tab.id ? `1px solid ${tab.color}` : '1px solid rgba(255, 255, 255, 0.08)',
-                  color: activeTab === tab.id ? '#ffffff' : 'rgba(226, 232, 240, 0.75)',
+                  background: activeTab === tab.id ? 'rgba(56, 189, 248, 0.18)' : (isLight ? 'var(--bg-surface-2)' : 'rgba(255, 255, 255, 0.04)'),
+                  border: activeTab === tab.id ? `1px solid ${tab.color}` : (isLight ? '1px solid var(--border)' : '1px solid rgba(255, 255, 255, 0.08)'),
+                  color: activeTab === tab.id ? (isLight ? '#0f172a' : '#ffffff') : 'var(--text-secondary)',
                   fontSize: '0.82rem',
                   fontWeight: activeTab === tab.id ? 700 : 500,
                   cursor: 'pointer',

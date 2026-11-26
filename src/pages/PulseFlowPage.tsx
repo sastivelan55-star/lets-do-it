@@ -33,6 +33,7 @@ import {
   formatTimeAgo,
   type AiBriefingResponse,
 } from '../services/newsService';
+import { useApp } from '../context/AppContext';
 import LiveTvSection from '../components/news/LiveTvPlayerModal';
 import JarvisAiBriefingCard from '../components/news/JarvisAiBriefingCard';
 
@@ -632,6 +633,16 @@ const SHOWCASE_PACKAGES = [
 ];
 
 export default function PulseFlowPage() {
+  const { settings } = useApp();
+  const isLight = settings.theme === 'light' || settings.appearance?.theme === 'light';
+  const nfBg = isLight ? '#f1f5f9' : '#171717';
+  const nfCard = isLight ? '#ffffff' : '#202124';
+  const nfChip = isLight ? '#f1f5f9' : '#303134';
+  const nfBorder = isLight ? '#e2e8f0' : '#3c4043';
+  const nfText = isLight ? '#0f172a' : '#e8eaed';
+  const nfMuted = isLight ? '#475569' : '#9aa0a6';
+  const nfAccent = isLight ? '#1a73e8' : '#8ab4f8';
+
   // Navigation & Search State
   const [activeNavTab, setActiveNavTab] = useState<string>('Home');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -1040,8 +1051,8 @@ export default function PulseFlowPage() {
   return (
     <div
       style={{
-        background: '#171717',
-        color: '#e8eaed',
+        background: nfBg,
+        color: nfText,
         minHeight: '100%',
         width: '100%',
         boxSizing: 'border-box',
@@ -1054,8 +1065,8 @@ export default function PulseFlowPage() {
           ═══════════════════════════════════════════════════════════════════════ */}
       <header
         style={{
-          background: '#202124',
-          borderBottom: '1px solid #3c4043',
+          background: nfCard,
+          borderBottom: `1px solid ${nfBorder}`,
           padding: '0.65rem 1.25rem',
           position: 'sticky',
           top: 0,
@@ -1091,7 +1102,7 @@ export default function PulseFlowPage() {
             <span style={{ color: '#4285F4' }}>g</span>
             <span style={{ color: '#34A853' }}>l</span>
             <span style={{ color: '#EA4335' }}>e</span>
-            <span style={{ color: '#e8eaed', fontWeight: 400, marginLeft: '6px' }}>News</span>
+            <span style={{ color: nfText, fontWeight: 400, marginLeft: '6px' }}>News</span>
           </span>
           <span
             style={{
@@ -1099,9 +1110,9 @@ export default function PulseFlowPage() {
               fontWeight: 700,
               padding: '2px 6px',
               borderRadius: '6px',
-              background: '#303134',
-              color: '#8ab4f8',
-              border: '1px solid #3c4043',
+              background: nfChip,
+              color: nfAccent,
+              border: `1px solid ${nfBorder}`,
             }}
           >
             Life OS
@@ -1114,7 +1125,7 @@ export default function PulseFlowPage() {
             flex: 1,
             maxWidth: '680px',
             position: 'relative',
-            background: '#303134',
+            background: nfChip,
             borderRadius: '24px',
             border: searchQuery ? '1px solid #8ab4f8' : '1px solid #5f6368',
             display: 'flex',
@@ -1139,7 +1150,7 @@ export default function PulseFlowPage() {
               background: 'transparent',
               border: 'none',
               outline: 'none',
-              color: '#ffffff',
+              color: nfText,
               fontSize: '0.92rem',
               width: '100%',
               fontFamily: 'inherit',
@@ -1152,7 +1163,7 @@ export default function PulseFlowPage() {
               style={{
                 background: 'none',
                 border: 'none',
-                color: '#9aa0a6',
+                color: nfMuted,
                 cursor: 'pointer',
                 padding: '2px',
                 display: 'flex',
@@ -1177,9 +1188,9 @@ export default function PulseFlowPage() {
               gap: '6px',
               padding: '0.35rem 0.85rem',
               borderRadius: '18px',
-              background: showLiveTv ? '#c5221f' : '#303134',
-              border: '1px solid #3c4043',
-              color: '#ffffff',
+              background: showLiveTv ? '#c5221f' : nfChip,
+              border: `1px solid ${nfBorder}`,
+              color: showLiveTv ? '#ffffff' : nfText,
               fontSize: '0.78rem',
               fontWeight: 600,
               cursor: 'pointer',
@@ -1202,7 +1213,7 @@ export default function PulseFlowPage() {
               padding: '0.35rem 0.85rem',
               borderRadius: '18px',
               background: showAiBriefing ? '#8ab4f8' : '#303134',
-              border: '1px solid #3c4043',
+              border: `1px solid ${nfBorder}`,
               color: showAiBriefing ? '#202124' : '#8ab4f8',
               fontSize: '0.78rem',
               fontWeight: 700,
@@ -1256,7 +1267,7 @@ export default function PulseFlowPage() {
           <button
             type="button"
             onClick={() => setShowHelpModal(true)}
-            style={{ background: 'none', border: 'none', color: '#9aa0a6', cursor: 'pointer', padding: '6px' }}
+            style={{ background: 'none', border: 'none', color: nfMuted, cursor: 'pointer', padding: '6px' }}
             title="Google News Help & Shortcuts"
           >
             <HelpCircle size={18} />
@@ -1266,7 +1277,7 @@ export default function PulseFlowPage() {
           <button
             type="button"
             onClick={() => setShowSettingsModal(true)}
-            style={{ background: 'none', border: 'none', color: '#9aa0a6', cursor: 'pointer', padding: '6px' }}
+            style={{ background: 'none', border: 'none', color: nfMuted, cursor: 'pointer', padding: '6px' }}
             title="Google News Settings"
           >
             <Settings size={18} />
@@ -1301,15 +1312,18 @@ export default function PulseFlowPage() {
           ═══════════════════════════════════════════════════════════════════════ */}
       <nav
         style={{
-          background: '#202124',
-          borderBottom: '1px solid #3c4043',
-          padding: '0 1.25rem',
+          background: nfCard,
+          borderBottom: `1px solid ${nfBorder}`,
+          padding: '0 1rem',
           display: 'flex',
           alignItems: 'center',
           overflowX: 'auto',
           scrollbarWidth: 'none',
           whiteSpace: 'nowrap',
-          gap: '0.25rem',
+          gap: '0.15rem',
+          maxWidth: '100%',
+          minWidth: 0,
+          boxSizing: 'border-box',
         }}
       >
         {/* Left primary tabs */}
@@ -1326,13 +1340,14 @@ export default function PulseFlowPage() {
               style={{
                 background: 'none',
                 border: 'none',
-                borderBottom: isActive ? '3px solid #8ab4f8' : '3px solid transparent',
-                color: isActive ? '#8ab4f8' : '#9aa0a6',
-                padding: '0.75rem 0.9rem',
-                fontSize: '0.86rem',
+                borderBottom: isActive ? `3px solid ${nfAccent}` : '3px solid transparent',
+                color: isActive ? nfAccent : nfMuted,
+                padding: '0.75rem 0.75rem',
+                fontSize: '0.84rem',
                 fontWeight: isActive ? 600 : 500,
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
+                flexShrink: 0,
               }}
             >
               {tab.label}
@@ -1341,11 +1356,11 @@ export default function PulseFlowPage() {
                   style={{
                     marginLeft: '6px',
                     fontSize: '0.68rem',
-                    background: '#303134',
-                    color: '#8ab4f8',
+                    background: nfChip,
+                    color: nfAccent,
                     padding: '1px 6px',
                     borderRadius: '10px',
-                    border: '1px solid #3c4043',
+                    border: `1px solid ${nfBorder}`,
                   }}
                 >
                   {savedBookmarks.size}
@@ -1356,7 +1371,7 @@ export default function PulseFlowPage() {
         })}
 
         {/* Vertical Separator */}
-        <div style={{ width: '1px', height: '18px', background: '#3c4043', margin: '0 0.5rem' }} />
+        <div style={{ width: '1px', height: '18px', background: nfBorder, margin: '0 0.4rem', flexShrink: 0 }} />
 
         {/* Right category tabs */}
         {CATEGORY_NAV_TABS.map((tab) => {
@@ -1372,16 +1387,17 @@ export default function PulseFlowPage() {
               style={{
                 background: 'none',
                 border: 'none',
-                borderBottom: isActive ? '3px solid #8ab4f8' : '3px solid transparent',
-                color: isActive ? '#8ab4f8' : '#e8eaed',
-                padding: '0.75rem 0.9rem',
-                fontSize: '0.86rem',
+                borderBottom: isActive ? `3px solid ${nfAccent}` : '3px solid transparent',
+                color: isActive ? nfAccent : nfText,
+                padding: '0.75rem 0.7rem',
+                fontSize: '0.84rem',
                 fontWeight: isActive ? 600 : 500,
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '5px',
                 transition: 'all 0.15s ease',
+                flexShrink: 0,
               }}
             >
               {tab.label}
@@ -1423,7 +1439,7 @@ export default function PulseFlowPage() {
                 margin: 0,
                 fontSize: '1.85rem',
                 fontWeight: 400,
-                color: '#e8eaed',
+                color: nfText,
                 letterSpacing: '-0.02em',
               }}
             >
@@ -1437,8 +1453,8 @@ export default function PulseFlowPage() {
           {/* Google Weather Widget (Clickable & Chevron-navigable) */}
           <div
             style={{
-              background: '#202124',
-              border: '1px solid #3c4043',
+              background: nfCard,
+              border: `1px solid ${nfBorder}`,
               borderRadius: '16px',
               padding: '0.55rem 0.9rem',
               display: 'flex',
@@ -1451,7 +1467,7 @@ export default function PulseFlowPage() {
               type="button"
               onClick={handlePrevWeather}
               title="Previous Location"
-              style={{ background: 'none', border: 'none', color: '#9aa0a6', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
+              style={{ background: 'none', border: 'none', color: nfMuted, cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
             >
               <ChevronLeft size={18} />
             </button>
@@ -1493,7 +1509,7 @@ export default function PulseFlowPage() {
               type="button"
               onClick={handleNextWeather}
               title="Next Location"
-              style={{ background: 'none', border: 'none', color: '#9aa0a6', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
+              style={{ background: 'none', border: 'none', color: nfMuted, cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
             >
               <ChevronRight size={18} />
             </button>
@@ -1508,13 +1524,13 @@ export default function PulseFlowPage() {
               display: 'flex',
               alignItems: 'center',             gap: '8px',
               flexWrap: 'wrap',
-              background: '#202124',
+              background: nfCard,
               padding: '0.85rem 1rem',
               borderRadius: '16px',
-              border: '1px solid #3c4043',
+              border: `1px solid ${nfBorder}`,
             }}
           >
-            <span style={{ fontSize: '0.8rem', color: '#9aa0a6', fontWeight: 600 }}>Followed topics:</span>
+            <span style={{ fontSize: '0.8rem', color: nfMuted, fontWeight: 600 }}>Followed topics:</span>
             {['Chennai', 'Tamil Nadu', 'Rain & Monsoon', 'Technology', 'Space & ISRO', 'Indian Economy', 'Sports'].map(
               (topic) => {
                 const isFollowed = followedTopics.has(topic);
@@ -1563,8 +1579,8 @@ export default function PulseFlowPage() {
                 <div
                   key={idx}
                   style={{
-                    background: '#202124',
-                    border: '1px solid #3c4043',
+                    background: nfCard,
+                    border: `1px solid ${nfBorder}`,
                     borderRadius: '16px',
                     padding: '1.25rem',
                     display: 'flex',
@@ -1585,7 +1601,7 @@ export default function PulseFlowPage() {
                         style={{
                           fontSize: '0.68rem',
                           background: 'rgba(138, 180, 248, 0.1)',
-                          color: '#8ab4f8',
+                          color: nfAccent,
                           padding: '2px 8px',
                           borderRadius: '12px',
                           fontWeight: 600,
@@ -1600,7 +1616,7 @@ export default function PulseFlowPage() {
                       <img src={pkg.leadImage} alt={pkg.leadTitle} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     </div>
 
-                    <h3 style={{ margin: '0 0 0.75rem', fontSize: '0.98rem', fontWeight: 600, color: '#e8eaed', lineHeight: 1.35 }}>
+                    <h3 style={{ margin: '0 0 0.75rem', fontSize: '0.98rem', fontWeight: 600, color: nfText, lineHeight: 1.35 }}>
                       {pkg.leadTitle}
                     </h3>
 
@@ -1626,9 +1642,9 @@ export default function PulseFlowPage() {
                       gap: '6px',
                       padding: '0.55rem',
                       borderRadius: '8px',
-                      background: '#303134',
-                      border: '1px solid #3c4043',
-                      color: '#8ab4f8',
+                      background: nfChip,
+                      border: `1px solid ${nfBorder}`,
+                      color: nfAccent,
                       fontSize: '0.78rem',
                       fontWeight: 600,
                       textDecoration: 'none',
@@ -1647,8 +1663,8 @@ export default function PulseFlowPage() {
         {filteredArticles.length === 0 && (
           <div
             style={{
-              background: '#202124',
-              border: '1px solid #3c4043',
+              background: nfCard,
+              border: `1px solid ${nfBorder}`,
               borderRadius: '20px',
               padding: '3rem 2rem',
               textAlign: 'center',
@@ -1665,7 +1681,7 @@ export default function PulseFlowPage() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 margin: '0 auto 1.25rem',
-                color: '#8ab4f8',
+                color: nfAccent,
               }}
             >
               <Search size={30} />
@@ -1673,7 +1689,7 @@ export default function PulseFlowPage() {
             <h2 style={{ margin: '0 0 0.5rem', fontSize: '1.25rem', fontWeight: 600, color: '#e8eaed' }}>
               No news stories found for "{searchQuery}"
             </h2>
-            <p style={{ margin: '0 0 1.5rem', fontSize: '0.88rem', color: '#9aa0a6', maxWidth: '500px', marginInline: 'auto' }}>
+            <p style={{ margin: '0 0 1.5rem', fontSize: '0.88rem', color: nfMuted, maxWidth: '500px', marginInline: 'auto' }}>
               Try checking for typos or explore popular topics like rain, Chennai, technology, sports, or national news.
             </p>
 
@@ -1684,9 +1700,9 @@ export default function PulseFlowPage() {
                   type="button"
                   onClick={() => setSearchQuery(suggestion)}
                   style={{
-                    background: '#303134',
-                    border: '1px solid #3c4043',
-                    color: '#8ab4f8',
+                    background: nfChip,
+                    border: `1px solid ${nfBorder}`,
+                    color: nfAccent,
                     padding: '0.4rem 0.9rem',
                     borderRadius: '16px',
                     fontSize: '0.8rem',
@@ -1743,9 +1759,9 @@ export default function PulseFlowPage() {
             >
               <div
                 style={{
-                  background: '#202124',
+                  background: nfCard,
                   borderRadius: '16px',
-                  border: '1px solid #3c4043',
+                  border: `1px solid ${nfBorder}`,
                   padding: '1.25rem',
                   boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
                 }}
@@ -1793,7 +1809,7 @@ export default function PulseFlowPage() {
                         height: '210px',
                         borderRadius: '12px',
                         overflow: 'hidden',
-                        background: '#303134',
+                        background: nfChip,
                         marginBottom: '0.85rem',
                       }}
                     >
@@ -1823,12 +1839,12 @@ export default function PulseFlowPage() {
                           justifyContent: 'center',
                           fontSize: '10px',
                           fontWeight: 700,
-                          color: '#8ab4f8',
+                          color: nfAccent,
                         }}
                       >
                         {topStory.source.charAt(0)}
                       </div>
-                      <span style={{ fontSize: '0.78rem', color: '#9aa0a6', fontWeight: 500 }}>
+                      <span style={{ fontSize: '0.78rem', color: nfMuted, fontWeight: 500 }}>
                         {topStory.source}
                       </span>
                     </div>
@@ -1840,7 +1856,7 @@ export default function PulseFlowPage() {
                         fontSize: '1.15rem',
                         fontWeight: 500,
                         lineHeight: 1.35,
-                        color: '#e8eaed',
+                        color: nfText,
                       }}
                       className="hover:underline"
                     >
@@ -1876,12 +1892,12 @@ export default function PulseFlowPage() {
                               justifyContent: 'center',
                               fontSize: '9px',
                               fontWeight: 700,
-                              color: '#8ab4f8',
+                              color: nfAccent,
                             }}
                           >
                             {persp.source.charAt(0)}
                           </div>
-                          <span style={{ fontSize: '0.75rem', color: '#9aa0a6', fontWeight: 500 }}>
+                          <span style={{ fontSize: '0.75rem', color: nfMuted, fontWeight: 500 }}>
                             {persp.source}
                           </span>
                         </div>
@@ -1891,7 +1907,7 @@ export default function PulseFlowPage() {
                             margin: '0 0 0.35rem',
                             fontSize: '0.92rem',
                             fontWeight: 500,
-                            color: '#e8eaed',
+                            color: nfText,
                             lineHeight: 1.35,
                           }}
                           className="hover:underline"
@@ -1921,7 +1937,7 @@ export default function PulseFlowPage() {
                     display: 'flex',
                     alignItems: 'center',
                     gap: '6px',
-                    color: '#8ab4f8',
+                    color: nfAccent,
                     fontSize: '0.82rem',
                     fontWeight: 500,
                     cursor: 'pointer',
@@ -1938,9 +1954,9 @@ export default function PulseFlowPage() {
             <div style={{ minWidth: 0 }}>
               <div
                 style={{
-                  background: '#202124',
+                  background: nfCard,
                   borderRadius: '16px',
-                  border: '1px solid #3c4043',
+                  border: `1px solid ${nfBorder}`,
                   padding: '1.25rem',
                   boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
                   height: '100%',
@@ -2003,7 +2019,7 @@ export default function PulseFlowPage() {
                           >
                             {local.source.charAt(0)}
                           </div>
-                          <span style={{ fontSize: '0.74rem', color: '#9aa0a6', fontWeight: 500 }}>
+                          <span style={{ fontSize: '0.74rem', color: nfMuted, fontWeight: 500 }}>
                             {local.source}
                           </span>
                         </div>
@@ -2013,7 +2029,7 @@ export default function PulseFlowPage() {
                             margin: '0 0 0.35rem',
                             fontSize: '0.88rem',
                             fontWeight: 500,
-                            color: '#e8eaed',
+                            color: nfText,
                             lineHeight: 1.35,
                           }}
                           className="hover:underline"
@@ -2034,7 +2050,7 @@ export default function PulseFlowPage() {
                             height: '72px',
                             borderRadius: '8px',
                             overflow: 'hidden',
-                            background: '#303134',
+                            background: nfChip,
                             flexShrink: 0,
                           }}
                         >
@@ -2087,8 +2103,8 @@ export default function PulseFlowPage() {
                     key={art.id}
                     onClick={() => setSelectedArticle(art)}
                     style={{
-                      background: '#202124',
-                      border: '1px solid #3c4043',
+                      background: nfCard,
+                      border: `1px solid ${nfBorder}`,
                       borderRadius: '16px',
                       padding: '1rem',
                       display: 'flex',
@@ -2115,12 +2131,12 @@ export default function PulseFlowPage() {
                               justifyContent: 'center',
                               fontSize: '9px',
                               fontWeight: 700,
-                              color: '#8ab4f8',
+                              color: nfAccent,
                             }}
                           >
                             {art.source.charAt(0)}
                           </div>
-                          <span style={{ fontSize: '0.74rem', color: '#9aa0a6', fontWeight: 500 }}>
+                          <span style={{ fontSize: '0.74rem', color: nfMuted, fontWeight: 500 }}>
                             {art.source}
                           </span>
                           <span style={{ fontSize: '0.72rem', color: '#5f6368' }}>•</span>
@@ -2145,7 +2161,7 @@ export default function PulseFlowPage() {
                               e.stopPropagation();
                               handleShare(art);
                             }}
-                            style={{ background: 'none', border: 'none', color: '#9aa0a6', cursor: 'pointer', padding: '4px' }}
+                            style={{ background: 'none', border: 'none', color: nfMuted, cursor: 'pointer', padding: '4px' }}
                             title="Share story"
                           >
                             <Share2 size={15} />
@@ -2160,7 +2176,7 @@ export default function PulseFlowPage() {
                             margin: 0,
                             fontSize: '0.94rem',
                             fontWeight: 500,
-                            color: '#e8eaed',
+                            color: nfText,
                             lineHeight: 1.35,
                             flex: 1,
                           }}
@@ -2176,7 +2192,7 @@ export default function PulseFlowPage() {
                               height: '76px',
                               borderRadius: '8px',
                               overflow: 'hidden',
-                              background: '#303134',
+                              background: nfChip,
                               flexShrink: 0,
                             }}
                           >
@@ -2190,7 +2206,7 @@ export default function PulseFlowPage() {
                       </div>
 
                       {art.description && (
-                        <p style={{ margin: '0 0 0.5rem', fontSize: '0.78rem', color: '#9aa0a6', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                        <p style={{ margin: '0 0 0.5rem', fontSize: '0.78rem', color: nfMuted, lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                           {art.description}
                         </p>
                       )}
@@ -2202,7 +2218,7 @@ export default function PulseFlowPage() {
                         style={{
                           fontSize: '0.68rem',
                           fontWeight: 600,
-                          color: '#8ab4f8',
+                          color: nfAccent,
                           background: 'rgba(138, 180, 248, 0.1)',
                           padding: '2px 8px',
                           borderRadius: '999px',
@@ -2217,7 +2233,7 @@ export default function PulseFlowPage() {
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()}
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#8ab4f8', fontSize: '0.72rem', textDecoration: 'none' }}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: nfAccent, fontSize: '0.72rem', textDecoration: 'none' }}
                         >
                           <span>Full story</span>
                           <ExternalLink size={11} />
@@ -2253,8 +2269,8 @@ export default function PulseFlowPage() {
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: '#202124',
-              border: '1px solid #3c4043',
+              background: nfCard,
+              border: `1px solid ${nfBorder}`,
               borderRadius: '20px',
               maxWidth: '680px',
               width: '100%',
@@ -2298,7 +2314,7 @@ export default function PulseFlowPage() {
 
             <div style={{ padding: '1.5rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.75rem' }}>
-                <span style={{ fontSize: '0.78rem', color: '#8ab4f8', fontWeight: 600 }}>
+                <span style={{ fontSize: '0.78rem', color: nfAccent, fontWeight: 600 }}>
                   {selectedArticle.source}
                 </span>
                 <span style={{ color: '#5f6368' }}>•</span>
@@ -2309,7 +2325,7 @@ export default function PulseFlowPage() {
                   style={{
                     fontSize: '0.68rem',
                     background: 'rgba(138, 180, 248, 0.1)',
-                    color: '#8ab4f8',
+                    color: nfAccent,
                     padding: '2px 8px',
                     borderRadius: '999px',
                     marginLeft: 'auto',
@@ -2319,7 +2335,7 @@ export default function PulseFlowPage() {
                 </span>
               </div>
 
-              <h2 style={{ margin: '0 0 1rem', fontSize: '1.35rem', fontWeight: 600, color: '#e8eaed', lineHeight: 1.35 }}>
+              <h2 style={{ margin: '0 0 1rem', fontSize: '1.35rem', fontWeight: 600, color: nfText, lineHeight: 1.35 }}>
                 {selectedArticle.title}
               </h2>
 
@@ -2338,8 +2354,8 @@ export default function PulseFlowPage() {
                       gap: '6px',
                       padding: '0.45rem 0.9rem',
                       borderRadius: '8px',
-                      background: '#303134',
-                      border: '1px solid #3c4043',
+                      background: nfChip,
+                      border: `1px solid ${nfBorder}`,
                       color: savedBookmarks.has(selectedArticle.id) ? '#fbbc04' : '#e8eaed',
                       fontSize: '0.82rem',
                       fontWeight: 500,
@@ -2359,9 +2375,9 @@ export default function PulseFlowPage() {
                       gap: '6px',
                       padding: '0.45rem 0.9rem',
                       borderRadius: '8px',
-                      background: '#303134',
-                      border: '1px solid #3c4043',
-                      color: '#e8eaed',
+                      background: nfChip,
+                      border: `1px solid ${nfBorder}`,
+                      color: nfText,
                       fontSize: '0.82rem',
                       fontWeight: 500,
                       cursor: 'pointer',
@@ -2421,8 +2437,8 @@ export default function PulseFlowPage() {
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: '#202124',
-              border: '1px solid #3c4043',
+              background: nfCard,
+              border: `1px solid ${nfBorder}`,
               borderRadius: '20px',
               maxWidth: '520px',
               width: '100%',
@@ -2440,7 +2456,7 @@ export default function PulseFlowPage() {
               <button
                 type="button"
                 onClick={() => setShowWeatherModal(false)}
-                style={{ background: 'none', border: 'none', color: '#9aa0a6', cursor: 'pointer' }}
+                style={{ background: 'none', border: 'none', color: nfMuted, cursor: 'pointer' }}
               >
                 <X size={20} />
               </button>
@@ -2473,22 +2489,22 @@ export default function PulseFlowPage() {
 
             {/* Metrics */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '1.25rem' }}>
-              <div style={{ background: '#303134', padding: '0.75rem', borderRadius: '10px', textAlign: 'center' }}>
+              <div style={{ background: nfChip, padding: '0.75rem', borderRadius: '10px', textAlign: 'center' }}>
                 <div style={{ fontSize: '0.7rem', color: '#9aa0a6' }}>Humidity</div>
                 <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#e8eaed' }}>{currentWeather.humidity}</div>
               </div>
-              <div style={{ background: '#303134', padding: '0.75rem', borderRadius: '10px', textAlign: 'center' }}>
+              <div style={{ background: nfChip, padding: '0.75rem', borderRadius: '10px', textAlign: 'center' }}>
                 <div style={{ fontSize: '0.7rem', color: '#9aa0a6' }}>Wind</div>
                 <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#e8eaed' }}>{currentWeather.wind}</div>
               </div>
-              <div style={{ background: '#303134', padding: '0.75rem', borderRadius: '10px', textAlign: 'center' }}>
+              <div style={{ background: nfChip, padding: '0.75rem', borderRadius: '10px', textAlign: 'center' }}>
                 <div style={{ fontSize: '0.7rem', color: '#9aa0a6' }}>AQI</div>
                 <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#81c995' }}>{currentWeather.aqi}</div>
               </div>
             </div>
 
             {/* 3-Day Outlook */}
-            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#9aa0a6', marginBottom: '0.5rem' }}>
+            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: nfMuted, marginBottom: '0.5rem' }}>
               3-Day Outlook
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -2504,7 +2520,7 @@ export default function PulseFlowPage() {
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     padding: '0.55rem 0.85rem',
-                    background: '#303134',
+                    background: nfChip,
                     borderRadius: '8px',
                     fontSize: '0.8rem',
                   }}
@@ -2540,8 +2556,8 @@ export default function PulseFlowPage() {
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: '#202124',
-              border: '1px solid #3c4043',
+              background: nfCard,
+              border: `1px solid ${nfBorder}`,
               borderRadius: '20px',
               maxWidth: '540px',
               width: '100%',
@@ -2559,7 +2575,7 @@ export default function PulseFlowPage() {
               <button
                 type="button"
                 onClick={() => setShowHelpModal(false)}
-                style={{ background: 'none', border: 'none', color: '#9aa0a6', cursor: 'pointer' }}
+                style={{ background: 'none', border: 'none', color: nfMuted, cursor: 'pointer' }}
               >
                 <X size={20} />
               </button>
@@ -2619,8 +2635,8 @@ export default function PulseFlowPage() {
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: '#202124',
-              border: '1px solid #3c4043',
+              background: nfCard,
+              border: `1px solid ${nfBorder}`,
               borderRadius: '20px',
               maxWidth: '500px',
               width: '100%',
@@ -2638,7 +2654,7 @@ export default function PulseFlowPage() {
               <button
                 type="button"
                 onClick={() => setShowSettingsModal(false)}
-                style={{ background: 'none', border: 'none', color: '#9aa0a6', cursor: 'pointer' }}
+                style={{ background: 'none', border: 'none', color: nfMuted, cursor: 'pointer' }}
               >
                 <X size={20} />
               </button>
@@ -2646,7 +2662,7 @@ export default function PulseFlowPage() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', fontSize: '0.85rem' }}>
               <div>
-                <label style={{ display: 'block', color: '#e8eaed', fontWeight: 600, marginBottom: '0.35rem' }}>
+                <label style={{ display: 'block', color: nfText, fontWeight: 600, marginBottom: '0.35rem' }}>
                   Default Weather City
                 </label>
                 <select
@@ -2654,9 +2670,9 @@ export default function PulseFlowPage() {
                   onChange={(e) => setWeatherIdx(Number(e.target.value))}
                   style={{
                     width: '100%',
-                    background: '#303134',
-                    border: '1px solid #3c4043',
-                    color: '#e8eaed',
+                    background: nfChip,
+                    border: `1px solid ${nfBorder}`,
+                    color: nfText,
                     padding: '0.55rem',
                     borderRadius: '8px',
                     fontFamily: 'inherit',
@@ -2671,16 +2687,16 @@ export default function PulseFlowPage() {
               </div>
 
               <div>
-                <label style={{ display: 'block', color: '#e8eaed', fontWeight: 600, marginBottom: '0.35rem' }}>
+                <label style={{ display: 'block', color: nfText, fontWeight: 600, marginBottom: '0.35rem' }}>
                   Auto-Refresh Schedule
                 </label>
-                <div style={{ color: '#9aa0a6', fontSize: '0.78rem' }}>
+                <div style={{ color: nfMuted, fontSize: '0.78rem' }}>
                   Background news sync runs automatically every <strong>5 minutes</strong>.
                 </div>
               </div>
 
-              <div style={{ background: '#303134', padding: '0.85rem', borderRadius: '10px' }}>
-                <div style={{ color: '#e8eaed', fontWeight: 600, marginBottom: '4px' }}>Backend Status</div>
+              <div style={{ background: nfChip, padding: '0.85rem', borderRadius: '10px' }}>
+                <div style={{ color: nfText, fontWeight: 600, marginBottom: '4px' }}>Backend Status</div>
                 <div style={{ color: backendStatus.isOnline ? '#81c995' : '#f28b82', fontSize: '0.8rem' }}>
                   {backendStatus.isOnline
                     ? `Connected to local SQLite news.db (${backendStatus.totalArticles} articles stored)`
@@ -2733,8 +2749,8 @@ export default function PulseFlowPage() {
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: '#202124',
-              border: '1px solid #3c4043',
+              background: nfCard,
+              border: `1px solid ${nfBorder}`,
               borderRadius: '20px',
               maxWidth: '420px',
               width: '100%',
@@ -2769,11 +2785,11 @@ export default function PulseFlowPage() {
             </p>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '1.25rem' }}>
-              <div style={{ background: '#303134', padding: '0.75rem', borderRadius: '10px' }}>
+              <div style={{ background: nfChip, padding: '0.75rem', borderRadius: '10px' }}>
                 <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#8ab4f8' }}>{savedBookmarks.size}</div>
                 <div style={{ fontSize: '0.72rem', color: '#9aa0a6' }}>Reading List</div>
               </div>
-              <div style={{ background: '#303134', padding: '0.75rem', borderRadius: '10px' }}>
+              <div style={{ background: nfChip, padding: '0.75rem', borderRadius: '10px' }}>
                 <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fbbc04' }}>{followedTopics.size}</div>
                 <div style={{ fontSize: '0.72rem', color: '#9aa0a6' }}>Followed Topics</div>
               </div>
@@ -2787,9 +2803,9 @@ export default function PulseFlowPage() {
               }}
               style={{
                 width: '100%',
-                background: '#303134',
-                border: '1px solid #3c4043',
-                color: '#8ab4f8',
+                background: nfChip,
+                border: `1px solid ${nfBorder}`,
+                color: nfAccent,
                 padding: '0.6rem',
                 borderRadius: '10px',
                 fontWeight: 600,
@@ -2813,7 +2829,7 @@ export default function PulseFlowPage() {
                 width: '100%',
                 background: 'transparent',
                 border: 'none',
-                color: '#9aa0a6',
+                color: nfMuted,
                 padding: '0.4rem',
                 fontSize: '0.8rem',
                 cursor: 'pointer',
@@ -2832,9 +2848,9 @@ export default function PulseFlowPage() {
             position: 'fixed',
             bottom: '24px',
             right: '24px',
-            background: '#303134',
+            background: nfChip,
             border: '1px solid #5f6368',
-            color: '#e8eaed',
+            color: nfText,
             padding: '0.75rem 1.25rem',
             borderRadius: '12px',
             fontSize: '0.82rem',

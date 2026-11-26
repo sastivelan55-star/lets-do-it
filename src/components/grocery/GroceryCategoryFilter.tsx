@@ -39,14 +39,14 @@ export default function GroceryCategoryFilter() {
           position: 'relative',
           display: 'flex',
           alignItems: 'center',
-          background: 'rgba(15, 23, 42, 0.65)',
+          background: 'var(--bg-surface)',
           borderRadius: '12px',
-          border: '1px solid rgba(16, 185, 129, 0.22)',
+          border: '1px solid var(--border)',
           padding: '0.4rem 0.85rem',
-          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)',
+          boxShadow: '0 2px 10px rgba(0, 0, 0, 0.06)',
         }}
       >
-        <Search size={15} color="#34d399" style={{ marginRight: '0.5rem', flexShrink: 0 }} />
+        <Search size={15} color="#10b981" style={{ marginRight: '0.5rem', flexShrink: 0 }} />
         <input
           type="text"
           placeholder="Filter groceries by item name or notes..."
@@ -57,7 +57,7 @@ export default function GroceryCategoryFilter() {
             background: 'transparent',
             border: 'none',
             outline: 'none',
-            color: '#f8fafc',
+            color: 'var(--text-primary)',
             fontSize: '0.84rem',
             fontFamily: 'inherit',
           }}
@@ -105,13 +105,13 @@ export default function GroceryCategoryFilter() {
             borderRadius: '999px',
             background:
               selectedCategory === 'all'
-                ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.35), rgba(5, 150, 105, 0.35))'
-                : 'rgba(255, 255, 255, 0.04)',
+                ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(5, 150, 105, 0.25))'
+                : 'var(--bg-surface)',
             border:
               selectedCategory === 'all'
-                ? '1px solid rgba(52, 211, 153, 0.65)'
-                : '1px solid rgba(255, 255, 255, 0.08)',
-            color: selectedCategory === 'all' ? '#ffffff' : 'rgba(226, 232, 240, 0.75)',
+                ? '1px solid rgba(16, 185, 129, 0.65)'
+                : '1px solid var(--border)',
+            color: selectedCategory === 'all' ? '#10b981' : 'var(--text-primary)',
             fontSize: '0.78rem',
             fontWeight: selectedCategory === 'all' ? 700 : 500,
             cursor: 'pointer',
@@ -151,12 +151,12 @@ export default function GroceryCategoryFilter() {
                 padding: '0.35rem 0.75rem',
                 borderRadius: '999px',
                 background: isSelected
-                  ? `linear-gradient(135deg, ${cat.color}35, rgba(16, 185, 129, 0.25))`
-                  : 'rgba(255, 255, 255, 0.04)',
+                  ? `linear-gradient(135deg, ${cat.color}25, rgba(16, 185, 129, 0.18))`
+                  : 'var(--bg-surface)',
                 border: isSelected
                   ? `1px solid ${cat.color}`
-                  : '1px solid rgba(255, 255, 255, 0.08)',
-                color: isSelected ? '#ffffff' : 'rgba(226, 232, 240, 0.75)',
+                  : '1px solid var(--border)',
+                color: isSelected ? cat.color : 'var(--text-primary)',
                 fontSize: '0.78rem',
                 fontWeight: isSelected ? 700 : 500,
                 cursor: 'pointer',

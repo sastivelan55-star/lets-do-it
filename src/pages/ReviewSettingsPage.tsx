@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  BarChart3,
   FileClock,
   Sliders,
   Palette,
@@ -10,13 +9,11 @@ import {
   Database,
   Info,
 } from 'lucide-react';
-import WeeklyReviewPage from './WeeklyReviewPage';
 import SettingsPage, { type SettingsTab } from './SettingsPage';
 
 export type ReviewTab =
   | 'areas'
   | 'appearance'
-  | 'review'
   | 'reports'
   | 'ai'
   | 'account'
@@ -34,13 +31,12 @@ export default function ReviewSettingsPage({ initialTab = 'areas' }: ReviewSetti
   const TABS: { id: ReviewTab; label: string; icon: React.ReactNode; color: string }[] = [
     { id: 'areas',       label: 'Life Areas',        icon: <Sliders size={15} />,   color: '#818cf8' },
     { id: 'appearance',  label: 'Appearance',        icon: <Palette size={15} />,   color: '#f43f5e' },
-    { id: 'review',      label: 'Weekly Review',     icon: <BarChart3 size={15} />, color: '#8b5cf6' },
     { id: 'reports',     label: 'Reports & History', icon: <FileClock size={15} />, color: '#38bdf8' },
     { id: 'ai',          label: 'AI Execution',      icon: <Bot size={15} />,       color: '#a855f7' },
     { id: 'account',     label: 'Profile & Account', icon: <User size={15} />,      color: '#10b981' },
     { id: 'recycle-bin', label: 'Recycle Bin',       icon: <Trash2 size={15} />,    color: '#f43f5e' },
     { id: 'data',        label: 'Data Management',   icon: <Database size={15} />,  color: '#f59e0b' },
-    { id: 'branding',        label: 'Manual Branding',   icon: <Info size={15} />,      color: '#64748b' },
+    { id: 'branding',    label: 'Manual Branding',   icon: <Info size={15} />,      color: '#64748b' },
   ];
 
   // Map subtabs to SettingsTab
@@ -102,14 +98,11 @@ export default function ReviewSettingsPage({ initialTab = 'areas' }: ReviewSetti
 
       {/* Content Area */}
       <div className="composite-content">
-        {activeTab === 'review' && <WeeklyReviewPage />}
-        {activeTab !== 'review' && (
-          <SettingsPage
-            key={activeTab}
-            initialTab={getSettingsInitialTab(activeTab)}
-            hideHeader={true}
-          />
-        )}
+        <SettingsPage
+          key={activeTab}
+          initialTab={getSettingsInitialTab(activeTab)}
+          hideHeader={true}
+        />
       </div>
     </div>
   );

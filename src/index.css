@@ -33,10 +33,10 @@
   --radius-input:  10px;
   --radius-badge:  999px;
 
-  /* NEO FUTURE glass surfaces */
-  --glass-bg:     rgba(17, 26, 46, 0.65);
-  --glass-bg-2:   rgba(11, 15, 30, 0.80);
-  --glass-border: rgba(129, 140, 248, 0.18);
+  /* NEO FUTURE glass surfaces (light defaults; overridden by .dark & presets) */
+  --glass-bg:     rgba(255, 255, 255, 0.92);
+  --glass-bg-2:   rgba(248, 250, 252, 0.96);
+  --glass-border: rgba(148, 163, 184, 0.28);
   --glass-blur:   16px;
   --glass-blur-sm: 8px;
 }
@@ -55,6 +55,19 @@
   --glass-bg:     rgba(15, 26, 46, 0.70);
   --glass-bg-2:   rgba(8, 12, 28, 0.85);
   --glass-border: rgba(129, 140, 248, 0.20);
+}
+
+[data-theme-mode="light"] {
+  --bg-base:     #f1f5f9;
+  --bg-surface:  #ffffff;
+  --bg-surface-2:#f8fafc;
+  --text-primary:   #0f172a;
+  --text-secondary: #475569;
+  --text-muted:     #64748b;
+  --border: rgba(100, 116, 139, 0.22);
+  --glass-bg:     rgba(255, 255, 255, 0.94);
+  --glass-bg-2:   rgba(248, 250, 252, 0.98);
+  --glass-border: rgba(148, 163, 184, 0.28);
 }
 
 /* ─── Theme Presets ───────────────────────────────────────────── */
