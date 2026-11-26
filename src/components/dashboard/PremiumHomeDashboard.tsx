@@ -116,14 +116,23 @@ export default function PremiumHomeDashboard({
   // Daily Execution engine hook for the selected date
   const { occurrences, toggleCompletion, completions } = useDailyExecution(selectedDate);
 
+  // Live digital clock (updates every second)
+  const [nowTime, setNowTime] = useState<Date>(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNowTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   // Active user name and greeting
   const greeting = useMemo(() => getGreeting(), []);
   const userName = useMemo(() => {
     return settings.displayName || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Sastivelan';
   }, [settings.displayName, user]);
 
-  // Active Anime Character Companion avatar
+  // Active user avatar (custom Settings avatar -> companion fallback)
   const activeAvatar = useMemo(() => {
+    if (settings.avatarUrl) return settings.avatarUrl;
+    if (settings.profileAvatar) return settings.profileAvatar;
     const charId = settings.personalization?.activeCharacterId || 'nami';
     const found = ALL_CHARACTERS.find((c) => c.id === charId);
     return (
@@ -131,7 +140,7 @@ export default function PremiumHomeDashboard({
       found?.artworkUrl ||
       'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=150&auto=format&fit=crop&q=80'
     );
-  }, [settings.personalization?.activeCharacterId]);
+  }, [settings.avatarUrl, settings.profileAvatar, settings.personalization?.activeCharacterId]);
 
   // Toast feedback helper
   const showToast = useCallback((msg: string) => {
@@ -496,12 +505,25 @@ export default function PremiumHomeDashboard({
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
-          gap: '1.25rem',
+          gap: '1rem',
           marginBottom: '1.75rem',
+          padding: '1.15rem 1.35rem',
+          borderRadius: '20px',
+          background: isLight
+            ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(245, 243, 255, 0.92))'
+            : 'linear-gradient(135deg, rgba(24, 16, 52, 0.88), rgba(14, 10, 32, 0.85))',
+          border: isLight
+            ? '1px solid rgba(168, 85, 247, 0.22)'
+            : '1px solid rgba(168, 85, 247, 0.28)',
+          boxShadow: isLight
+            ? '0 8px 28px rgba(100, 116, 139, 0.10)'
+            : '0 8px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
         }}
       >
-        {/* Left: Companion Avatar & Warm Greeting */}
-        <div className="home-greeting" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        {/* Left: Profile Avatar & Warm Greeting */}
+        <div className="home-greeting" style={{ display: 'flex', alignItems: 'center', gap: '1rem', minWidth: 0 }}>
           <div
             style={{
               position: 'relative',
@@ -510,32 +532,33 @@ export default function PremiumHomeDashboard({
               borderRadius: '50%',
               padding: '3px',
               background: 'linear-gradient(135deg, #a855f7, #38bdf8)',
-              boxShadow: '0 0 24px rgba(168, 85, 247, 0.45)',
+              boxShadow: '0 0 24px rgba(168, 85, 247, 0.4)',
               flexShrink: 0,
             }}
           >
             <img
               src={activeAvatar}
-              alt="Companion"
+              alt={userName}
               style={{
                 width: '100%',
                 height: '100%',
                 borderRadius: '50%',
                 objectFit: 'cover',
-                background: '#120c26',
+                background: isLight ? '#f8fafc' : '#120c26',
               }}
             />
           </div>
 
-          <div>
+          <div style={{ minWidth: 0 }}>
             <h1
               style={{
                 margin: 0,
-                fontSize: 'clamp(1.35rem, 2.5vw, 1.85rem)',
+                fontSize: 'clamp(1.3rem, 2.5vw, 1.8rem)',
                 fontWeight: 800,
                 letterSpacing: '-0.02em',
                 color: isLight ? '#0f172a' : '#ffffff',
                 fontFamily: 'Inter, system-ui, sans-serif',
+                lineHeight: 1.2,
               }}
             >
               {greeting}, {userName}!
@@ -543,8 +566,8 @@ export default function PremiumHomeDashboard({
             <p
               style={{
                 margin: '4px 0 0',
-                fontSize: '0.88rem',
-                color: '#c084fc',
+                fontSize: '0.86rem',
+                color: isLight ? '#7c3aed' : '#c084fc',
                 fontWeight: 500,
                 display: 'flex',
                 alignItems: 'center',
@@ -557,35 +580,86 @@ export default function PremiumHomeDashboard({
           </div>
         </div>
 
-        {/* Right: Active Date Pill (when inspecting non-today dates from calendar) */}
-        {selectedDate !== today() && (
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedDate(today());
-              setCalendarMonth(parseISO(today()));
-              showToast('Returned to Today');
-            }}
+        {/* Right: Live Digital Clock, Full Date & Optional Return-to-Today Pill */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          {selectedDate !== today() && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedDate(today());
+                setCalendarMonth(parseISO(today()));
+                showToast('Returned to Today');
+              }}
+              style={{
+                background: 'rgba(168, 85, 247, 0.15)',
+                border: '1px solid rgba(168, 85, 247, 0.4)',
+                borderRadius: '999px',
+                padding: '6px 14px',
+                color: isLight ? '#7c3aed' : '#c084fc',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+              title="Click to reset view back to today"
+            >
+              <RotateCcw size={13} />
+              <span>Viewing {format(parseISO(selectedDate), 'MMM d')} • Today</span>
+            </button>
+          )}
+
+          <div
             style={{
-              background: 'rgba(168, 85, 247, 0.15)',
-              border: '1px solid rgba(168, 85, 247, 0.4)',
-              borderRadius: '999px',
-              padding: '6px 14px',
-              color: '#c084fc',
-              fontSize: '0.82rem',
-              fontWeight: 600,
               display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
+              flexDirection: 'column',
+              alignItems: 'flex-end',
+              padding: '0.55rem 1rem',
+              borderRadius: '14px',
+              background: isLight ? 'var(--bg-surface)' : 'rgba(255, 255, 255, 0.04)',
+              border: isLight ? '1px solid var(--border)' : '1px solid rgba(168, 85, 247, 0.25)',
+              boxShadow: isLight
+                ? '0 2px 10px rgba(100, 116, 139, 0.08)'
+                : '0 0 20px rgba(168, 85, 247, 0.14)',
+              fontVariantNumeric: 'tabular-nums',
             }}
-            title="Click to reset view back to today"
           >
-            <RotateCcw size={14} />
-            <span>Viewing {format(parseISO(selectedDate), 'MMM d, yyyy')} • Return to Today</span>
-          </button>
-        )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+              <span
+                style={{
+                  width: '7px',
+                  height: '7px',
+                  borderRadius: '50%',
+                  background: '#10b981',
+                  boxShadow: '0 0 8px #10b981',
+                  flexShrink: 0,
+                }}
+              />
+              <span
+                style={{
+                  fontSize: '1.1rem',
+                  fontWeight: 800,
+                  letterSpacing: '0.02em',
+                  color: isLight ? '#0f172a' : '#f8fafc',
+                }}
+              >
+                {format(nowTime, 'hh:mm:ss a')}
+              </span>
+            </div>
+            <div
+              style={{
+                fontSize: '0.74rem',
+                fontWeight: 600,
+                color: isLight ? '#475569' : '#a5b4fc',
+                marginTop: '2px',
+              }}
+            >
+              {format(nowTime, 'EEEE, MMMM d, yyyy')}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* ─── MAIN TWO-COLUMN DASHBOARD GRID ──────────────────────────────────── */}

@@ -487,6 +487,7 @@ export const DEFAULT_AI_SETTINGS: AiSettings = {
 export interface AppSettings {
   theme: 'dark' | 'light' | 'system';
   displayName: string;
+  avatarUrl?: string;
   profileAvatar?: string;
   lifeAreaWeights: LifeAreaWeights;
   lifeAreas: CustomLifeArea[];

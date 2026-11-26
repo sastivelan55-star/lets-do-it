@@ -294,10 +294,19 @@ export default function TopBar({
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
+              overflow: 'hidden',
               boxShadow: '0 0 8px rgba(168, 85, 247, 0.4)',
             }}
           >
-            {userInitial}
+            {settings.avatarUrl || settings.profileAvatar ? (
+              <img
+                src={settings.avatarUrl || settings.profileAvatar}
+                alt={displayName}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            ) : (
+              userInitial
+            )}
           </div>
           <span
             style={{

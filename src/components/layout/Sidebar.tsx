@@ -310,10 +310,19 @@ export default function Sidebar({ active, onNavigate, collapsed, onToggle }: Sid
                   fontWeight: 800,
                   fontSize: '0.75rem',
                   flexShrink: 0,
+                  overflow: 'hidden',
                   boxShadow: '0 0 10px rgba(168, 85, 247, 0.4)',
                 }}
               >
-                {settings.displayName ? settings.displayName[0].toUpperCase() : 'S'}
+                {settings.avatarUrl || settings.profileAvatar ? (
+                  <img
+                    src={settings.avatarUrl || settings.profileAvatar}
+                    alt={settings.displayName || 'Profile'}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  settings.displayName ? settings.displayName[0].toUpperCase() : 'S'
+                )}
               </div>
           <div className="sidebar-brand-copy" style={{ overflow: 'hidden' }}>
                 <p

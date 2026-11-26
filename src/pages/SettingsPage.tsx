@@ -59,6 +59,248 @@ const THEME_PRESETS: { id: ThemePreset; name: string; desc: string; previewBg: s
   { id: 'clean-light', name: 'Clean Light', desc: 'Modern bright productivity theme with slate accents', previewBg: '#f8fafc', border: '#64748b' },
 ];
 
+const DEFAULT_AVATAR_URL =
+  'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=150&auto=format&fit=crop&q=80';
+
+function makeAvatarSvg(bg1: string, bg2: string, glyph: string): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${bg1}"/><stop offset="100%" stop-color="${bg2}"/></linearGradient></defs><rect width="120" height="120" rx="60" fill="url(#g)"/><text x="60" y="72" text-anchor="middle" font-size="48">${glyph}</text></svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+const CURATED_AVATARS: { id: string; label: string; url: string }[] = [
+  { id: 'cosmic', label: 'Cosmic', url: makeAvatarSvg('#6366f1', '#a855f7', '⚡') },
+  { id: 'cyber', label: 'Cyber', url: makeAvatarSvg('#06b6d4', '#3b82f6', '🚀') },
+  { id: 'emerald', label: 'Focus', url: makeAvatarSvg('#10b981', '#059669', '🌿') },
+  { id: 'phoenix', label: 'Solar', url: makeAvatarSvg('#f59e0b', '#ef4444', '🔥') },
+  { id: 'sakura', label: 'Sakura', url: makeAvatarSvg('#ec4899', '#8b5cf6', '✨') },
+  { id: 'midnight', label: 'Night', url: makeAvatarSvg('#1e293b', '#4f46e5', '🌙') },
+];
+
+async function resizeAvatarToDataUrl(file: File, maxSize = 160): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Failed to read image file.'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Invalid image file.'));
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = maxSize;
+        canvas.height = maxSize;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(String(reader.result));
+          return;
+        }
+        const scale = Math.max(maxSize / img.width, maxSize / img.height);
+        const w = img.width * scale;
+        const h = img.height * scale;
+        const x = (maxSize - w) / 2;
+        const y = (maxSize - h) / 2;
+        ctx.drawImage(img, x, y, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+      };
+      img.src = String(reader.result);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function ProfileIdentityCard({
+  displayName,
+  avatarUrl,
+  onSave,
+}: {
+  displayName?: string;
+  avatarUrl?: string;
+  onSave: (updates: { displayName: string; avatarUrl?: string; profileAvatar?: string }) => Promise<void>;
+}) {
+  const [nameInput, setNameInput] = useState(displayName || 'Sastivelan');
+  const [avatarInput, setAvatarInput] = useState(avatarUrl || '');
+  const [avatarErr, setAvatarErr] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setNameInput(displayName || 'Sastivelan');
+  }, [displayName]);
+
+  useEffect(() => {
+    setAvatarInput(avatarUrl || '');
+  }, [avatarUrl]);
+
+  const previewAvatar = avatarInput || DEFAULT_AVATAR_URL;
+  const previewName = nameInput.trim() || 'Sastivelan';
+  const hour = new Date().getHours();
+  const previewGreeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+
+  const handleUploadAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setAvatarErr('Please select a valid image file.');
+      return;
+    }
+    setAvatarErr('');
+    try {
+      const dataUrl = await resizeAvatarToDataUrl(file, 160);
+      setAvatarInput(dataUrl);
+      await onSave({ displayName: previewName, avatarUrl: dataUrl, profileAvatar: dataUrl });
+    } catch (err: unknown) {
+      setAvatarErr(formatSafeErrorMessage(err, 'Failed to process avatar image.'));
+    } finally {
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
+  const handleSelectPresetAvatar = async (url: string) => {
+    setAvatarInput(url);
+    await onSave({ displayName: previewName, avatarUrl: url, profileAvatar: url });
+  };
+
+  const handleResetProfile = async () => {
+    setNameInput('Sastivelan');
+    setAvatarInput('');
+    setAvatarErr('');
+    await onSave({ displayName: 'Sastivelan', avatarUrl: undefined, profileAvatar: undefined });
+  };
+
+  return (
+    <div className="card" style={{ marginBottom: '1.25rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+        <div>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 800, margin: '0 0 4px 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <User size={17} color="#a855f7" /> Profile &amp; Identity
+          </h2>
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: 0 }}>
+            Customize your Home greeting name and avatar across Sidebar, TopBar, and Dashboard.
+          </p>
+        </div>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={handleResetProfile}>
+          <RotateCcw size={13} /> Reset to Default
+        </button>
+      </div>
+
+      {/* Live Home Greeting Mini-Preview */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.9rem',
+          padding: '0.85rem 1rem',
+          borderRadius: '14px',
+          background: 'var(--bg-surface-2)',
+          border: '1px solid var(--border)',
+          marginBottom: '1.15rem',
+        }}
+      >
+        <div
+          style={{
+            width: '48px',
+            height: '48px',
+            borderRadius: '50%',
+            padding: '2.5px',
+            background: 'linear-gradient(135deg, #a855f7, #38bdf8)',
+            flexShrink: 0,
+          }}
+        >
+          <img
+            src={previewAvatar}
+            alt={previewName}
+            style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', background: 'var(--bg-surface)' }}
+          />
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>
+            Live Greeting Preview
+          </div>
+          <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {previewGreeting}, {previewName}!
+          </div>
+          <div style={{ fontSize: '0.76rem', color: '#a855f7', fontWeight: 500 }}>
+            Let&apos;s make today productive and meaningful. ✨
+          </div>
+        </div>
+      </div>
+
+      {/* Display Name & Custom Avatar Upload */}
+      <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: '1rem' }}>
+        <div style={{ flex: '1 1 220px' }}>
+          <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
+            Display Name
+          </label>
+          <input
+            className="input"
+            value={nameInput}
+            onChange={(e) => setNameInput(e.target.value)}
+            placeholder="Sastivelan"
+          />
+        </div>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() => onSave({ displayName: previewName, avatarUrl: avatarInput || undefined, profileAvatar: avatarInput || undefined })}
+        >
+          Save Profile
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => fileRef.current?.click()}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+        >
+          <Upload size={14} /> Upload Avatar
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={handleUploadAvatar}
+        />
+      </div>
+
+      {avatarErr && (
+        <p style={{ color: '#ef4444', fontSize: '0.8rem', margin: '0 0 0.75rem 0' }}>
+          {avatarErr}
+        </p>
+      )}
+
+      {/* Curated Avatar Presets */}
+      <div>
+        <span style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+          Quick Avatar Presets
+        </span>
+        <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          {CURATED_AVATARS.map((av) => {
+            const isSelected = avatarInput === av.url;
+            return (
+              <button
+                key={av.id}
+                type="button"
+                onClick={() => handleSelectPresetAvatar(av.url)}
+                title={av.label}
+                style={{
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '50%',
+                  padding: '2px',
+                  border: isSelected ? '2px solid var(--accent)' : '2px solid var(--border)',
+                  background: 'var(--bg-surface-2)',
+                  cursor: 'pointer',
+                  overflow: 'hidden',
+                  boxShadow: isSelected ? '0 0 12px var(--accent-glow)' : 'none',
+                }}
+              >
+                <img src={av.url} alt={av.label} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const ACCENT_COLORS = [
   { label: 'Indigo', value: '#818cf8' },
   { label: 'Sky Blue', value: '#38bdf8' },
@@ -185,6 +427,16 @@ export default function SettingsPage({ initialTab, hideHeader = false, hideTabs 
           ))}
         </div>
       )}
+
+      {/* Profile & Identity Card */}
+      <ProfileIdentityCard
+        displayName={settings.displayName}
+        avatarUrl={settings.avatarUrl || settings.profileAvatar}
+        onSave={async (updates) => {
+          await updateSettings(updates);
+          showSaveSuccess('Profile & identity updated.');
+        }}
+      />
 
       {/* Tab Panels */}
       {activeTab === 'areas' && (
