@@ -45,12 +45,14 @@ export default function TopBar({
 
   const handleToggleTheme = async () => {
     const nextTheme = isLight ? 'dark' : 'light';
+    const currentPreset = settings.appearance?.themePreset;
+    const nextDarkPreset = currentPreset && currentPreset !== 'clean-light' ? currentPreset : 'purple-fantasy';
     await updateSettings({
       theme: nextTheme,
       appearance: {
         ...settings.appearance,
         theme: nextTheme,
-        themePreset: nextTheme === 'light' ? 'clean-light' : 'purple-fantasy',
+        themePreset: nextTheme === 'light' ? 'clean-light' : nextDarkPreset,
       },
     });
   };

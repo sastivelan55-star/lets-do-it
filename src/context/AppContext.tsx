@@ -263,8 +263,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--text-secondary', '#475569');
       root.style.setProperty('--text-muted', '#94a3b8');
       root.style.setProperty('--border', 'rgba(203, 213, 225, 0.7)');
-      root.style.setProperty('--glass-bg', 'rgba(255, 255, 255, 0.85)');
-      root.style.setProperty('--glass-border', 'rgba(203, 213, 225, 0.6)');
+      root.style.setProperty('--glass-bg', 'rgba(255, 255, 255, 0.94)');
+      root.style.setProperty('--glass-bg-2', 'rgba(248, 250, 252, 0.98)');
+      root.style.setProperty('--glass-border', 'rgba(148, 163, 184, 0.28)');
       if (typeof document !== 'undefined' && document.body) {
         document.body.style.backgroundColor = '#f1f5f9';
         document.body.style.color = '#0f172a';
@@ -287,6 +288,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       root.style.removeProperty('--text-muted');
       root.style.removeProperty('--border');
       root.style.removeProperty('--glass-bg');
+      root.style.removeProperty('--glass-bg-2');
       root.style.removeProperty('--glass-border');
       if (typeof document !== 'undefined' && document.body) {
         document.body.style.backgroundColor = '#070314';

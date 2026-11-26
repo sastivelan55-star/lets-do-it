@@ -1,4 +1,4 @@
-const CACHE_NAME = 'life-os-shell-v1';
+const CACHE_NAME = 'life-os-shell-v2';
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/favicon.svg', '/icons/icon-192.svg', '/icons/icon-512.svg'];
 
 self.addEventListener('install', (event) => {

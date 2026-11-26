@@ -679,14 +679,31 @@ function AppearanceManager({
   const [uploadError, setUploadError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    if (settings.themePreset) setPreset(settings.themePreset);
+    if (settings.accentColor) setAccent(settings.accentColor);
+  }, [settings.themePreset, settings.accentColor]);
+
+  const buildPayload = (nextPreset: ThemePreset, nextAccent: string): AppearanceSettings => ({
+    theme: nextPreset === 'clean-light' ? 'light' : 'dark',
+    themePreset: nextPreset,
+    accentColor: nextAccent,
+    backgroundImageUrl: bgImage.trim() || undefined,
+    backgroundOverlayOpacity: overlayOpacity / 100,
+  });
+
+  const handleSelectPreset = async (nextPreset: ThemePreset) => {
+    setPreset(nextPreset);
+    await onSave(buildPayload(nextPreset, accent));
+  };
+
+  const handleSelectAccent = async (nextAccent: string) => {
+    setAccent(nextAccent);
+    await onSave(buildPayload(preset, nextAccent));
+  };
+
   const handleApply = async () => {
-    await onSave({
-      theme: 'dark',
-      themePreset: preset,
-      accentColor: accent,
-      backgroundImageUrl: bgImage.trim() || undefined,
-      backgroundOverlayOpacity: overlayOpacity / 100,
-    });
+    await onSave(buildPayload(preset, accent));
   };
 
   const handleReset = async () => {
@@ -760,16 +777,16 @@ function AppearanceManager({
             return (
               <div
                 key={t.id}
-                onClick={() => setPreset(t.id)}
+                onClick={() => handleSelectPreset(t.id)}
                 role="button"
                 tabIndex={0}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setPreset(t.id); }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleSelectPreset(t.id); }}
                 style={{
                   cursor: 'pointer',
                   padding: '1rem',
                   borderRadius: '10px',
                   background: t.previewBg,
-                  border: `2px solid ${isSelected ? t.border : 'rgba(255, 255, 255, 0.1)'}`,
+                  border: `2px solid ${isSelected ? t.border : 'var(--border)'}`,
                   boxShadow: isSelected ? `0 0 16px ${t.border}40` : 'none',
                   transition: 'all 0.2s ease',
                 }}
@@ -798,13 +815,13 @@ function AppearanceManager({
               <button
                 key={c.value}
                 type="button"
-                onClick={() => setAccent(c.value)}
+                onClick={() => handleSelectAccent(c.value)}
                 style={{
                   width: '32px',
                   height: '32px',
                   borderRadius: '50%',
                   background: c.value,
-                  border: accent === c.value ? '3px solid white' : '2px solid transparent',
+                  border: accent === c.value ? '3px solid var(--text-primary)' : '2px solid transparent',
                   boxShadow: accent === c.value ? `0 0 10px ${c.value}` : 'none',
                   cursor: 'pointer',
                 }}
