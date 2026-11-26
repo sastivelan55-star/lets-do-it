@@ -1505,7 +1505,7 @@ export default function DailyExecutionDashboard({
                             type="button"
                             onClick={() => {
                               setActiveMenuId(null);
-                              onNavigateSection && onNavigateSection('tasks');
+                              onNavigateSection?.('tasks');
                             }}
                             style={{
                               background: 'none',

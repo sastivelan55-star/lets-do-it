@@ -46,7 +46,7 @@ export function extractDomain(urlString: string): string {
  */
 export function extractYouTubeVideoId(urlString: string): string | null {
   if (!urlString) return null;
-  const regExp = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/|youtube\.com\/shorts\/)([^"&?\/ ]{11})/i;
+  const regExp = /(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/|youtube\.com\/shorts\/)([^"&?/ ]{11})/i;
   const match = urlString.match(regExp);
   return match && match[1] && match[1].length === 11 ? match[1] : null;
 }

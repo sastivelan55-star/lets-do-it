@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   Zap,
   Crosshair,
@@ -97,12 +97,12 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
       }
     }
     if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
-      audioCtxRef.current.resume();
+      audioCtxRef.current.resume().catch(() => {});
     }
     return audioCtxRef.current;
   };
 
-  const playAnimeSound = (type: 'slash' | 'levelup' | 'click') => {
+  const playAnimeSound = useCallback((type: 'slash' | 'levelup' | 'click') => {
     if (!soundEnabled) return;
     try {
       const ctx = getAudioCtx();
@@ -163,7 +163,7 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
         osc.stop(now + 0.05);
       }
     } catch {}
-  };
+  }, [soundEnabled]);
 
   // ── RPG HUNTER STATE ────────────────────────────────────────────────────────
   const [hunter, setHunter] = useState(() => {
@@ -232,7 +232,7 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [timerRunning, initialTimerSeconds]);
+  }, [timerRunning, initialTimerSeconds, playAnimeSound]);
 
   const toggleAwakenTimer = () => {
     if (!timerRunning) {

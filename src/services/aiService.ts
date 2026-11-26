@@ -77,7 +77,7 @@ export async function checkAiConfig(): Promise<AiStatusResult> {
         gemini: Boolean(data.providerConfigured?.gemini || ENV.geminiApiKey),
       },
     };
-  } catch (_err) {
+  } catch {
     return {
       success: Boolean(ENV.openAiApiKey || ENV.geminiApiKey),
       providerConfigured: {
@@ -474,7 +474,7 @@ async function callGeminiDirect(
           return { success: true, text, model };
         }
       }
-    } catch (_err) {
+    } catch {
       // Continue to next model
     }
   }
@@ -527,7 +527,7 @@ export async function sendAiChatMessage(
           };
         }
       }
-    } catch (_e) {
+    } catch {
       // Fall through to client direct call
     }
   }
@@ -585,7 +585,7 @@ export async function sendAiChatMessage(
           };
         }
       }
-    } catch (_err) {
+    } catch {
       // Fall through to Gemini failover
     }
 

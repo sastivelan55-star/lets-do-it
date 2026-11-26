@@ -28,7 +28,7 @@ const KNOWLEDGE_KEYWORDS = [
   'code', 'study', 'architecture', 'api', 'dev', 'engineering'
 ];
 
-export function isKnowledgeNote(note: Note): boolean {
+function isKnowledgeNote(note: Note): boolean {
   const cat = (note.category || '').toLowerCase();
   const title = (note.title || '').toLowerCase();
   if (

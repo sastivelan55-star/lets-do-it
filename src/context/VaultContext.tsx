@@ -1,3 +1,4 @@
+/* oxlint-disable react/only-export-components */
 // Life OS — Vault Context & State Management
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import type {

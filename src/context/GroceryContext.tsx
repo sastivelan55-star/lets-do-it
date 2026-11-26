@@ -1,3 +1,4 @@
+/* oxlint-disable react/only-export-components */
 // Life OS — Grocery List Context & Automatic Cloud Synchronization
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { GroceryItem, GroceryList, GroceryCategory, GroceryProgress } from '../types/grocery';

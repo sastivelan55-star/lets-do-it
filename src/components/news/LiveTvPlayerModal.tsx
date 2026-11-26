@@ -13,7 +13,7 @@ export interface LiveChannel {
   thumbnail: string;
 }
 
-export const LIVE_CHANNELS: LiveChannel[] = [
+const LIVE_CHANNELS: LiveChannel[] = [
   {
     id: 'ndtv',
     name: 'NDTV 24x7',

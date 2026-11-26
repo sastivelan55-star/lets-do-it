@@ -32,7 +32,7 @@ export interface DashboardWidgetConfig {
   visible: boolean;
 }
 
-export const DEFAULT_DASHBOARD_LAYOUT: DashboardWidgetConfig[] = [
+const DEFAULT_DASHBOARD_LAYOUT: DashboardWidgetConfig[] = [
   { id: 'stats', label: 'Daily Metric Progress Cards', visible: true },
   { id: 'progress_map', label: 'Interactive Life Progress Map', visible: true },
   { id: 'tasks', label: "Today's Task Execution List", visible: true },
@@ -41,7 +41,7 @@ export const DEFAULT_DASHBOARD_LAYOUT: DashboardWidgetConfig[] = [
   { id: 'schedule', label: "Today's Schedule & Time Blocks", visible: true },
 ];
 
-export function loadStoredDashboardLayout(): DashboardWidgetConfig[] {
+function loadStoredDashboardLayout(): DashboardWidgetConfig[] {
   try {
     const raw = localStorage.getItem(DASHBOARD_STORAGE_KEY);
     if (!raw) return DEFAULT_DASHBOARD_LAYOUT;

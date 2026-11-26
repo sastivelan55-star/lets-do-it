@@ -262,7 +262,7 @@ Key Capabilities and Knowledge:
               };
             }
           }
-        } catch (_e) {
+        } catch {
           // Fall through
         }
       }
@@ -302,7 +302,7 @@ Key Capabilities and Knowledge:
             };
           }
         }
-      } catch (_e) {
+      } catch {
         // Fallback to Gemini
       }
 

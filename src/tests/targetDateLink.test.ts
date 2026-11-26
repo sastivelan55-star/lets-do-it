@@ -2,8 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { Task } from '../types';
 
 describe('Task TargetDate Linking & Filtering', () => {
-  const getSystemTodayDate = () => {
-    const sysDate = new Date();
+  const formatLocalDate = (sysDate: Date) => {
     const y = sysDate.getFullYear();
     const m = String(sysDate.getMonth() + 1).padStart(2, '0');
     const d = String(sysDate.getDate()).padStart(2, '0');
@@ -11,14 +10,14 @@ describe('Task TargetDate Linking & Filtering', () => {
   };
 
   it('filters tasks correctly when targetDate matches today system date', () => {
-    const todayStr = getSystemTodayDate();
+    const todayStr = formatLocalDate(new Date());
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().slice(0, 10);
+    const tomorrowStr = formatLocalDate(tomorrow);
 
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().slice(0, 10);
+    const yesterdayStr = formatLocalDate(yesterday);
 
     const globalTasks: Task[] = [
       {
@@ -81,10 +80,10 @@ describe('Task TargetDate Linking & Filtering', () => {
   });
 
   it('dynamically updates when task targetDate is reconfigured from future date to today', () => {
-    const todayStr = getSystemTodayDate();
+    const todayStr = formatLocalDate(new Date());
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().slice(0, 10);
+    const tomorrowStr = formatLocalDate(tomorrow);
 
     let task: Task = {
       id: 't-edit',
