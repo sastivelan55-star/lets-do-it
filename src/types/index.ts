@@ -42,6 +42,9 @@ export interface Task {
   duration?: number; // minutes
   priority: TaskPriority;
   recurring?: 'daily' | 'weekly' | 'weekdays' | 'none';
+  isRoutine?: boolean;
+  isRoutineActive?: boolean;
+  lastCompletedDate?: string; // Local YYYY-MM-DD of latest completion (resets next day)
   status: TaskStatus;
   estimatedMinutes?: number;
   actualMinutes?: number;

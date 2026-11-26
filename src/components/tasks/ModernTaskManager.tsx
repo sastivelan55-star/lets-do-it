@@ -247,6 +247,8 @@ export default function ModernTaskManager({
       targetDate: quickDate,
       scheduledDate: quickDate,
       recurring: activeView === 'routines' ? 'daily' : 'none',
+      isRoutine: activeView === 'routines' ? true : undefined,
+      isRoutineActive: activeView === 'routines' ? true : undefined,
       isStarred: activeView === 'starred',
       listId: targetListId,
     });
@@ -986,7 +988,14 @@ export default function ModernTaskManager({
             </div>
           ) : (
             sortedTasks.map((task) => {
-              const isCompleted = task.status === 'completed';
+              const isRoutineOrRecurring = Boolean(
+                task.isRoutine || (task.recurring && task.recurring !== 'none')
+              );
+              const todayStr = today();
+              const isCompleted = isRoutineOrRecurring
+                ? task.lastCompletedDate === todayStr
+                : task.status === 'completed';
+              const isPausedRoutine = isRoutineOrRecurring && task.isRoutineActive === false;
               const lifeColor = AREA_COLOR[task.lifeArea] || '#818cf8';
               const pColor = PRIORITY_COLOR[task.priority] || '#94a3b8';
               const subtasks = task.inlineSubtasks || [];
@@ -1033,12 +1042,52 @@ export default function ModernTaskManager({
                   {/* Top Row: Checkbox, Title, Star, Actions */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+                      {isRoutineOrRecurring && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            updateTask({
+                              ...task,
+                              isRoutine: true,
+                              isRoutineActive: isPausedRoutine ? true : false,
+                              updatedAt: new Date().toISOString(),
+                            });
+                          }}
+                          style={{
+                            fontSize: '0.68rem',
+                            fontWeight: 700,
+                            padding: '2px 7px',
+                            borderRadius: '999px',
+                            border: isPausedRoutine ? '1px solid rgba(148,163,184,0.4)' : '1px solid rgba(236,72,153,0.45)',
+                            background: isPausedRoutine ? 'rgba(148,163,184,0.12)' : 'rgba(236,72,153,0.15)',
+                            color: isPausedRoutine ? '#94a3b8' : '#ec4899',
+                            cursor: 'pointer',
+                            flexShrink: 0,
+                          }}
+                          title={isPausedRoutine ? 'Resume daily routine' : 'Pause daily routine'}
+                        >
+                          {isPausedRoutine ? 'Paused' : 'Routine'}
+                        </button>
+                      )}
                       {/* Checkbox */}
                       <button
                         type="button"
-                        onClick={(e) => {
+                        onClick={async (e) => {
                           e.stopPropagation();
-                          completeTask(task.id);
+                          if (isRoutineOrRecurring) {
+                            await updateTask({
+                              ...task,
+                              lastCompletedDate: isCompleted ? undefined : today(),
+                              completedAt: isCompleted ? undefined : new Date().toISOString(),
+                              updatedAt: new Date().toISOString(),
+                            });
+                          } else if (!isCompleted) {
+                            await completeTask(task.id, true);
+                            await removeTask(task.id);
+                          } else {
+                            await completeTask(task.id, false);
+                          }
                         }}
                         style={{
                           background: 'none',
@@ -1063,6 +1112,7 @@ export default function ModernTaskManager({
                           textDecoration: isCompleted ? 'line-through' : 'none',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
+                          opacity: isPausedRoutine ? 0.55 : 1,
                           whiteSpace: 'nowrap',
                           flex: 1,
                         }}

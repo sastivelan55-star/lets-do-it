@@ -109,16 +109,39 @@ export default function PremiumHomeDashboard({
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [completingIds, setCompletingIds] = useState<Set<string>>(new Set());
+  const [routineEditor, setRoutineEditor] = useState<{
+    mode: 'add' | 'edit';
+    task?: Task;
+    title: string;
+    startTime: string;
+    lifeArea: string;
+    notes: string;
+    isRoutineActive: boolean;
+  } | null>(null);
 
   // Daily Execution engine hook for the selected date
   const { occurrences, toggleCompletion, completions } = useDailyExecution(selectedDate);
 
   const handleCompleteMission = useCallback(
     async (taskId: string, isCurrentlyDone: boolean) => {
+      const task = tasks.find((t) => t.id === taskId);
+      const isRoutineOrRecurring = Boolean(
+        task?.isRoutine || (task?.recurring && task.recurring !== 'none')
+      );
+
+      if (isRoutineOrRecurring) {
+        await toggleCompletion(taskId, isCurrentlyDone);
+        if (!isCurrentlyDone) {
+          showToast('Routine completed for today! Resets tomorrow ✨');
+        }
+        return;
+      }
+
       if (isCurrentlyDone) {
         await toggleCompletion(taskId, true);
         return;
       }
+
       setCompletingIds((prev) => {
         const next = new Set(prev);
         next.add(taskId);
@@ -134,8 +157,50 @@ export default function PremiumHomeDashboard({
         });
       }, 300);
     },
-    [toggleCompletion, removeTask]
+    [tasks, toggleCompletion, removeTask]
   );
+
+  const handleSaveRoutineEditor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!routineEditor || !routineEditor.title.trim()) return;
+    const now = new Date().toISOString();
+    if (routineEditor.mode === 'edit' && routineEditor.task) {
+      await updateTask({
+        ...routineEditor.task,
+        title: routineEditor.title.trim(),
+        startTime: routineEditor.startTime || undefined,
+        plannedStartTime: routineEditor.startTime || undefined,
+        lifeArea: routineEditor.lifeArea || 'technical',
+        notes: routineEditor.notes.trim() || undefined,
+        isRoutine: true,
+        recurring:
+          routineEditor.task.recurring && routineEditor.task.recurring !== 'none'
+            ? routineEditor.task.recurring
+            : 'daily',
+        isRoutineActive: routineEditor.isRoutineActive,
+        updatedAt: now,
+      });
+      showToast('Routine updated');
+    } else {
+      await addTask({
+        title: routineEditor.title.trim(),
+        lifeArea: routineEditor.lifeArea || 'health',
+        priority: 'medium',
+        dueDate: selectedDate,
+        targetDate: selectedDate,
+        scheduledDate: selectedDate,
+        startTime: routineEditor.startTime || undefined,
+        plannedStartTime: routineEditor.startTime || undefined,
+        notes: routineEditor.notes.trim() || undefined,
+        recurring: 'daily',
+        isRoutine: true,
+        isRoutineActive: routineEditor.isRoutineActive,
+        status: 'not-started',
+      });
+      showToast('Daily routine added');
+    }
+    setRoutineEditor(null);
+  };
 
   // Live digital clock (updates every second)
   const [nowTime, setNowTime] = useState<Date>(() => new Date());
@@ -723,7 +788,7 @@ export default function PremiumHomeDashboard({
                   <CheckCircle2 size={18} />
                 </div>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: isLight ? '#0f172a' : '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: isLight ? '#0f172a' : '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     <span>Today&apos;s Missions</span>
                     {onOpenQuickCapture && (
                       <button
@@ -748,6 +813,36 @@ export default function PremiumHomeDashboard({
                         <span>Add Task</span>
                       </button>
                     )}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setRoutineEditor({
+                          mode: 'add',
+                          title: '',
+                          startTime: '',
+                          lifeArea: 'health',
+                          notes: '',
+                          isRoutineActive: true,
+                        })
+                      }
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '3px 10px',
+                        borderRadius: '8px',
+                        background: isLight ? 'rgba(236, 72, 153, 0.1)' : 'rgba(236, 72, 153, 0.18)',
+                        border: isLight ? '1px solid rgba(236, 72, 153, 0.28)' : '1px solid rgba(236, 72, 153, 0.4)',
+                        color: isLight ? '#be185d' : '#f9a8d4',
+                        fontSize: '0.74rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                      title="Add Daily Routine (Resets automatically each day)"
+                    >
+                      <RotateCcw size={12} />
+                      <span>+ Routine</span>
+                    </button>
                   </h3>
                 </div>
               </div>
@@ -906,7 +1001,56 @@ export default function PremiumHomeDashboard({
                       </div>
 
                       {/* Right: Badges & Actions */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, flexWrap: 'wrap' }}>
+                        {Boolean(occ.originalTask?.isRoutine || (occ.recurring && occ.recurring !== 'none')) && (
+                          <>
+                            <span
+                              style={{
+                                fontSize: '0.68rem',
+                                fontWeight: 700,
+                                padding: '2px 8px',
+                                borderRadius: '999px',
+                                background: 'rgba(236, 72, 153, 0.16)',
+                                color: isLight ? '#be185d' : '#f472b6',
+                                border: '1px solid rgba(236, 72, 153, 0.35)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                              }}
+                            >
+                              <RotateCcw size={10} /> Routine
+                            </span>
+                            {occ.originalTask && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setRoutineEditor({
+                                    mode: 'edit',
+                                    task: occ.originalTask,
+                                    title: occ.title,
+                                    startTime: occ.startTime || '',
+                                    lifeArea: occ.lifeArea || 'health',
+                                    notes: occ.notes || '',
+                                    isRoutineActive: occ.originalTask.isRoutineActive !== false,
+                                  })
+                                }
+                                title="Edit routine"
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  padding: '3px',
+                                  color: isLight ? '#64748b' : '#94a3b8',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                }}
+                              >
+                                <Edit3 size={13} />
+                              </button>
+                            )}
+                          </>
+                        )}
+
                         {overdueTaskIdSet.has(occ.taskId) && (
                           <span
                             style={{
@@ -1487,6 +1631,154 @@ export default function PremiumHomeDashboard({
           showToast(`Cleared schedule for "${timePickerTask.title}"`);
         }}
       />
+
+      {/* ─── QUICK ROUTINE EDITOR MODAL ───────────────────────────────────────── */}
+      {routineEditor && (
+        <div
+          onClick={() => setRoutineEditor(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(2, 6, 23, 0.72)',
+            backdropFilter: 'blur(6px)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+          }}
+        >
+          <form
+            onClick={(e) => e.stopPropagation()}
+            onSubmit={handleSaveRoutineEditor}
+            style={{
+              width: '100%',
+              maxWidth: '420px',
+              background: isLight ? '#ffffff' : '#120d26',
+              border: isLight ? '1px solid var(--border)' : '1px solid rgba(236, 72, 153, 0.35)',
+              borderRadius: '18px',
+              padding: '1.25rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.85rem',
+              boxShadow: '0 20px 50px rgba(0, 0, 0, 0.45)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: isLight ? '#0f172a' : '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <RotateCcw size={16} color="#ec4899" />
+                {routineEditor.mode === 'edit' ? 'Edit Daily Routine' : 'New Daily Routine'}
+              </h4>
+              <button
+                type="button"
+                onClick={() => setRoutineEditor(null)}
+                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '1.1rem' }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 600, color: isLight ? '#475569' : '#94a3b8', marginBottom: '4px' }}>
+                Routine Title
+              </label>
+              <input
+                className="input"
+                required
+                value={routineEditor.title}
+                onChange={(e) => setRoutineEditor({ ...routineEditor, title: e.target.value })}
+                placeholder="e.g., Morning Workout / DSA Practice"
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 600, color: isLight ? '#475569' : '#94a3b8', marginBottom: '4px' }}>
+                  Time (Optional)
+                </label>
+                <input
+                  className="input"
+                  type="time"
+                  value={routineEditor.startTime}
+                  onChange={(e) => setRoutineEditor({ ...routineEditor, startTime: e.target.value })}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 600, color: isLight ? '#475569' : '#94a3b8', marginBottom: '4px' }}>
+                  Category
+                </label>
+                <select
+                  className="input"
+                  value={routineEditor.lifeArea}
+                  onChange={(e) => setRoutineEditor({ ...routineEditor, lifeArea: e.target.value })}
+                >
+                  <option value="health">Health</option>
+                  <option value="technical">Technical</option>
+                  <option value="communication">Communication</option>
+                  <option value="career">Career</option>
+                  <option value="creativity">Creativity</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 600, color: isLight ? '#475569' : '#94a3b8', marginBottom: '4px' }}>
+                Notes
+              </label>
+              <input
+                className="input"
+                value={routineEditor.notes}
+                onChange={(e) => setRoutineEditor({ ...routineEditor, notes: e.target.value })}
+                placeholder="Quick routine details..."
+              />
+            </div>
+
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem', color: isLight ? '#0f172a' : '#e2e8f0', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={routineEditor.isRoutineActive}
+                onChange={(e) => setRoutineEditor({ ...routineEditor, isRoutineActive: e.target.checked })}
+              />
+              <span>Active daily (resets automatically every day)</span>
+            </label>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.25rem' }}>
+              {routineEditor.mode === 'edit' && routineEditor.task ? (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (routineEditor.task) await removeTask(routineEditor.task.id);
+                    setRoutineEditor(null);
+                    showToast('Routine moved to Recycle Bin');
+                  }}
+                  style={{
+                    background: 'rgba(239, 68, 68, 0.14)',
+                    border: '1px solid rgba(239, 68, 68, 0.35)',
+                    color: '#ef4444',
+                    borderRadius: '8px',
+                    padding: '0.45rem 0.75rem',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Delete
+                </button>
+              ) : (
+                <span />
+              )}
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => setRoutineEditor(null)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary btn-sm">
+                  {routineEditor.mode === 'edit' ? 'Save Routine' : 'Add Routine'}
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

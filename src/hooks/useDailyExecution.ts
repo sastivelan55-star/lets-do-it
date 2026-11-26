@@ -22,7 +22,7 @@ export function useDailyExecution(selectedDate: string): {
   toggleCompletion: (taskId: string, currentlyCompleted: boolean) => Promise<void>;
   refresh: () => void;
 } {
-  const { tasks, completeTask } = useApp();
+  const { tasks, completeTask, updateTask } = useApp();
   const { user } = useAuth();
   const effectiveUserId = user?.id || 'guest';
 
@@ -133,10 +133,17 @@ export function useDailyExecution(selectedDate: string): {
           )
         );
 
-        // For one-time (non-recurring) tasks also sync the task's own status field
+        // Sync task metadata: routines track lastCompletedDate for next-day auto-reset; one-time tasks sync status
         const task = tasks.find((t) => t.id === taskId);
-        const isRecurring = task?.recurring && task.recurring !== 'none';
-        if (!isRecurring) {
+        const isRecurring = Boolean((task?.recurring && task.recurring !== 'none') || task?.isRoutine);
+        if (isRecurring && task) {
+          await updateTask({
+            ...task,
+            lastCompletedDate: newCompleted ? selectedDate : undefined,
+            completedAt: newCompleted ? new Date().toISOString() : undefined,
+            updatedAt: new Date().toISOString(),
+          });
+        } else {
           await completeTask(taskId, newCompleted);
         }
       } catch (err) {
@@ -146,7 +153,7 @@ export function useDailyExecution(selectedDate: string): {
         void loadCompletions();
       }
     },
-    [effectiveUserId, selectedDate, tasks, completeTask, loadCompletions]
+    [effectiveUserId, selectedDate, tasks, completeTask, updateTask, loadCompletions]
   );
 
   // ── Public refresh ────────────────────────────────────────────────────────

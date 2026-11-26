@@ -33,10 +33,11 @@ export function getTasksForDate(
   }
 
   for (const task of tasks) {
-    // Skip soft-deleted tasks
+    // Skip soft-deleted tasks or paused daily routines
     if (task.isDeleted) continue;
+    if (task.isRoutineActive === false) continue;
 
-    const isRecurring = task.recurring && task.recurring !== 'none';
+    const isRecurring = Boolean((task.recurring && task.recurring !== 'none') || task.isRoutine);
 
     let include = false;
 
@@ -48,11 +49,11 @@ export function getTasksForDate(
       // For recurring tasks use shouldRunOnDate against the template's own scheduled date
       const templateDate =
         (task.scheduledDate || task.targetDate || task.dueDate || '').slice(0, 10) || undefined;
-      include = shouldRunOnDate(
-        task.recurring as 'daily' | 'weekly' | 'weekdays',
-        targetDate,
-        templateDate
-      );
+      const rule = (task.recurring && task.recurring !== 'none' ? task.recurring : 'daily') as
+        | 'daily'
+        | 'weekly'
+        | 'weekdays';
+      include = shouldRunOnDate(rule, targetDate, templateDate);
     } else {
       // One-time task: match if any of its date fields equal targetDate
       const taskDate = (task.scheduledDate || task.targetDate || task.dueDate || '').slice(0, 10);
@@ -74,9 +75,9 @@ export function getTasksForDate(
       completedAt = completionRecord.completedAt;
       completionId = completionRecord.id;
     } else if (isRecurring) {
-      // No completion record for recurring → not done yet
-      isCompleted = false;
-      completedAt = undefined;
+      // Auto-reset on new local calendar day: only done if lastCompletedDate matches targetDate
+      isCompleted = task.lastCompletedDate === targetDate;
+      completedAt = isCompleted ? task.completedAt : undefined;
       completionId = undefined;
     } else {
       // One-time task with no completion record — fall back to task.status

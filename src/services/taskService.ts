@@ -51,6 +51,10 @@ export function dbRowToTask(row: DbTaskRow): Task {
 
   let cleanNotes = row.notes ?? undefined;
 
+  let isRoutine: boolean | undefined = undefined;
+  let isRoutineActive: boolean | undefined = undefined;
+  let lastCompletedDate: string | undefined = undefined;
+
   if (row.notes) {
     if (row.notes.includes('[recur_parent:')) {
       const match = row.notes.match(/\[recur_parent:([^\]]+)\]/);
@@ -84,6 +88,21 @@ export function dbRowToTask(row: DbTaskRow): Task {
         reminderTime = match[2];
         reminderEnabled = true;
         cleanNotes = cleanNotes?.replace(/\[reminder:[^\]]+\]\s?/, '');
+      }
+    }
+    if (row.notes.includes('[routine:true]')) {
+      isRoutine = true;
+      cleanNotes = cleanNotes?.replace(/\[routine:true\]\s?/, '');
+    }
+    if (row.notes.includes('[routine_active:false]')) {
+      isRoutineActive = false;
+      cleanNotes = cleanNotes?.replace(/\[routine_active:false\]\s?/, '');
+    }
+    if (row.notes.includes('[last_done:')) {
+      const match = row.notes.match(/\[last_done:([^\]]+)\]/);
+      if (match) {
+        lastCompletedDate = match[1];
+        cleanNotes = cleanNotes?.replace(/\[last_done:[^\]]+\]\s?/, '');
       }
     }
     if (cleanNotes) {
@@ -126,6 +145,9 @@ export function dbRowToTask(row: DbTaskRow): Task {
     reminderTime,
     reminderEnabled,
     inlineSubtasks,
+    isRoutine,
+    isRoutineActive,
+    lastCompletedDate,
   };
 }
 
@@ -184,6 +206,15 @@ export function taskToDbRow(task: Partial<Task>, userId: string): Partial<DbTask
   }
   if (task.reminderEnabled && task.reminderDate && task.reminderTime && !finalNotes.includes(`[reminder:${task.reminderDate}:${task.reminderTime}]`)) {
     finalNotes = `[reminder:${task.reminderDate}:${task.reminderTime}] ${finalNotes}`.trim();
+  }
+  if (task.isRoutine && !finalNotes.includes('[routine:true]')) {
+    finalNotes = `[routine:true] ${finalNotes}`.trim();
+  }
+  if (task.isRoutineActive === false && !finalNotes.includes('[routine_active:false]')) {
+    finalNotes = `[routine_active:false] ${finalNotes}`.trim();
+  }
+  if (task.lastCompletedDate && !finalNotes.includes(`[last_done:${task.lastCompletedDate}]`)) {
+    finalNotes = `[last_done:${task.lastCompletedDate}] ${finalNotes}`.trim();
   }
   row.notes = finalNotes || null;
 
