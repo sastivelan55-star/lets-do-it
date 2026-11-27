@@ -17,6 +17,7 @@ import {
   Edit3,
   Sparkles,
   RotateCcw,
+  Trash2,
 } from 'lucide-react';
 import {
   format,
@@ -75,7 +76,7 @@ export default function PremiumHomeDashboard({
   onOpenTaskBuilder: _onOpenTaskBuilder,
 }: PremiumHomeDashboardProps) {
   const { user } = useAuth();
-  const { tasks, settings, updateTask, addTask, batchUpdateTasks, removeTask } = useApp();
+  const { tasks, deletedTasks, settings, updateTask, addTask, batchUpdateTasks, removeTask } = useApp();
 
   const isLight = settings.theme === 'light' || settings.appearance?.theme === 'light';
 
@@ -96,11 +97,8 @@ export default function PremiumHomeDashboard({
   const [calendarMonth, setCalendarMonth] = useState<Date>(() => parseISO(today()));
 
   // Today's Missions Filter ('all' | 'pending' | 'completed')
-  const [missionsFilter, setMissionsFilter] = useState<'all' | 'pending' | 'completed'>('all');
+  const [missionsFilter] = useState<'all' | 'pending' | 'completed'>('all');
 
-  // Quick inline add mission input
-  const [inlineNewTaskTitle, setInlineNewTaskTitle] = useState('');
-  const [isSubmittingInline, setIsSubmittingInline] = useState(false);
   const [isCarryingForward, setIsCarryingForward] = useState(false);
 
   // Floating time picker popover state
@@ -321,11 +319,6 @@ export default function PremiumHomeDashboard({
     return occurrences;
   }, [occurrences, overdueTasks, selectedDate, completionMap]);
 
-  // Completed tasks count for the selected date
-  const completedCount = useMemo(() => {
-    return allMissions.filter((o) => o.isCompleted).length;
-  }, [allMissions]);
-
   // ─── TODAY'S MISSIONS LIST & FILTERS ───────────────────────────────────────
 
   const filteredMissions = useMemo(() => {
@@ -359,32 +352,6 @@ export default function PremiumHomeDashboard({
       showToast('Failed to carry forward missions');
     } finally {
       setIsCarryingForward(false);
-    }
-  };
-
-  // Inline Quick Add Mission
-  const handleInlineAddMission = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inlineNewTaskTitle.trim() || isSubmittingInline) return;
-
-    setIsSubmittingInline(true);
-    try {
-      await addTask({
-        title: inlineNewTaskTitle.trim(),
-        lifeArea: 'technical',
-        priority: 'medium',
-        status: 'not-started',
-        dueDate: selectedDate,
-        targetDate: selectedDate,
-        scheduledDate: selectedDate,
-        recurring: 'none',
-      });
-      setInlineNewTaskTitle('');
-      showToast('New mission added! ✨');
-    } catch {
-      showToast('Failed to add mission');
-    } finally {
-      setIsSubmittingInline(false);
     }
   };
 
@@ -847,47 +814,39 @@ export default function PremiumHomeDashboard({
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <button
                   type="button"
-                  onClick={() => {
-                    const next = missionsFilter === 'all' ? 'pending' : missionsFilter === 'pending' ? 'completed' : 'all';
-                    setMissionsFilter(next);
-                    showToast(`Showing ${next} missions`);
-                  }}
-                  title="Click to filter (all / pending / completed)"
+                  onClick={() => onNavigateSection && onNavigateSection('settings')}
+                  title="Open Recycle Bin to inspect or restore completed/deleted tasks"
                   style={{
-                    background: 'rgba(16, 185, 129, 0.1)',
-                    border: '1px solid rgba(16, 185, 129, 0.25)',
-                    borderRadius: '6px',
-                    padding: '3px 8px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '4px 10px',
+                    borderRadius: '8px',
+                    background: isLight ? 'var(--bg-surface-2)' : 'rgba(255, 255, 255, 0.05)',
+                    border: isLight ? '1px solid var(--border)' : '1px solid rgba(168, 85, 247, 0.25)',
+                    color: isLight ? '#475569' : '#cbd5e1',
                     fontSize: '0.74rem',
-                    color: '#34d399',
                     fontWeight: 700,
                     cursor: 'pointer',
                   }}
                 >
-                  {completedCount} of {allMissions.length} completed
-                  {missionsFilter !== 'all' && ` (${missionsFilter})`}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => onNavigateSection && onNavigateSection('tasks')}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: '#c084fc',
-                    fontSize: '0.78rem',
-                    fontWeight: 600,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <span>View All</span>
-                  <ArrowRight size={13} />
+                  <Trash2 size={13} color="#f43f5e" />
+                  <span>Recycle Bin</span>
+                  <span
+                    style={{
+                      fontSize: '0.68rem',
+                      padding: '0 6px',
+                      borderRadius: '999px',
+                      background: 'rgba(244, 63, 94, 0.16)',
+                      color: '#f43f5e',
+                      fontWeight: 800,
+                    }}
+                  >
+                    {deletedTasks.length}
+                  </span>
                 </button>
               </div>
             </div>
@@ -1169,53 +1128,6 @@ export default function PremiumHomeDashboard({
                 </div>
               )}
             </div>
-
-            {/* Quick Inline Add Mission Row */}
-            <form
-              onSubmit={handleInlineAddMission}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                marginTop: '1.25rem',
-                padding: '6px 12px',
-                borderRadius: '12px',
-                background: isLight ? '#ffffff' : 'rgba(255, 255, 255, 0.04)',
-                border: isLight ? '1px solid rgba(168, 85, 247, 0.25)' : '1px solid rgba(168, 85, 247, 0.2)',
-              }}
-            >
-              <Plus size={16} color="#c084fc" />
-              <input
-                type="text"
-                value={inlineNewTaskTitle}
-                onChange={(e) => setInlineNewTaskTitle(e.target.value)}
-                placeholder="+ Add new mission for today... (Press Enter)"
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  outline: 'none',
-                  color: isLight ? '#0f172a' : '#ffffff',
-                  fontSize: '0.84rem',
-                  flex: 1,
-                }}
-              />
-              <button
-                type="submit"
-                disabled={!inlineNewTaskTitle.trim()}
-                style={{
-                  background: inlineNewTaskTitle.trim() ? '#8b5cf6' : 'rgba(255, 255, 255, 0.1)',
-                  border: 'none',
-                  borderRadius: '8px',
-                  padding: '5px 14px',
-                  color: '#fff',
-                  fontSize: '0.76rem',
-                  fontWeight: 700,
-                  cursor: inlineNewTaskTitle.trim() ? 'pointer' : 'default',
-                }}
-              >
-                Add
-              </button>
-            </form>
           </div>
         </div>
 

@@ -3,7 +3,6 @@ import {
   Zap,
   Moon,
   Sun,
-  Bell,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
@@ -39,7 +38,7 @@ export default function TopBar({
   activeSection,
 }: TopBarProps) {
   const { user } = useAuth();
-  const { settings, updateSettings, tasks } = useApp();
+  const { settings, updateSettings } = useApp();
 
   const isLight = settings.theme === 'light' || settings.appearance?.theme === 'light';
 
@@ -65,7 +64,6 @@ export default function TopBar({
         : 'Sastivelan';
 
   const userInitial = displayName[0].toUpperCase();
-  const dueCount = tasks.filter((t) => !t.isDeleted && t.status !== 'completed').length;
 
   return (
     <header
@@ -216,51 +214,6 @@ export default function TopBar({
           }}
         >
           {isLight ? <Sun size={16} color="#f59e0b" /> : <Moon size={15} color="#c084fc" />}
-        </button>
-
-        {/* Notification Bell Badge */}
-        <button
-          type="button"
-          onClick={() => onNavigate('tasks')}
-          className="btn btn-ghost btn-sm topbar-ctrl-btn"
-          title={`${dueCount} Tasks Due`}
-          style={{
-            width: '34px',
-            height: '34px',
-            padding: 0,
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            border: '1px solid rgba(168, 85, 247, 0.2)',
-            background: 'rgba(255, 255, 255, 0.04)',
-            color: '#cbd5e1',
-            position: 'relative',
-          }}
-        >
-          <Bell size={15} color="#cbd5e1" />
-          {dueCount > 0 && (
-            <span
-              style={{
-                position: 'absolute',
-                top: '4px',
-                right: '4px',
-                width: '13px',
-                height: '13px',
-                borderRadius: '50%',
-                background: '#ef4444',
-                color: 'white',
-                fontSize: '0.58rem',
-                fontWeight: 800,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 0 8px rgba(239, 68, 68, 0.6)',
-              }}
-            >
-              {dueCount}
-            </span>
-          )}
         </button>
 
         {/* User Account Pill */}
