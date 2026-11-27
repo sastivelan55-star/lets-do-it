@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   Link2,
   ListTree,
+  Sparkles,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import Modal from '../components/ui/Modal';
@@ -19,6 +20,7 @@ import type { Project, ProjectStatus, Task, TaskPriority, LifeArea } from '../ty
 import { nanoid } from '../utils/nanoid';
 import { today } from '../utils/dates';
 import TaskAssignmentModal from '../components/tasks/TaskAssignmentModal';
+import { runAiPrompt, parseAiJsonArray } from '../services/aiService';
 
 const STATUS_CONFIG: Record<ProjectStatus, { label: string; color: string; bg: string }> = {
   idea:        { label: 'Idea',        color: '#a78bfa', bg: 'rgba(167,139,250,0.12)' },
@@ -44,6 +46,7 @@ export default function ProjectsPage() {
     removeTask,
     assignTask,
     customLifeAreas,
+    settings,
   } = useApp();
 
   const [expanded, setExpanded] = useState<string | null>(projects[0]?.id ?? null);
@@ -199,6 +202,7 @@ export default function ProjectsPage() {
             onRemoveTask={removeTask}
             onAssignExisting={() => setAssignExistingProjId(project.id)}
             onMoveTask={setTaskToMove}
+            aiSettings={settings.aiSettings}
           />
         ))}
       </div>
@@ -366,6 +370,7 @@ function ProjectCard({
   onRemoveTask,
   onAssignExisting,
   onMoveTask,
+  aiSettings,
 }: {
   project: Project;
   allTasks: Task[];
@@ -381,12 +386,61 @@ function ProjectCard({
   onRemoveTask: (id: string) => Promise<any>;
   onAssignExisting: () => void;
   onMoveTask: (task: Task) => void;
+  aiSettings?: { provider?: 'openai' | 'gemini'; model?: string };
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskArea, setNewTaskArea] = useState<LifeArea>('technical');
   const [parentForSubtask, setParentForSubtask] = useState<string | null>(null);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+  const [aiGenLoading, setAiGenLoading] = useState(false);
+  const [aiGeneratedSteps, setAiGeneratedSteps] = useState<string[]>([]);
+  const [aiGenError, setAiGenError] = useState<string | null>(null);
+
+  const handleAiGenerateProjectSteps = async () => {
+    setAiGenLoading(true);
+    setAiGenError(null);
+    const techList = project.technologies.length > 0 ? `Tech stack: ${project.technologies.join(', ')}.` : '';
+    const res = await runAiPrompt(
+      `Generate 4 to 5 concrete implementation milestones/tasks for the project "${project.name}".\nDescription: ${project.description || 'Engineering & product build'}.\n${techList}\nReturn ONLY a raw JSON array of concise task title strings, e.g. ["Step 1", "Step 2"]. No extra text.`,
+      'You are an engineering project planner. Output strictly valid JSON arrays of 4 to 5 task title strings.',
+      {
+        provider: aiSettings?.provider || 'gemini',
+        model: aiSettings?.model,
+      }
+    );
+    setAiGenLoading(false);
+    if (!res.success || !res.text) {
+      setAiGenError(res.error || 'AI step generation failed.');
+      return;
+    }
+    const parsed = parseAiJsonArray<string>(res.text);
+    const fallback = res.text
+      .split('\n')
+      .map((l) => l.replace(/^[-*\d.)\s]+/, '').trim())
+      .filter((l) => l.length > 2)
+      .slice(0, 5);
+    const steps = (parsed && parsed.length > 0 ? parsed : fallback).map((s) => String(s).trim()).filter(Boolean).slice(0, 5);
+    if (steps.length === 0) {
+      setAiGenError('No project steps returned.');
+      return;
+    }
+    setAiGeneratedSteps(steps);
+  };
+
+  const handleSaveAiProjectSteps = async () => {
+    for (const stepTitle of aiGeneratedSteps) {
+      await onAddTask({
+        title: stepTitle,
+        projectId: project.id,
+        lifeArea: newTaskArea,
+        dueDate: today(),
+        priority: 'medium',
+        status: 'not-started',
+      });
+    }
+    setAiGeneratedSteps([]);
+  };
 
   const cfg = STATUS_CONFIG[project.status];
 
@@ -558,14 +612,52 @@ function ProjectCard({
               <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#818cf8', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: '5px' }}>
                 <ListTree size={14} /> Project Task Hierarchy ({projectTasks.length})
               </span>
-              <button
-                className="btn btn-secondary btn-xs"
-                onClick={onAssignExisting}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem' }}
-              >
-                <Link2 size={12} /> Link Existing Task
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  disabled={aiGenLoading}
+                  onClick={handleAiGenerateProjectSteps}
+                  className="btn btn-secondary btn-xs"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem', color: '#c084fc', borderColor: 'rgba(192, 132, 252, 0.35)' }}
+                >
+                  <Sparkles size={12} className={aiGenLoading ? 'animate-spin' : ''} />
+                  {aiGenLoading ? 'Generating…' : 'AI Generate Steps'}
+                </button>
+                <button
+                  className="btn btn-secondary btn-xs"
+                  onClick={onAssignExisting}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem' }}
+                >
+                  <Link2 size={12} /> Link Existing Task
+                </button>
+              </div>
             </div>
+
+            {(aiGenError || aiGeneratedSteps.length > 0) && (
+              <div style={{ marginBottom: '0.75rem', padding: '0.7rem 0.85rem', borderRadius: '8px', background: 'rgba(139, 92, 246, 0.08)', border: aiGenError ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid rgba(139, 92, 246, 0.3)' }}>
+                {aiGenError && <p style={{ margin: 0, fontSize: '0.78rem', color: '#f87171' }}>{aiGenError}</p>}
+                {aiGeneratedSteps.length > 0 && (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.45rem', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#c084fc' }}>AI Suggested Project Tasks</span>
+                      <div style={{ display: 'flex', gap: '0.4rem' }}>
+                        <button type="button" className="btn btn-primary btn-xs" onClick={handleSaveAiProjectSteps}>
+                          + Add All ({aiGeneratedSteps.length}) to Project Tasks
+                        </button>
+                        <button type="button" className="btn btn-ghost btn-xs" onClick={() => setAiGeneratedSteps([])}>
+                          Dismiss
+                        </button>
+                      </div>
+                    </div>
+                    <ul style={{ margin: 0, paddingLeft: '1.15rem', fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                      {aiGeneratedSteps.map((s, idx) => (
+                        <li key={idx}>{s}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </div>
+            )}
 
             {/* Task rows */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.75rem' }}>

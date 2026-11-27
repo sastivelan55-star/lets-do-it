@@ -38,6 +38,7 @@ import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { today, getGreeting, formatTime } from '../../utils/dates';
 import { ALL_CHARACTERS } from '../../data/animeCharacters';
+import { runAiPrompt } from '../../services/aiService';
 import type { Task, DailyTaskOccurrence, DailyTaskCompletion, TaskPriority } from '../../types';
 import FloatingTimePicker, { type TimePickerResult } from '../common/FloatingTimePicker';
 
@@ -107,6 +108,9 @@ export default function PremiumHomeDashboard({
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [completingIds, setCompletingIds] = useState<Set<string>>(new Set());
+  const [aiFocusText, setAiFocusText] = useState<string | null>(null);
+  const [aiFocusLoading, setAiFocusLoading] = useState(false);
+  const [aiFocusError, setAiFocusError] = useState<string | null>(null);
   const [routineEditor, setRoutineEditor] = useState<{
     mode: 'add' | 'edit';
     task?: Task;
@@ -364,7 +368,7 @@ export default function PremiumHomeDashboard({
       if (raw) {
         setAllCompletions(JSON.parse(raw));
       }
-    } catch {}
+    } catch { }
   }, [occurrences]);
 
   // ─── COMPACT MONTHLY CALENDAR WIDGET ───────────────────────────────────────
@@ -814,7 +818,61 @@ export default function PremiumHomeDashboard({
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  disabled={aiFocusLoading}
+                  onClick={async () => {
+                    setAiFocusLoading(true);
+                    setAiFocusError(null);
+                    const pendingList = filteredMissions
+                      .filter((m) => !m.isCompleted)
+                      .map((m, i) => {
+                        const rawTask = tasks.find((t) => t.id === m.taskId);
+                        const isRoutine = Boolean(rawTask?.isRoutine || (rawTask?.recurring && rawTask.recurring !== 'none'));
+                        return `${i + 1}. ${m.title} [priority: ${m.priority || 'medium'}, area: ${m.lifeArea}${m.startTime ? `, at ${m.startTime}` : ''}${isRoutine ? ', routine' : ''}]`;
+                      });
+                    if (pendingList.length === 0) {
+                      setAiFocusText('All of today’s missions are completed! Great momentum — use the quiet block to review tomorrow’s roadmap or unwind.');
+                      setAiFocusLoading(false);
+                      return;
+                    }
+                    const res = await runAiPrompt(
+                      `Here are my pending missions and routines for today (${selectedDate}):\n${pendingList.join('\n')}\n\nPick the TOP 3 priorities to tackle first, recommend the best execution order with a quick reason for each, and keep the reply concise (bullet list, under 120 words).`,
+                      'You are an executive productivity coach inside Life OS. Be direct, practical, and reference the user’s actual task titles.',
+                      {
+                        provider: settings.aiSettings?.provider || 'gemini',
+                        model: settings.aiSettings?.model,
+                      }
+                    );
+                    setAiFocusLoading(false);
+                    if (res.success && res.text) {
+                      setAiFocusText(res.text);
+                    } else {
+                      setAiFocusError(res.error || 'Unable to generate AI Focus.');
+                    }
+                  }}
+                  title="Analyze today's tasks & routines with AI to highlight top 3 priorities"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '4px 10px',
+                    borderRadius: '8px',
+                    background: isLight
+                      ? 'linear-gradient(135deg, rgba(124, 58, 237, 0.12), rgba(56, 189, 248, 0.12))'
+                      : 'linear-gradient(135deg, rgba(168, 85, 247, 0.22), rgba(56, 189, 248, 0.18))',
+                    border: isLight ? '1px solid rgba(124, 58, 237, 0.3)' : '1px solid rgba(192, 132, 252, 0.45)',
+                    color: isLight ? '#6d28d9' : '#e9d5ff',
+                    fontSize: '0.74rem',
+                    fontWeight: 700,
+                    cursor: aiFocusLoading ? 'wait' : 'pointer',
+                    opacity: aiFocusLoading ? 0.7 : 1,
+                  }}
+                >
+                  <Sparkles size={13} className={aiFocusLoading ? 'animate-spin' : ''} />
+                  <span>{aiFocusLoading ? 'Analyzing…' : 'AI Focus'}</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => onNavigateSection && onNavigateSection('settings')}
@@ -850,6 +908,41 @@ export default function PremiumHomeDashboard({
                 </button>
               </div>
             </div>
+
+            {/* AI Focus Top-3 Priority Panel */}
+            {(aiFocusText || aiFocusError) && (
+              <div
+                style={{
+                  background: isLight
+                    ? 'linear-gradient(135deg, rgba(124, 58, 237, 0.08), rgba(56, 189, 248, 0.08))'
+                    : 'linear-gradient(135deg, rgba(168, 85, 247, 0.14), rgba(30, 27, 75, 0.65))',
+                  border: aiFocusError
+                    ? '1px solid rgba(239, 68, 68, 0.4)'
+                    : isLight
+                    ? '1px solid rgba(124, 58, 237, 0.25)'
+                    : '1px solid rgba(192, 132, 252, 0.38)',
+                  borderRadius: '12px',
+                  padding: '0.85rem 1rem',
+                  marginBottom: '0.9rem',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 800, color: aiFocusError ? '#f87171' : isLight ? '#6d28d9' : '#d8b4fe', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Sparkles size={13} /> {aiFocusError ? 'AI Focus Notice' : 'AI Focus — Top 3 Priorities'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => { setAiFocusText(null); setAiFocusError(null); }}
+                    style={{ background: 'none', border: 'none', color: isLight ? '#64748b' : '#94a3b8', cursor: 'pointer', fontSize: '0.74rem', fontWeight: 700 }}
+                  >
+                    Dismiss
+                  </button>
+                </div>
+                <div style={{ fontSize: '0.82rem', lineHeight: 1.5, color: isLight ? '#1e293b' : '#e2e8f0', whiteSpace: 'pre-wrap' }}>
+                  {aiFocusError || aiFocusText}
+                </div>
+              </div>
+            )}
 
             {/* Overdue Banner if prior tasks are pending */}
             {pendingOverdueTasks.length > 0 && (
@@ -1131,7 +1224,7 @@ export default function PremiumHomeDashboard({
           </div>
         </div>
 
-      {/* ─── RIGHT COLUMN: UTILITY PANELS (Quick Actions, Calendar, Upcoming, Recent) ─── */}
+        {/* ─── RIGHT COLUMN: UTILITY PANELS (Quick Actions, Calendar, Upcoming, Recent) ─── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', paddingBottom: '5rem' }}>
           {/* ── 2. COMPACT MONTHLY CALENDAR WIDGET ── */}
           <div style={glassCardStyle}>

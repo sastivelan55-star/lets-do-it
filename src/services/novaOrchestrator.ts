@@ -17,9 +17,14 @@
  * - Streaming support with AbortController
  */
 
-import type { LifeArea, TaskPriority, Task } from '../types';
+import type { LifeArea, TaskPriority, Task, Project, RoadmapMilestone, Note } from '../types';
+import type { GroceryCategory, GroceryUnit } from '../types/grocery';
 import { ENV } from '../config/env';
-import type { NewsContextItem, LifeOsContext } from './aiService';
+import {
+  sendLiveAiChat,
+  type NewsContextItem,
+  type LifeOsContext,
+} from './aiService';
 import {
   createGoogleTask,
   isGoogleTasksConnected,
@@ -74,11 +79,25 @@ export interface NovaChatRequest {
   lifeOsContext?: LifeOsContext;
   userQuery?: string;
   tasks?: Task[];
+  projects?: Project[];
+  milestones?: RoadmapMilestone[];
+  aiSettings?: {
+    provider?: 'openai' | 'gemini';
+    model?: string;
+  };
   appOps?: {
     addTask: (data: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Task>;
     updateTask: (task: Task) => Promise<void>;
     completeTask: (id: string) => Promise<void>;
     removeTask: (id: string) => Promise<void>;
+    addGroceryItem?: (item: {
+      name: string;
+      quantity: number;
+      unit: GroceryUnit;
+      category: GroceryCategory;
+      notes?: string;
+    }) => void;
+    addNote?: (data: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Note>;
   };
   memory?: TaskContextMemory;
   signal?: AbortSignal;
@@ -102,10 +121,9 @@ export interface NovaChatResponse {
 
 const GEMINI_KEY = (ENV.geminiApiKey || import.meta.env.VITE_GEMINI_API_KEY || '').trim();
 const GEMINI_MODELS = [
-  'gemini-3.1-flash-lite',
-  'gemini-flash-lite-latest',
-  'gemini-3.6-flash',
-  'gemini-3.5-flash',
+  'gemini-3.5-flash-lite',
+  'gemini-3.8-flash',
+  'gemini-4-hydrogen',
 ];
 const OPENAI_KEY = (ENV.openAiApiKey || import.meta.env.VITE_OPENAI_API_KEY || '').trim();
 
@@ -638,6 +656,30 @@ The Prime Minister of India is **Narendra Modi**.\n\n` +
   return null;
 }
 
+async function sendAiChatMessageLiveAdapter(
+  messages: Array<{ role: 'user' | 'assistant'; content: string }>,
+  req: NovaChatRequest,
+  routines: Array<{ title: string; completedToday: boolean; time?: string }>
+) {
+  return sendLiveAiChat(
+    messages,
+    req.newsContext || [],
+    {
+      ...(req.lifeOsContext || {}),
+      routines,
+      projects: (req.projects || []).map((p) => ({ name: p.name, status: p.status })),
+      milestones: (req.milestones || []).map((m) => ({
+        month: m.month,
+        title: m.title,
+        status: m.status,
+      })),
+    },
+    req.aiSettings?.provider || 'gemini',
+    req.aiSettings?.model,
+    req.signal
+  );
+}
+
 // ─── Main Dispatcher ─────────────────────────────────────────────────────────
 
 export async function processNovaMessage(req: NovaChatRequest): Promise<NovaChatResponse> {
@@ -657,16 +699,57 @@ export async function processNovaMessage(req: NovaChatRequest): Promise<NovaChat
     };
   }
 
-  // ── 2. CURRENT AFFAIRS / POLITICS ──────────────────────────────────────────
-  if (intent === 'CURRENT_AFFAIRS') {
-    const verified = getVerifiedCurrentAffairsResponse(query);
-    if (verified) {
+  // ── 2. STRUCTURED GROCERY & NOTE COMMANDS ────────────────────────────────
+  if (req.appOps?.addGroceryItem) {
+    const groceryMatch =
+      query.match(/^(?:please\s+)?(?:add|put|buy)\s+(.+?)\s+(?:to|into|on)\s+(?:my\s+|the\s+)?(?:grocery|shopping)(?:\s+list)?$/i) ||
+      query.match(/^grocery\s*:\s*(.+)$/i);
+    if (groceryMatch?.[1]) {
+      const rawItems = groceryMatch[1]
+        .split(/\s*(?:,| and )\s*/i)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (rawItems.length > 0) {
+        for (const itemName of rawItems) {
+          req.appOps.addGroceryItem({
+            name: itemName.charAt(0).toUpperCase() + itemName.slice(1),
+            quantity: 1,
+            unit: 'pcs',
+            category: 'other',
+          });
+        }
+        return {
+          reply: `🛒 Added **${rawItems.join(', ')}** to your active **Grocery List**.`,
+          intent: 'TASK_CREATE',
+          provider: 'Life OS Grocery Engine',
+          model: 'grocery-action-v1',
+          latencyMs: Date.now() - startTime,
+          actionButton: { label: 'Open Grocery List', section: 'grocery' },
+        };
+      }
+    }
+  }
+
+  if (req.appOps?.addNote) {
+    const noteMatch = query.match(/^(?:please\s+)?(?:create|add|save|make|write)\s+(?:a\s+)?note(?:\s+titled|\s+called|\s*:\s*|\s+about|\s+for)?\s+(.+)$/i);
+    if (noteMatch?.[1]) {
+      const rawTitle = noteMatch[1].trim().replace(/^["']|["']$/g, '');
+      const [titlePart, ...bodyParts] = rawTitle.split(/\s*[-:]\s*/);
+      const noteTitle = (titlePart || rawTitle).trim();
+      const noteBody = bodyParts.join(': ').trim() || `Created via Nova AI on ${new Date().toLocaleDateString()}.`;
+      await req.appOps.addNote({
+        title: noteTitle,
+        content: noteBody,
+        category: 'General',
+        isPinned: false,
+      });
       return {
-        reply: verified,
-        intent,
-        provider: 'Nova Fact Intelligence',
-        model: 'verified-knowledge-v1',
+        reply: `📝 Created note **"${noteTitle}"** in your Notes workspace.`,
+        intent: 'TASK_CREATE',
+        provider: 'Life OS Notes Engine',
+        model: 'notes-action-v1',
         latencyMs: Date.now() - startTime,
+        actionButton: { label: 'Open Notes', section: 'notes' },
       };
     }
   }
@@ -898,7 +981,39 @@ export async function processNovaMessage(req: NovaChatRequest): Promise<NovaChat
     };
   }
 
-  // ── 7. NEWS SUMMARY ────────────────────────────────────────────────────────
+  // ── 7. LIVE SERVERLESS LLM EXECUTION (GEMINI SEARCH GROUNDING / OPENAI) ─────
+  const isVitest = Boolean(import.meta.env?.VITEST) || import.meta.env?.MODE === 'test';
+  if (!isVitest) {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const activeTasksList = (req.tasks || []).filter((t) => !t.isDeleted);
+    const routines = activeTasksList
+      .filter((t) => t.isRoutine || (t.recurring && t.recurring !== 'none'))
+      .map((t) => ({
+        title: t.title,
+        completedToday: t.lastCompletedDate === todayStr,
+        time: t.plannedStartTime || t.startTime,
+      }));
+
+    const chatHistoryPayload =
+      req.messages && req.messages.length > 0
+        ? req.messages
+        : [{ role: 'user' as const, content: query }];
+
+    const liveRes = await sendAiChatMessageLiveAdapter(
+      chatHistoryPayload,
+      req,
+      routines
+    );
+    return {
+      reply: liveRes.reply,
+      intent,
+      provider: liveRes.provider,
+      model: liveRes.model,
+      latencyMs: Date.now() - startTime,
+    };
+  }
+
+  // ── TEST/OFFLINE NEWS SUMMARY ───────────────────────────────────────────────
   if (intent === 'NEWS_SEARCH' && req.newsContext && req.newsContext.length > 0) {
     const techStories = req.newsContext.filter(
       (a) => a.category?.toLowerCase() === 'technology' || a.title.toLowerCase().includes('ai')

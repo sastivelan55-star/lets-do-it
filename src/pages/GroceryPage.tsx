@@ -5,8 +5,11 @@ import {
   ChevronDown,
   ChevronUp,
   AlertTriangle,
+  Sparkles,
 } from 'lucide-react';
 import { GroceryProvider, useGrocery } from '../context/GroceryContext';
+import { useApp } from '../context/AppContext';
+import { runAiPrompt, parseAiJsonArray } from '../services/aiService';
 import GroceryHeader from '../components/grocery/GroceryHeader';
 import GroceryQuickAdd from '../components/grocery/GroceryQuickAdd';
 import GroceryCategoryFilter from '../components/grocery/GroceryCategoryFilter';
@@ -14,7 +17,34 @@ import GroceryItemCard from '../components/grocery/GroceryItemCard';
 import GroceryEditModal from '../components/grocery/GroceryEditModal';
 import GroceryListModal from '../components/grocery/GroceryListModal';
 import Modal from '../components/ui/Modal';
-import type { GroceryItem, GroceryList } from '../types/grocery';
+import type { GroceryItem, GroceryList, GroceryCategory, GroceryUnit } from '../types/grocery';
+
+const VALID_GROCERY_CATEGORIES: GroceryCategory[] = [
+  'fruits',
+  'vegetables',
+  'dairy',
+  'meat-seafood',
+  'snacks',
+  'beverages',
+  'bakery',
+  'grains-staples',
+  'household',
+  'personal-care',
+  'other',
+];
+
+const VALID_GROCERY_UNITS: GroceryUnit[] = [
+  'kg',
+  'g',
+  'litre',
+  'ml',
+  'pcs',
+  'packs',
+  'bottles',
+  'cans',
+  'box',
+  'bunch',
+];
 
 function GroceryContent() {
   const {
@@ -24,9 +54,76 @@ function GroceryContent() {
     activeListItems,
     createList,
     renameList,
+    addItem,
     updateItem,
     deleteItem,
   } = useGrocery();
+  const { settings } = useApp();
+
+  // AI Quick List state
+  const [aiListPrompt, setAiListPrompt] = useState('');
+  const [aiListLoading, setAiListLoading] = useState(false);
+  const [aiListStatus, setAiListStatus] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const handleGenerateAiGroceryList = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const goal = aiListPrompt.trim();
+    if (!goal || aiListLoading) return;
+    setAiListLoading(true);
+    setAiListStatus(null);
+    const res = await runAiPrompt(
+      `Generate a grocery shopping list for: "${goal}".\nReturn ONLY a raw JSON array of 4 to 10 items. Each item object must have:\n{"name": "Item Name", "quantity": 1, "unit": "kg|g|litre|ml|pcs|packs|bottles|cans|box|bunch", "category": "fruits|vegetables|dairy|meat-seafood|snacks|beverages|bakery|grains-staples|household|personal-care|other"}\nNo markdown or extra prose.`,
+      'You are a smart kitchen & grocery planner. Output strictly valid JSON arrays.',
+      {
+        provider: settings.aiSettings?.provider || 'gemini',
+        model: settings.aiSettings?.model,
+      }
+    );
+    setAiListLoading(false);
+
+    if (!res.success || !res.text) {
+      setAiListStatus({ type: 'error', text: res.error || 'Failed to generate grocery list.' });
+      return;
+    }
+
+    const parsed = parseAiJsonArray<{
+      name?: string;
+      quantity?: number;
+      unit?: string;
+      category?: string;
+    }>(res.text);
+    if (!parsed || parsed.length === 0) {
+      setAiListStatus({ type: 'error', text: 'AI response could not be parsed into grocery items.' });
+      return;
+    }
+
+    let addedCount = 0;
+    for (const raw of parsed.slice(0, 12)) {
+      const name = String(raw.name || '').trim();
+      if (!name) continue;
+      const cat = VALID_GROCERY_CATEGORIES.includes(raw.category as GroceryCategory)
+        ? (raw.category as GroceryCategory)
+        : 'other';
+      const unit = VALID_GROCERY_UNITS.includes(raw.unit as GroceryUnit)
+        ? (raw.unit as GroceryUnit)
+        : 'pcs';
+      const qty = typeof raw.quantity === 'number' && raw.quantity > 0 ? raw.quantity : 1;
+      addItem({
+        name,
+        quantity: qty,
+        unit,
+        category: cat,
+      });
+      addedCount++;
+    }
+
+    if (addedCount > 0) {
+      setAiListPrompt('');
+      setAiListStatus({ type: 'success', text: `Added ${addedCount} AI-generated items to "${activeList?.name || 'Active List'}".` });
+    } else {
+      setAiListStatus({ type: 'error', text: 'No valid grocery items generated.' });
+    }
+  };
 
   // Modals state
   const [editingItem, setEditingItem] = useState<GroceryItem | null>(null);
@@ -112,6 +209,46 @@ function GroceryContent() {
           onOpenCreateListModal={() => setIsCreateListModalOpen(true)}
           onOpenRenameListModal={() => setRenamingList(activeList || null)}
         />
+
+        {/* AI Quick List Generator */}
+        <form
+          onSubmit={handleGenerateAiGroceryList}
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            gap: '8px',
+            marginBottom: '0.75rem',
+            padding: '0.65rem 0.85rem',
+            borderRadius: '14px',
+            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(139, 92, 246, 0.08))',
+            border: '1px solid rgba(16, 185, 129, 0.25)',
+          }}
+        >
+          <Sparkles size={16} color="#34d399" style={{ flexShrink: 0 }} />
+          <input
+            type="text"
+            className="input"
+            value={aiListPrompt}
+            onChange={(e) => setAiListPrompt(e.target.value)}
+            placeholder='AI Quick List: e.g. "South Indian breakfast for 4" or "Weekly high-protein prep"'
+            style={{ flex: 1, minWidth: '220px', fontSize: '0.84rem', height: '36px' }}
+          />
+          <button
+            type="submit"
+            disabled={aiListLoading || !aiListPrompt.trim()}
+            className="btn btn-primary btn-sm"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}
+          >
+            <Sparkles size={13} className={aiListLoading ? 'animate-spin' : ''} />
+            <span>{aiListLoading ? 'Generating…' : 'AI Quick List'}</span>
+          </button>
+          {aiListStatus && (
+            <div style={{ width: '100%', fontSize: '0.78rem', color: aiListStatus.type === 'error' ? '#f87171' : '#34d399', marginTop: '2px' }}>
+              {aiListStatus.text}
+            </div>
+          )}
+        </form>
 
         {/* Quick Add Bar */}
         <GroceryQuickAdd />

@@ -6,6 +6,8 @@ import {
   X,
   Pin,
   AlertCircle,
+  Sparkles,
+  CheckCircle2,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import Modal from '../components/ui/Modal';
@@ -13,6 +15,8 @@ import NoteForm from '../components/notes/NoteForm';
 import NoteCard from '../components/notes/NoteCard';
 import type { Note } from '../types';
 import { formatSafeErrorMessage } from '../utils/errorUtils';
+import { runAiPrompt, parseAiJsonArray } from '../services/aiService';
+import { today } from '../utils/dates';
 
 export type NotePageMode = 'all' | 'notes' | 'knowledge';
 
@@ -44,13 +48,78 @@ function isKnowledgeNote(note: Note): boolean {
 }
 
 export default function NotesPage({ mode = 'all', hideHeader = false }: NotesPageProps = {}) {
-  const { notes, addNote, updateNote, removeNote, error } = useApp();
+  const { notes, addNote, updateNote, removeNote, addTask, settings, error } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [viewingNote, setViewingNote] = useState<Note | null>(null);
+  const [aiNoteLoading, setAiNoteLoading] = useState<'summary' | 'tasks' | null>(null);
+  const [aiNoteSummary, setAiNoteSummary] = useState<string | null>(null);
+  const [aiExtractedTasks, setAiExtractedTasks] = useState<string[]>([]);
+  const [addedTaskIndices, setAddedTaskIndices] = useState<Set<number>>(new Set());
+  const [aiNoteError, setAiNoteError] = useState<string | null>(null);
+
+  const resetAiNoteState = () => {
+    setAiNoteLoading(null);
+    setAiNoteSummary(null);
+    setAiExtractedTasks([]);
+    setAddedTaskIndices(new Set());
+    setAiNoteError(null);
+  };
+
+  const handleAiNoteSummarize = async (note: Note) => {
+    setAiNoteLoading('summary');
+    setAiNoteError(null);
+    const res = await runAiPrompt(
+      `Summarize and polish this note clearly in 3-5 concise bullet points:\n\nTitle: ${note.title}\nContent:\n${note.content || '(Empty)'}`,
+      'You are a sharp personal knowledge assistant in Life OS. Return concise, high-signal markdown bullets.',
+      {
+        provider: settings.aiSettings?.provider || 'gemini',
+        model: settings.aiSettings?.model,
+      }
+    );
+    setAiNoteLoading(null);
+    if (res.success && res.text) {
+      setAiNoteSummary(res.text);
+    } else {
+      setAiNoteError(res.error || 'AI summarize failed.');
+    }
+  };
+
+  const handleAiExtractTasks = async (note: Note) => {
+    setAiNoteLoading('tasks');
+    setAiNoteError(null);
+    setAddedTaskIndices(new Set());
+    const res = await runAiPrompt(
+      `Extract concrete, actionable to-do tasks from this note as a JSON array of 2 to 6 short task title strings (no explanations, valid JSON array only):\n\nTitle: ${note.title}\nContent:\n${note.content || '(Empty)'}`,
+      'Output ONLY a valid JSON array of short task title strings, e.g. ["Task 1", "Task 2"].',
+      {
+        provider: settings.aiSettings?.provider || 'gemini',
+        model: settings.aiSettings?.model,
+      }
+    );
+    setAiNoteLoading(null);
+    if (!res.success || !res.text) {
+      setAiNoteError(res.error || 'AI task extraction failed.');
+      return;
+    }
+    const parsed = parseAiJsonArray<string>(res.text);
+    const fallback = res.text
+      .split('\n')
+      .map((l) => l.replace(/^[-*\d.)\s]+/, '').trim())
+      .filter((l) => l.length > 2)
+      .slice(0, 6);
+    const extracted = (parsed && parsed.length > 0 ? parsed : fallback)
+      .map((s) => String(s).trim())
+      .filter(Boolean);
+    if (extracted.length === 0) {
+      setAiNoteError('No clear actionable tasks found in this note.');
+      return;
+    }
+    setAiExtractedTasks(extracted);
+  };
 
   // Filter notes based on mode (notes vs knowledge vs all)
   const scopedNotes = useMemo(() => {
@@ -329,7 +398,7 @@ export default function NotesPage({ mode = 'all', hideHeader = false }: NotesPag
       {viewingNote && (
         <Modal
           isOpen={true}
-          onClose={() => setViewingNote(null)}
+          onClose={() => { setViewingNote(null); resetAiNoteState(); }}
           title={viewingNote.title}
           maxWidth="680px"
         >
@@ -397,27 +466,137 @@ export default function NotesPage({ mode = 'all', hideHeader = false }: NotesPag
               {viewingNote.content || '(Empty content)'}
             </div>
 
+            {(aiNoteSummary || aiExtractedTasks.length > 0 || aiNoteError) && (
+              <div
+                style={{
+                  marginTop: '1rem',
+                  padding: '0.9rem 1rem',
+                  borderRadius: '10px',
+                  background: 'rgba(139, 92, 246, 0.08)',
+                  border: aiNoteError ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid rgba(139, 92, 246, 0.3)',
+                }}
+              >
+                {aiNoteError && (
+                  <p style={{ margin: 0, fontSize: '0.82rem', color: '#f87171' }}>{aiNoteError}</p>
+                )}
+                {aiNoteSummary && (
+                  <div style={{ marginBottom: aiExtractedTasks.length > 0 ? '0.75rem' : 0 }}>
+                    <div style={{ fontSize: '0.76rem', fontWeight: 700, color: '#a78bfa', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <Sparkles size={12} /> AI Summary &amp; Polish
+                    </div>
+                    <div style={{ fontSize: '0.84rem', lineHeight: 1.55, color: 'var(--text-primary)', whiteSpace: 'pre-wrap' }}>
+                      {aiNoteSummary}
+                    </div>
+                  </div>
+                )}
+                {aiExtractedTasks.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: '0.76rem', fontWeight: 700, color: '#34d399', marginBottom: '0.45rem' }}>
+                      Extracted Actionable Tasks
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {aiExtractedTasks.map((taskTitle, idx) => {
+                        const alreadyAdded = addedTaskIndices.has(idx);
+                        return (
+                          <div
+                            key={idx}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '8px',
+                              padding: '0.45rem 0.65rem',
+                              borderRadius: '8px',
+                              background: 'var(--bg-surface)',
+                              border: '1px solid var(--border)',
+                              fontSize: '0.82rem',
+                            }}
+                          >
+                            <span style={{ color: 'var(--text-primary)', flex: 1 }}>{taskTitle}</span>
+                            <button
+                              type="button"
+                              disabled={alreadyAdded}
+                              onClick={async () => {
+                                await addTask({
+                                  title: taskTitle,
+                                  lifeArea: 'technical',
+                                  dueDate: today(),
+                                  priority: 'medium',
+                                  status: 'not-started',
+                                  notes: `Extracted from note: ${viewingNote.title}`,
+                                });
+                                setAddedTaskIndices((prev) => new Set(prev).add(idx));
+                              }}
+                              className="btn btn-xs"
+                              style={{
+                                background: alreadyAdded ? 'rgba(16, 185, 129, 0.16)' : 'rgba(99, 102, 241, 0.16)',
+                                color: alreadyAdded ? '#10b981' : '#818cf8',
+                                border: '1px solid rgba(99, 102, 241, 0.3)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                flexShrink: 0,
+                              }}
+                            >
+                              {alreadyAdded ? <><CheckCircle2 size={11} /> Added</> : '+ Add to Tasks'}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div
               style={{
                 display: 'flex',
-                justifyContent: 'flex-end',
-                gap: '0.75rem',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '0.5rem',
                 marginTop: '1.25rem',
               }}
             >
-              <button
-                className="btn btn-secondary"
-                onClick={() => {
-                  const toEdit = viewingNote;
-                  setViewingNote(null);
-                  setEditingNote(toEdit);
-                }}
-              >
-                Edit Note
-              </button>
-              <button className="btn btn-primary" onClick={() => setViewingNote(null)}>
-                Close
-              </button>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  disabled={aiNoteLoading !== null}
+                  onClick={() => handleAiNoteSummarize(viewingNote)}
+                  className="btn btn-secondary"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.8rem' }}
+                >
+                  <Sparkles size={13} className={aiNoteLoading === 'summary' ? 'animate-spin' : ''} />
+                  {aiNoteLoading === 'summary' ? 'Summarizing…' : 'AI Summarize'}
+                </button>
+                <button
+                  type="button"
+                  disabled={aiNoteLoading !== null}
+                  onClick={() => handleAiExtractTasks(viewingNote)}
+                  className="btn btn-secondary"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.8rem' }}
+                >
+                  <Plus size={13} />
+                  {aiNoteLoading === 'tasks' ? 'Extracting…' : 'Extract Tasks'}
+                </button>
+              </div>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    const toEdit = viewingNote;
+                    setViewingNote(null);
+                    resetAiNoteState();
+                    setEditingNote(toEdit);
+                  }}
+                >
+                  Edit Note
+                </button>
+                <button className="btn btn-primary" onClick={() => { setViewingNote(null); resetAiNoteState(); }}>
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </Modal>

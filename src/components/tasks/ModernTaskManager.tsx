@@ -23,6 +23,7 @@ import type { Task, LifeArea, TaskPriority, CustomTaskList } from '../../types';
 import { today, formatDate, formatTime } from '../../utils/dates';
 import FloatingTimePicker, { type TimePickerResult } from '../common/FloatingTimePicker';
 import DailyRecurrenceToggle from '../common/DailyRecurrenceToggle';
+import { runAiPrompt, parseAiJsonArray } from '../../services/aiService';
 import {
   fetchUserCustomLists,
   saveUserCustomList,
@@ -94,6 +95,60 @@ export default function ModernTaskManager({
 
   // Detailed Task Panel / Modal State
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [breakingDownTaskId, setBreakingDownTaskId] = useState<string | null>(null);
+  const [aiBreakdownError, setAiBreakdownError] = useState<string | null>(null);
+
+  const handleAiBreakdownTask = async (task: Task, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setBreakingDownTaskId(task.id);
+    setAiBreakdownError(null);
+    const res = await runAiPrompt(
+      `Break down the task "${task.title}"${task.description ? ` (notes: ${task.description})` : ''} [area: ${task.lifeArea}, priority: ${task.priority}] into 3 to 5 concrete, actionable subtasks.\nReturn ONLY a raw JSON array of short subtask title strings, e.g. ["Step 1", "Step 2", "Step 3"]. No markdown or extra text.`,
+      'You are a structured productivity planner. Output strictly valid JSON arrays of 3 to 5 strings.',
+      {
+        provider: settings.aiSettings?.provider || 'gemini',
+        model: settings.aiSettings?.model,
+      }
+    );
+    setBreakingDownTaskId(null);
+
+    if (!res.success || !res.text) {
+      setAiBreakdownError(res.error || 'AI Breakdown failed.');
+      return;
+    }
+
+    const parsed = parseAiJsonArray<string>(res.text);
+    const fallbackLines = res.text
+      .split('\n')
+      .map((l) => l.replace(/^[-*\d.)\s]+/, '').trim())
+      .filter((l) => l.length > 2)
+      .slice(0, 5);
+    const steps = (parsed && parsed.length > 0 ? parsed : fallbackLines)
+      .map((s) => String(s).trim())
+      .filter(Boolean)
+      .slice(0, 5);
+
+    if (steps.length === 0) {
+      setAiBreakdownError('AI returned an empty subtask list.');
+      return;
+    }
+
+    const existing = task.inlineSubtasks || [];
+    const newSubs = steps.map((title, idx) => ({
+      id: `sub-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 6)}`,
+      title,
+      completed: false,
+    }));
+    const updatedTask: Task = {
+      ...task,
+      inlineSubtasks: [...existing, ...newSubs],
+      updatedAt: new Date().toISOString(),
+    };
+    await updateTask(updatedTask);
+    if (selectedTask?.id === task.id) {
+      setSelectedTask(updatedTask);
+    }
+  };
 
   // New List Modal State
   const [isNewListOpen, setIsNewListOpen] = useState(false);
@@ -1221,8 +1276,31 @@ export default function ModernTaskManager({
                       )}
                     </div>
 
-                    {/* Right Interactive Buttons: [Daily] and [Set Time] */}
+                    {/* Right Interactive Buttons: [AI Breakdown], [Daily], and [Set Time] */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                      <button
+                        type="button"
+                        disabled={breakingDownTaskId === task.id}
+                        onClick={(e) => handleAiBreakdownTask(task, e)}
+                        title="Generate 3-5 actionable subtasks with AI"
+                        style={{
+                          background: isLight ? 'rgba(124, 58, 237, 0.1)' : 'rgba(168, 85, 247, 0.16)',
+                          border: isLight ? '1px solid rgba(124, 58, 237, 0.28)' : '1px solid rgba(192, 132, 252, 0.35)',
+                          borderRadius: '8px',
+                          padding: '2px 7px',
+                          color: isLight ? '#6d28d9' : '#d8b4fe',
+                          fontSize: '0.68rem',
+                          fontWeight: 700,
+                          cursor: breakingDownTaskId === task.id ? 'wait' : 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        <Sparkles size={11} className={breakingDownTaskId === task.id ? 'animate-spin' : ''} />
+                        <span>{breakingDownTaskId === task.id ? 'AI…' : 'AI Breakdown'}</span>
+                      </button>
+
                       {/* Individual Daily Recurrence Button */}
                       <DailyRecurrenceToggle task={task} onUpdate={updateTask} compact />
 
@@ -1524,9 +1602,37 @@ export default function ModernTaskManager({
 
             {/* Subtasks Section */}
             <div>
-              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: textMain, marginBottom: '8px' }}>
-                Subtasks Checklist
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', gap: '8px' }}>
+                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: textMain }}>
+                  Subtasks Checklist
+                </div>
+                <button
+                  type="button"
+                  disabled={breakingDownTaskId === selectedTask.id}
+                  onClick={() => handleAiBreakdownTask(selectedTask)}
+                  style={{
+                    background: isLight ? 'rgba(124, 58, 237, 0.1)' : 'rgba(168, 85, 247, 0.18)',
+                    border: isLight ? '1px solid rgba(124, 58, 237, 0.28)' : '1px solid rgba(192, 132, 252, 0.4)',
+                    borderRadius: '8px',
+                    padding: '3px 9px',
+                    color: isLight ? '#6d28d9' : '#e9d5ff',
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    cursor: breakingDownTaskId === selectedTask.id ? 'wait' : 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                >
+                  <Sparkles size={12} className={breakingDownTaskId === selectedTask.id ? 'animate-spin' : ''} />
+                  <span>{breakingDownTaskId === selectedTask.id ? 'Generating…' : 'AI Breakdown'}</span>
+                </button>
               </div>
+              {aiBreakdownError && (
+                <div style={{ fontSize: '0.74rem', color: '#f87171', marginBottom: '6px' }}>
+                  {aiBreakdownError}
+                </div>
+              )}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {(selectedTask.inlineSubtasks || []).map((sub) => (
                   <div

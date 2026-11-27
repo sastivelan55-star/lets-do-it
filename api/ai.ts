@@ -128,22 +128,44 @@ async function callGeminiApi(
   for (const model of modelsToTry) {
     try {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`;
-      const res = await fetch(endpoint, {
+      const basePayload = {
+        systemInstruction: { parts: [{ text: systemInstruction }] },
+        contents: [{ parts: [{ text: userPrompt }] }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 2000,
+        },
+      };
+      const useGrounding = systemInstruction.includes('LIVE DATE & REAL-TIME GROUNDING');
+      const requestBody = useGrounding
+        ? { ...basePayload, tools: [{ google_search: {} }] }
+        : basePayload;
+
+      let res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: systemInstruction }] },
-          contents: [{ parts: [{ text: userPrompt }] }],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 2000,
-          },
-        }),
+        body: JSON.stringify(requestBody),
       });
+
+      // Retry cleanly without search tool if a specific model version rejects tools
+      if (!res.ok && useGrounding) {
+        const errPreview = await res.text();
+        if (res.status === 400 || errPreview.toLowerCase().includes('tool') || errPreview.toLowerCase().includes('search')) {
+          res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(basePayload),
+          });
+        } else {
+          lastError = `Gemini API error (${model} - ${res.status}): ${errPreview}`;
+          continue;
+        }
+      }
 
       if (res.ok) {
         const data = (await res.json()) as any;
-        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        const parts = data?.candidates?.[0]?.content?.parts || [];
+        const text = parts.map((p: any) => p?.text || '').join('').trim();
         if (text) {
           return { success: true, text };
         }
@@ -200,18 +222,26 @@ export async function handleAiRequest(body: AiApiRequest): Promise<AiApiResponse
         ).join('\n---\n');
     }
 
-    const systemPromptChat = `You are Nova, an intelligent, articulate, and accurate AI Assistant in Life OS & NewsPro.
-Key Capabilities and Knowledge:
-1. General Knowledge: Answer questions clearly across Indian and international politics, world history, sciences, arts, and geography. For example, the President of India is Droupadi Murmu, and the Prime Minister of India is Narendra Modi.
-2. Technology & AI: Explain software concepts, artificial intelligence, machine learning, systems architecture, coding, and the difference between AI and ML.
-3. News & Real-Time Events: Use the LIVE LOADED REAL-TIME NEWS ARTICLES CONTEXT provided below to answer questions about breaking stories, tech breakthroughs, markets, sports, or world events with accurate citations and sources.
-4. Life OS Productivity: Assist the user with time management, habits, tasks, roadmap planning, and schedules.
-5. Formatting: Format all answers with clean GitHub-flavored markdown (bullet points, bold highlights, concise headers). Never invent facts or citations. Be friendly, direct, and helpful.${newsPromptSection}`;
-
     // Format the multi-turn conversation into a prompt
-    const conversationPrompt = rawMessages
+    const rawConversationPrompt = rawMessages
       .map((m) => `${m.role === 'assistant' ? 'Assistant (Nova)' : 'User'}: ${m.content}`)
       .join('\n\n');
+    const useSearchGrounding = !rawConversationPrompt.includes('[NO_SEARCH]');
+    const conversationPrompt = rawConversationPrompt.replace(/\[NO_SEARCH\]\s*/g, '');
+
+    const nowTimestamp = new Date().toLocaleString('en-US', {
+      dateStyle: 'full',
+      timeStyle: 'short',
+    });
+    const systemPromptChat = `You are Nova, an intelligent, articulate, and accurate AI Assistant in Life OS & NewsPro.
+${useSearchGrounding ? 'LIVE DATE & REAL-TIME GROUNDING:' : 'LIVE DATE & TIME CONTEXT:'}
+Current local date and time: ${nowTimestamp}
+Key Capabilities and Knowledge:
+1. General Knowledge & Real-Time Facts: Use live Google Search grounding (when available) and current date awareness (${nowTimestamp}) to answer questions accurately across Indian and international politics, world history, sciences, arts, geography, and current events. Never rely on outdated knowledge cutoffs when answering about current officeholders, recent events, or live facts.
+2. Technology & AI: Explain software concepts, artificial intelligence, machine learning, systems architecture, coding, and practical engineering clearly.
+3. News & Real-Time Events: Use the LIVE LOADED REAL-TIME NEWS ARTICLES CONTEXT provided below (plus live search grounding) to answer questions about breaking stories, tech breakthroughs, markets, sports, or world events with accurate citations and sources.
+4. Life OS Productivity: Assist the user with time management, routines, tasks, projects, notes, grocery planning, roadmap milestones, and daily execution using the Life OS workspace context provided in the conversation.
+5. Formatting: Format all answers with clean GitHub-flavored markdown (bullet points, bold highlights, concise headers), unless the prompt explicitly asks for raw JSON—in which case output valid JSON only. Never invent facts or citations. Be friendly, direct, and helpful.${newsPromptSection}`;
 
     // 1. Try Gemini first (or as requested)
     if (preferredProvider === 'gemini' || !openaiKey) {

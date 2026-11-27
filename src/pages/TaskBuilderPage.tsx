@@ -35,6 +35,7 @@ import type { Task, LifeArea } from '../types';
 import TimetableScheduledBadge from '../components/common/TimetableScheduledBadge';
 import ModernTaskManager from '../components/tasks/ModernTaskManager';
 import DailyRecurrenceToggle from '../components/common/DailyRecurrenceToggle';
+import { runAiPrompt, parseAiJsonArray } from '../services/aiService';
 
 interface QuestItem {
   id: string;
@@ -410,6 +411,42 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
 
   const [addingSubtaskQuestId, setAddingSubtaskQuestId] = useState<string | null>(null);
   const [newSubtaskText, setNewSubtaskText] = useState('');
+  const [breakingQuestId, setBreakingQuestId] = useState<string | null>(null);
+
+  const handleAiBreakdownQuest = async (parentId: string, questTitle: string) => {
+    setBreakingQuestId(parentId);
+    const parentTask = tasks.find((t) => t.id === parentId);
+    const res = await runAiPrompt(
+      `Break down the task "${questTitle}" into 3 to 5 concrete, actionable checkpoints.\nReturn ONLY a raw JSON array of short strings, e.g. ["Step 1", "Step 2"]. No extra text.`,
+      'You are a structured productivity planner. Output strictly valid JSON arrays of 3 to 5 strings.',
+      {
+        provider: settings.aiSettings?.provider || 'gemini',
+        model: settings.aiSettings?.model,
+      }
+    );
+    setBreakingQuestId(null);
+    if (!res.success || !res.text) return;
+    const parsed = parseAiJsonArray<string>(res.text);
+    const fallback = res.text
+      .split('\n')
+      .map((l) => l.replace(/^[-*\d.)\s]+/, '').trim())
+      .filter((l) => l.length > 2)
+      .slice(0, 5);
+    const steps = (parsed && parsed.length > 0 ? parsed : fallback).map((s) => String(s).trim()).filter(Boolean).slice(0, 5);
+    for (const step of steps) {
+      await addTask({
+        title: step,
+        parentId,
+        priority: parentTask?.priority || 'medium',
+        lifeArea: parentTask?.lifeArea || 'growth',
+        status: 'not-started',
+        dueDate: parentTask?.dueDate || today(),
+      });
+    }
+    if (steps.length > 0) {
+      playAnimeSound('slash');
+    }
+  };
 
   const handleAddSubtask = async (parentId: string) => {
     if (!newSubtaskText.trim()) return;
@@ -1913,28 +1950,53 @@ export default function TaskBuilderPage({ onNavigateSection }: { onNavigateSecti
                                   </button>
                                 </form>
                               ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setAddingSubtaskQuestId(q.id);
-                                    setNewSubtaskText('');
-                                  }}
-                                  style={{
-                                    background: 'none',
-                                    border: 'none',
-                                    padding: 0,
-                                    color: '#00F0FF',
-                                    fontSize: '0.7rem',
-                                    fontWeight: 700,
-                                    cursor: 'pointer',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '3px',
-                                    opacity: 0.85,
-                                  }}
-                                >
-                                  + Add Checkpoint
-                                </button>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setAddingSubtaskQuestId(q.id);
+                                      setNewSubtaskText('');
+                                    }}
+                                    style={{
+                                      background: 'none',
+                                      border: 'none',
+                                      padding: 0,
+                                      color: '#00F0FF',
+                                      fontSize: '0.7rem',
+                                      fontWeight: 700,
+                                      cursor: 'pointer',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '3px',
+                                      opacity: 0.85,
+                                    }}
+                                  >
+                                    + Add Checkpoint
+                                  </button>
+                                  {q.realTaskId && (
+                                    <button
+                                      type="button"
+                                      disabled={breakingQuestId === q.realTaskId}
+                                      onClick={() => q.realTaskId && handleAiBreakdownQuest(q.realTaskId, q.title)}
+                                      style={{
+                                        background: 'rgba(168, 85, 247, 0.14)',
+                                        border: '1px solid rgba(168, 85, 247, 0.35)',
+                                        borderRadius: '6px',
+                                        padding: '2px 7px',
+                                        color: '#d8b4fe',
+                                        fontSize: '0.68rem',
+                                        fontWeight: 700,
+                                        cursor: breakingQuestId === q.realTaskId ? 'wait' : 'pointer',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px',
+                                      }}
+                                    >
+                                      <Sparkles size={10} className={breakingQuestId === q.realTaskId ? 'animate-spin' : ''} />
+                                      {breakingQuestId === q.realTaskId ? 'Breaking down…' : 'AI Breakdown'}
+                                    </button>
+                                  )}
+                                </div>
                               )}
                             </div>
                           </div>

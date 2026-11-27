@@ -1310,6 +1310,15 @@ function AiProvidersSettings({
     try {
       const res = await checkAiConfig();
       setStatus(res);
+      if (res.success && !settings.provider) {
+        if (!res.providerConfigured.gemini && res.providerConfigured.openai) {
+          setProvider('openai');
+          setModel('gpt-4.1-mini');
+        } else if (res.providerConfigured.gemini) {
+          setProvider('gemini');
+          setModel('gemini-3.5-flash-lite');
+        }
+      }
     } finally {
       setIsTesting(false);
     }
@@ -1356,7 +1365,7 @@ function AiProvidersSettings({
               <strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>Google Gemini</strong>
               {status?.providerConfigured?.gemini ? (
                 <span className="badge" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', fontSize: '0.7rem' }}>
-                  ✓ Configured
+                  ✓ Connected
                 </span>
               ) : (
                 <span className="badge" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', fontSize: '0.7rem' }}>
@@ -1386,7 +1395,7 @@ function AiProvidersSettings({
               <strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>OpenAI</strong>
               {status?.providerConfigured?.openai ? (
                 <span className="badge" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', fontSize: '0.7rem' }}>
-                  ✓ Configured
+                  ✓ Connected
                 </span>
               ) : (
                 <span className="badge" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', fontSize: '0.7rem' }}>

@@ -271,6 +271,202 @@ export async function executeAiAction(
   }
 }
 
+/**
+ * Extracts and parses a JSON array from an LLM reply (handles markdown code fences cleanly).
+ */
+export function parseAiJsonArray<T = unknown>(rawText: string): T[] | null {
+  if (!rawText) return null;
+  const cleaned = rawText
+    .replace(/```json\s*/gi, '')
+    .replace(/```\s*/g, '')
+    .trim();
+  const start = cleaned.indexOf('[');
+  const end = cleaned.lastIndexOf(']');
+  if (start === -1 || end === -1 || end <= start) return null;
+  try {
+    const parsed = JSON.parse(cleaned.slice(start, end + 1));
+    return Array.isArray(parsed) ? (parsed as T[]) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Shared single-shot prompt helper wired to `/api/ai` for inline AI features across all tabs.
+ */
+export async function runAiPrompt(
+  prompt: string,
+  systemInstruction?: string,
+  options?: {
+    provider?: 'openai' | 'gemini';
+    model?: string;
+    allowSearch?: boolean;
+    newsContext?: NewsContextItem[];
+    signal?: AbortSignal;
+  }
+): Promise<{ success: boolean; text?: string; error?: string; provider?: string; model?: string }> {
+  const fullPrompt = systemInstruction
+    ? `${options?.allowSearch ? '' : '[NO_SEARCH]\n'}SYSTEM INSTRUCTIONS:\n${systemInstruction}\n\nUSER REQUEST:\n${prompt}`
+    : `${options?.allowSearch ? '' : '[NO_SEARCH]\n'}${prompt}`;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 22_000);
+  if (options?.signal) {
+    options.signal.addEventListener('abort', () => controller.abort(), { once: true });
+  }
+
+  try {
+    const res = await fetch('/api/ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'chat',
+        provider: options?.provider,
+        model: options?.model,
+        messages: [{ role: 'user', content: fullPrompt }],
+        newsContext: options?.newsContext,
+        userContext: {
+          today: new Date().toISOString().slice(0, 10),
+        },
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    const data = await res.json().catch(() => null);
+    if (res.ok && data?.success && data.reply) {
+      return {
+        success: true,
+        text: data.reply,
+        provider: data.provider || (options?.provider === 'openai' ? 'OpenAI' : 'Google Gemini'),
+        model: data.model || options?.model || 'gemini-3.5-flash-lite',
+      };
+    }
+
+    return {
+      success: false,
+      error: data?.error || `AI request failed (HTTP ${res.status}). Check your API key in Settings -> AI Execution.`,
+    };
+  } catch (err: unknown) {
+    clearTimeout(timeoutId);
+    if (err instanceof Error && err.name === 'AbortError') {
+      return { success: false, error: 'AI request timed out or was cancelled.' };
+    }
+    const msg = err instanceof Error ? err.message : String(err);
+    return {
+      success: false,
+      error: `Unable to reach AI endpoint (/api/ai): ${msg}`,
+    };
+  }
+}
+
+/**
+ * Live conversational AI call wired to `/api/ai` with current date/time, Life OS workspace context, and optional news context.
+ */
+export async function sendLiveAiChat(
+  messages: Array<{ role: 'user' | 'assistant'; content: string }>,
+  newsContext: NewsContextItem[] = [],
+  userContext?: LifeOsContext & {
+    routines?: Array<{ title: string; completedToday: boolean; time?: string }>;
+    projects?: Array<{ name: string; status: string }>;
+    milestones?: Array<{ month: number; title: string; status: string }>;
+  },
+  provider: 'openai' | 'gemini' = 'gemini',
+  model?: string,
+  signal?: AbortSignal
+): Promise<{ success: boolean; reply: string; provider: string; model: string; error?: string }> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 22_000);
+  if (signal) {
+    signal.addEventListener('abort', () => controller.abort(), { once: true });
+  }
+
+  // Enrich the last user message cleanly with live workspace context (routines/projects/roadmap)
+  const extraParts: string[] = [];
+  if (userContext?.routines && userContext.routines.length > 0) {
+    extraParts.push(
+      `Daily Routines Today:\n${userContext.routines
+        .slice(0, 10)
+        .map((r) => `- ${r.title}${r.time ? ` @ ${r.time}` : ''} [${r.completedToday ? 'Done Today' : 'Pending'}]`)
+        .join('\n')}`
+    );
+  }
+  if (userContext?.projects && userContext.projects.length > 0) {
+    extraParts.push(
+      `Active Projects:\n${userContext.projects
+        .slice(0, 8)
+        .map((p) => `- ${p.name} (${p.status})`)
+        .join('\n')}`
+    );
+  }
+  if (userContext?.milestones && userContext.milestones.length > 0) {
+    extraParts.push(
+      `Roadmap Milestones:\n${userContext.milestones
+        .slice(0, 6)
+        .map((m) => `- Month ${m.month}: ${m.title} (${m.status})`)
+        .join('\n')}`
+    );
+  }
+
+  const enrichedMessages = messages.map((m, idx) => {
+    if (idx === messages.length - 1 && m.role === 'user' && extraParts.length > 0) {
+      return {
+        ...m,
+        content: `[LIFE OS WORKSPACE CONTEXT]\n${extraParts.join('\n\n')}\n\n[USER MESSAGE]\n${m.content}`,
+      };
+    }
+    return m;
+  });
+
+  try {
+    const res = await fetch('/api/ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'chat',
+        provider,
+        model,
+        messages: enrichedMessages,
+        newsContext: newsContext.slice(0, 12),
+        userContext,
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    const data = await res.json().catch(() => null);
+    if (res.ok && data?.success && data.reply) {
+      return {
+        success: true,
+        reply: data.reply,
+        provider: data.provider || (provider === 'openai' ? 'OpenAI' : 'Google Gemini'),
+        model: data.model || model || (provider === 'openai' ? 'gpt-4.1-mini' : 'gemini-3.5-flash-lite'),
+      };
+    }
+
+    return {
+      success: false,
+      reply: `⚠️ **AI Execution Error:** ${data?.error || `Server returned HTTP ${res.status}.`}\n\nVerify \`GEMINI_API_KEY\` or \`OPENAI_API_KEY\` in **Settings → AI Execution** or your Vercel environment variables.`,
+      provider: provider === 'openai' ? 'OpenAI' : 'Google Gemini',
+      model: model || 'unconfigured',
+      error: data?.error,
+    };
+  } catch (err: unknown) {
+    clearTimeout(timeoutId);
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw err;
+    }
+    const msg = err instanceof Error ? err.message : String(err);
+    return {
+      success: false,
+      reply: `⚠️ **AI Connection Error:** Could not reach \`/api/ai\` (${msg}).`,
+      provider: 'Network',
+      model: 'offline',
+      error: msg,
+    };
+  }
+}
+
 // ── FLOATING AI ASSISTANT CHAT SERVICE ─────────────────────────────────────────
 
 /**

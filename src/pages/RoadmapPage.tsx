@@ -9,7 +9,8 @@ import {
   CheckCircle2,
   ArrowRightLeft,
   Link2,
-  ListTree
+  ListTree,
+  Sparkles,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import type { RoadmapMilestone, LearningSession, Task, LifeArea } from '../types';
@@ -17,6 +18,7 @@ import { nanoid } from '../utils/nanoid';
 import { today } from '../utils/dates';
 import TaskAssignmentModal from '../components/tasks/TaskAssignmentModal';
 import Modal from '../components/ui/Modal';
+import { runAiPrompt, parseAiJsonArray } from '../services/aiService';
 
 const MONTH_COLORS = [
   '#6366f1', '#60a5fa', '#a78bfa', '#f59e0b',
@@ -40,6 +42,7 @@ export default function RoadmapPage() {
     removeTask,
     assignTask,
     customLifeAreas,
+    settings,
   } = useApp();
 
   const [expanded, setExpanded] = useState<string | null>(
@@ -153,6 +156,7 @@ export default function RoadmapPage() {
             onAssignExisting={() => setAssignExistingMonth(m.month)}
             showSessionForm={sessionForm === m.id}
             onToggleSessionForm={() => setSessionForm(sessionForm === m.id ? null : m.id)}
+            aiSettings={settings.aiSettings}
           />
         ))}
       </div>
@@ -227,6 +231,7 @@ function MilestoneCard({
   onAssignExisting,
   showSessionForm,
   onToggleSessionForm,
+  aiSettings,
 }: {
   milestone: RoadmapMilestone;
   tasks: Task[];
@@ -242,10 +247,71 @@ function MilestoneCard({
   onAssignExisting: () => void;
   showSessionForm: boolean;
   onToggleSessionForm: () => void;
+  aiSettings?: { provider?: 'openai' | 'gemini'; model?: string };
 }) {
   const [isEditingMilestone, setIsEditingMilestone] = useState(false);
   const [editedTitle, setEditedTitle] = useState(milestone.title);
   const [editedDesc, setEditedDesc] = useState(milestone.description);
+  const [aiStepLoading, setAiStepLoading] = useState(false);
+  const [aiGeneratedSteps, setAiGeneratedSteps] = useState<string[]>([]);
+  const [aiStepError, setAiStepError] = useState<string | null>(null);
+
+  const handleAiGenerateMilestoneSteps = async () => {
+    setAiStepLoading(true);
+    setAiStepError(null);
+    const res = await runAiPrompt(
+      `Generate 4 to 5 concrete study or execution steps for Month ${milestone.month}: "${milestone.title}" (${milestone.description}).\nReturn ONLY a raw JSON array of concise step title strings, e.g. ["Step 1", "Step 2"]. No extra prose.`,
+      'You are an engineering mentor building a learning roadmap. Output strictly valid JSON arrays of 4 to 5 strings.',
+      {
+        provider: aiSettings?.provider || 'gemini',
+        model: aiSettings?.model,
+      }
+    );
+    setAiStepLoading(false);
+    if (!res.success || !res.text) {
+      setAiStepError(res.error || 'AI generation failed.');
+      return;
+    }
+    const parsed = parseAiJsonArray<string>(res.text);
+    const fallback = res.text
+      .split('\n')
+      .map((l) => l.replace(/^[-*\d.)\s]+/, '').trim())
+      .filter((l) => l.length > 2)
+      .slice(0, 5);
+    const steps = (parsed && parsed.length > 0 ? parsed : fallback).map((s) => String(s).trim()).filter(Boolean).slice(0, 5);
+    if (steps.length === 0) {
+      setAiStepError('No roadmap steps returned.');
+      return;
+    }
+    setAiGeneratedSteps(steps);
+  };
+
+  const handleSaveToMilestoneSubtasks = () => {
+    const newItems = aiGeneratedSteps.map((title) => ({
+      id: nanoid(),
+      title,
+      completed: false,
+    }));
+    onUpdateMilestone({
+      ...milestone,
+      subtasks: [...milestone.subtasks, ...newItems],
+    });
+    setAiGeneratedSteps([]);
+  };
+
+  const handleCreateLinkedMainTasks = async () => {
+    for (const title of aiGeneratedSteps) {
+      await onAddTask({
+        title,
+        lifeArea: newTaskArea,
+        roadmapMonth: milestone.month,
+        dueDate: today(),
+        priority: 'medium',
+        status: 'not-started',
+      });
+    }
+    setAiGeneratedSteps([]);
+  };
 
   // New Monthly Task inputs
   const [newTaskTitle, setNewTaskTitle] = useState('');
@@ -511,14 +577,55 @@ function MilestoneCard({
               <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#818cf8', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: '5px' }}>
                 <ListTree size={14} /> Month {milestone.month} Tasks ({monthlyTasks.length})
               </span>
-              <button
-                className="btn btn-secondary btn-xs"
-                onClick={onAssignExisting}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem' }}
-              >
-                <Link2 size={12} /> Assign Existing Task
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  disabled={aiStepLoading}
+                  onClick={handleAiGenerateMilestoneSteps}
+                  className="btn btn-secondary btn-xs"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem', color: '#c084fc', borderColor: 'rgba(192, 132, 252, 0.35)' }}
+                >
+                  <Sparkles size={12} className={aiStepLoading ? 'animate-spin' : ''} />
+                  {aiStepLoading ? 'Generating…' : 'AI Generate Steps'}
+                </button>
+                <button
+                  className="btn btn-secondary btn-xs"
+                  onClick={onAssignExisting}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem' }}
+                >
+                  <Link2 size={12} /> Assign Existing Task
+                </button>
+              </div>
             </div>
+
+            {(aiStepError || aiGeneratedSteps.length > 0) && (
+              <div style={{ marginBottom: '0.75rem', padding: '0.7rem 0.85rem', borderRadius: '8px', background: 'rgba(139, 92, 246, 0.08)', border: aiStepError ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid rgba(139, 92, 246, 0.3)' }}>
+                {aiStepError && <p style={{ margin: 0, fontSize: '0.78rem', color: '#f87171' }}>{aiStepError}</p>}
+                {aiGeneratedSteps.length > 0 && (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.45rem', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#c084fc' }}>AI Suggested Milestone Steps</span>
+                      <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                        <button type="button" className="btn btn-secondary btn-xs" onClick={handleSaveToMilestoneSubtasks}>
+                          Save to Milestone
+                        </button>
+                        <button type="button" className="btn btn-primary btn-xs" onClick={handleCreateLinkedMainTasks}>
+                          + Create Main Tasks
+                        </button>
+                        <button type="button" className="btn btn-ghost btn-xs" onClick={() => setAiGeneratedSteps([])}>
+                          Dismiss
+                        </button>
+                      </div>
+                    </div>
+                    <ul style={{ margin: 0, paddingLeft: '1.15rem', fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                      {aiGeneratedSteps.map((s, idx) => (
+                        <li key={idx}>{s}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </div>
+            )}
 
             {/* List of Tasks Assigned to this Month */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.75rem' }}>

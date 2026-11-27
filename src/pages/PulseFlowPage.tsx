@@ -29,11 +29,11 @@ import {
   fetchBackendNews,
   fetchVercelLiveNews,
   checkBackendHealth,
-  fetchDailyBriefing,
   fetchNewsDataLatest,
   formatTimeAgo,
   type AiBriefingResponse,
 } from '../services/newsService';
+import { runAiPrompt } from '../services/aiService';
 import { useApp } from '../context/AppContext';
 import LiveTvSection from '../components/news/LiveTvPlayerModal';
 import JarvisAiBriefingCard from '../components/news/JarvisAiBriefingCard';
@@ -1109,10 +1109,90 @@ export default function PulseFlowPage() {
     setIsBriefingLoading(true);
     setShowAiBriefing(true);
     try {
-      const res = await fetchDailyBriefing();
-      setBriefing(res);
+      const pool = (allArticles.length > 0 ? allArticles : filteredArticles).slice(0, 15);
+      if (pool.length === 0) {
+        setBriefing({
+          available: true,
+          bullet_points: ['No live articles loaded yet. Refresh the feed first to generate a Jarvis Briefing.'],
+          generated_at: new Date().toISOString(),
+        });
+        return;
+      }
+
+      const digest = pool
+        .map(
+          (a, i) =>
+            `[${i + 1}] (${a.category || 'General'} | ${a.source || 'News'} | ${a.publishedAt || 'Today'}) ${a.title} — ${(a.description || '').slice(0, 180)}`
+        )
+        .join('\n');
+
+      const nowStr = new Date().toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' });
+      const res = await runAiPrompt(
+        `Current date/time: ${nowStr}\nLive articles:\n${digest}\n\nProduce a structured executive briefing as raw JSON with keys:\n- "bullet_points": array of exactly 5 sharp executive summary bullets covering India, Tamil Nadu/Local, Tech & AI, Markets/Economy, and Global headlines.\n- "top_story_summaries": array of 3 objects {"title": "...", "summary": "..."} highlighting the top stories.\nReturn valid JSON ONLY (no markdown fences).`,
+        'You are Jarvis, an executive intelligence analyst. Synthesize only facts grounded in the provided articles. Output strictly valid JSON.',
+        {
+          provider: settings.aiSettings?.provider || 'gemini',
+          model: settings.aiSettings?.model,
+        }
+      );
+
+      if (!res.success || !res.text) {
+        setBriefing({
+          available: true,
+          error: res.error,
+          bullet_points: [res.error || 'Unable to synthesize AI briefing. Verify API keys in Settings -> AI Execution.'],
+          generated_at: new Date().toISOString(),
+        });
+        return;
+      }
+
+      const cleaned = res.text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+      const objStart = cleaned.indexOf('{');
+      const objEnd = cleaned.lastIndexOf('}');
+      if (objStart !== -1 && objEnd > objStart) {
+        try {
+          const parsed = JSON.parse(cleaned.slice(objStart, objEnd + 1));
+          const bullets = Array.isArray(parsed.bullet_points)
+            ? parsed.bullet_points.map((b: unknown) => String(b).trim()).filter(Boolean)
+            : [];
+          const summaries = Array.isArray(parsed.top_story_summaries)
+            ? parsed.top_story_summaries
+                .filter((s: any) => s && s.title && s.summary)
+                .map((s: any) => ({ title: String(s.title), summary: String(s.summary) }))
+            : [];
+          if (bullets.length > 0) {
+            setBriefing({
+              available: true,
+              title: 'Jarvis Executive Intelligence Briefing',
+              model: res.model,
+              bullet_points: bullets,
+              top_story_summaries: summaries,
+              generated_at: new Date().toISOString(),
+            });
+            return;
+          }
+        } catch {
+          // Fall through to line extraction
+        }
+      }
+
+      const lines = res.text
+        .split('\n')
+        .map((l) => l.replace(/^[-*\d.)\s]+/, '').trim())
+        .filter((l) => l.length > 15)
+        .slice(0, 5);
+      setBriefing({
+        available: true,
+        model: res.model,
+        bullet_points: lines.length > 0 ? lines : [res.text],
+        generated_at: new Date().toISOString(),
+      });
     } catch {
-      setBriefing(null);
+      setBriefing({
+        available: true,
+        bullet_points: ['Failed to synthesize AI briefing. Check network or API configuration.'],
+        generated_at: new Date().toISOString(),
+      });
     } finally {
       setIsBriefingLoading(false);
     }

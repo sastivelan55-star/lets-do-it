@@ -43,6 +43,10 @@ import {
   Plus,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
+import { loadGroceryData, saveGroceryData } from '../../services/groceryService';
+import { nanoid } from '../../utils/nanoid';
+import type { GroceryCategory, GroceryUnit } from '../../types/grocery';
 import {
   processNovaMessage,
 } from '../../services/novaOrchestrator';
@@ -95,17 +99,57 @@ const DEFAULT_NEWS_STORIES: NewsContextItem[] = [
 ];
 
 const QUICK_PROMPTS = [
-  { label: '🪴 Add Pot', query: 'add pot in this application' },
-  { label: '🗓️ Add Poy (23 Dec)', query: 'add poy to the date of 23rd december' },
-  { label: '📋 My Pending Tasks', query: 'show my pending tasks' },
-  { label: '🏛️ CM Vijay Info', query: 'cm vijay' },
-  { label: '⚡ Latest AI News', query: 'summarize the latest AI news' },
-  { label: '🇮🇳 India Leaders', query: 'Who is the President and Prime Minister of India?' },
-  { label: '☕ Meet Ravi', query: 'add a task tomorrow at 9 AM to meet Ravi at Starbucks' },
+  { label: '⚡ Plan My Day', query: 'Plan my day based on my pending tasks, daily routines, and schedule' },
+  { label: '📋 Summarize Pending Tasks', query: 'Summarize my pending tasks and highlight top 3 priorities' },
+  { label: '📰 Live News Briefing', query: 'Give me a crisp live news briefing from the latest headlines' },
+  { label: '🎯 Break Down a Goal', query: 'Help me break down my next project milestone into 5 actionable steps' },
+  { label: '🛒 Add Milk to Grocery', query: 'add milk and eggs to grocery list' },
 ];
 
 export default function FloatingAiAssistant({ onNavigate }: FloatingAiAssistantProps) {
-  const { tasks, todaysTasks, overdueTasks, addTask, updateTask, completeTask, removeTask } = useApp();
+  const {
+    tasks,
+    todaysTasks,
+    overdueTasks,
+    projects,
+    milestones,
+    settings,
+    addTask,
+    updateTask,
+    completeTask,
+    removeTask,
+    addNote,
+  } = useApp();
+  const { user } = useAuth();
+
+  const handleAddGroceryFromAi = (item: {
+    name: string;
+    quantity: number;
+    unit: GroceryUnit;
+    category: GroceryCategory;
+    notes?: string;
+  }) => {
+    const uid = user?.id || 'guest';
+    const current = loadGroceryData(uid);
+    const listId = current.activeListId || current.lists[0]?.id || 'list-weekly';
+    const now = new Date().toISOString();
+    const newItem = {
+      id: nanoid(),
+      listId,
+      name: item.name,
+      quantity: item.quantity || 1,
+      unit: item.unit || 'pcs',
+      category: item.category || 'other',
+      notes: item.notes,
+      isPurchased: false,
+      createdAt: now,
+      updatedAt: now,
+    };
+    saveGroceryData(uid, {
+      ...current,
+      items: [newItem, ...current.items],
+    });
+  };
 
   // Assistant Window State
   const [isOpen, setIsOpen] = useState(false);
@@ -362,11 +406,19 @@ export default function FloatingAiAssistant({ onNavigate }: FloatingAiAssistantP
         newsContext: newsList,
         lifeOsContext: userContext,
         tasks,
+        projects,
+        milestones,
+        aiSettings: {
+          provider: settings.aiSettings?.provider || 'gemini',
+          model: settings.aiSettings?.model,
+        },
         appOps: {
           addTask,
           updateTask,
           completeTask,
           removeTask,
+          addNote,
+          addGroceryItem: handleAddGroceryFromAi,
         },
         signal: abortCtrl.signal,
       });
