@@ -21,7 +21,6 @@ import {
   RefreshCw,
   CheckCircle2,
   ImageIcon,
-  Info,
   Code2,
   MessageSquare,
   Briefcase,
@@ -47,8 +46,7 @@ export type SettingsTab =
   | 'reports'
   | 'account'
   | 'recycle-bin'
-  | 'data'
-  | 'branding';
+  | 'data';
 
 interface SettingsPageProps {
   initialTab?: SettingsTab;
@@ -505,7 +503,6 @@ export default function SettingsPage({ initialTab, hideHeader = false, hideTabs 
             { id: 'account', label: 'Profile & Account', icon: <User size={14} /> },
             { id: 'recycle-bin', label: `Recycle Bin (${deletedTasks.length})`, icon: <Trash2 size={14} /> },
             { id: 'data', label: 'Data Management', icon: <Database size={14} /> },
-            { id: 'branding', label: 'Manual Branding', icon: <Info size={14} /> },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -613,10 +610,6 @@ export default function SettingsPage({ initialTab, hideHeader = false, hideTabs 
           onReset={resetData}
           onSuccess={showSaveSuccess}
         />
-      )}
-
-      {activeTab === 'branding' && (
-        <ManualBrandingGuidance />
       )}
     </div>
   );
@@ -1298,7 +1291,13 @@ function AiProvidersSettings({
   onSave: (ai: AiSettings) => Promise<void>;
 }) {
   const [provider, setProvider] = useState<'openai' | 'gemini'>(settings.provider || 'gemini');
-  const [model, setModel] = useState(settings.model || (provider === 'gemini' ? 'gemini-1.5-flash' : 'gpt-4o-mini'));
+  const [model, setModel] = useState(
+    settings.model && !settings.model.startsWith('gemini-1.5')
+      ? settings.model
+      : provider === 'gemini'
+        ? 'gemini-3.5-flash-lite'
+        : 'gpt-4.1-mini'
+  );
   const [status, setStatus] = useState<AiStatusResult | null>(null);
   const [isTesting, setIsTesting] = useState(false);
 
@@ -1318,7 +1317,7 @@ function AiProvidersSettings({
 
   const handleProviderChange = (p: 'openai' | 'gemini') => {
     setProvider(p);
-    setModel(p === 'gemini' ? 'gemini-1.5-flash' : 'gpt-4o-mini');
+    setModel(p === 'gemini' ? 'gemini-3.5-flash-lite' : 'gpt-4.1-mini');
   };
 
   const handleSave = async () => {
@@ -1366,7 +1365,7 @@ function AiProvidersSettings({
               )}
             </div>
             <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>
-              Gemini 1.5 Flash / Pro via official Google Generative Language API
+              Gemini 3.5 Flash-Lite / 3.8 Flash / 4 Hydrogen via Google AI API
             </p>
           </div>
 
@@ -1396,7 +1395,7 @@ function AiProvidersSettings({
               )}
             </div>
             <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>
-              GPT-4o / GPT-4o-mini via official OpenAI API
+              GPT-4.1 mini / GPT-4.1 / GPT-4o mini via official OpenAI API
             </p>
           </div>
         </div>
@@ -1413,13 +1412,15 @@ function AiProvidersSettings({
           >
             {provider === 'gemini' ? (
               <>
-                <option value="gemini-1.5-flash">Gemini 1.5 Flash (Fast, low-latency, recommended)</option>
-                <option value="gemini-1.5-pro">Gemini 1.5 Pro (Deep reasoning)</option>
+                <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash-Lite (Fastest, low-cost — default)</option>
+                <option value="gemini-3.8-flash">Gemini 3.8 Flash (Balanced reasoning &amp; speed)</option>
+                <option value="gemini-4-hydrogen">Gemini 4 Hydrogen (Everyday coding &amp; agentic tasks)</option>
               </>
             ) : (
               <>
-                <option value="gpt-4o-mini">GPT-4o mini (Fast, economical, recommended)</option>
-                <option value="gpt-4o">GPT-4o (High precision)</option>
+                <option value="gpt-4.1-mini">GPT-4.1 mini (Fast, economical, recommended)</option>
+                <option value="gpt-4.1">GPT-4.1 (High precision)</option>
+                <option value="gpt-4o-mini">GPT-4o mini (Legacy lightweight)</option>
               </>
             )}
           </select>
@@ -1436,16 +1437,34 @@ function AiProvidersSettings({
             fontSize: '0.82rem',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
             <strong style={{ color: 'var(--text-primary)' }}>Vercel Deployment Environment Setup</strong>
-            <button
-              className="btn btn-ghost btn-xs"
-              onClick={runCheck}
-              disabled={isTesting}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-            >
-              <RefreshCw size={12} className={isTesting ? 'animate-spin' : ''} /> Test Connection
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              {status && (
+                <span
+                  className="badge"
+                  style={{
+                    fontSize: '0.72rem',
+                    background: status.providerConfigured?.[provider]
+                      ? 'rgba(16, 185, 129, 0.15)'
+                      : 'rgba(245, 158, 11, 0.15)',
+                    color: status.providerConfigured?.[provider] ? '#10b981' : '#f59e0b',
+                  }}
+                >
+                  {status.providerConfigured?.[provider]
+                    ? '✓ Connected'
+                    : status.error || 'Missing API Key in Vercel Env'}
+                </span>
+              )}
+              <button
+                className="btn btn-ghost btn-xs"
+                onClick={runCheck}
+                disabled={isTesting}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+              >
+                <RefreshCw size={12} className={isTesting ? 'animate-spin' : ''} /> Test Connection
+              </button>
+            </div>
           </div>
           <ol style={{ paddingLeft: '1.25rem', margin: 0, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
             <li>Go to your project in the <strong>Vercel Dashboard</strong>.</li>
@@ -1965,60 +1984,6 @@ function DataManagementSection({
           </div>
         </Modal>
       )}
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 8. MANUAL BRANDING & SECURITY GUIDANCE (Section 6.4)
-// ─────────────────────────────────────────────────────────────────────────────
-
-function ManualBrandingGuidance() {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-      <div className="card">
-        <h2 style={{ fontSize: '1.1rem', fontWeight: 800, margin: '0 0 4px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Info size={18} color="#818cf8" /> Manual Branding & Architecture Guidance
-        </h2>
-        <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: '0 0 1.25rem 0' }}>
-          Exact repository file paths controlling application name, branding logos, and metadata.
-        </p>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', fontSize: '0.85rem' }}>
-          <div style={{ background: 'var(--bg-surface-2)', padding: '0.85rem 1rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
-            <strong style={{ color: '#818cf8' }}>1. Browser Title & Metadata</strong>
-            <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)', fontFamily: 'monospace', fontSize: '0.82rem' }}>
-              index.html
-            </p>
-            <p style={{ margin: '4px 0 0 0', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
-              Controls the HTML <code>&lt;title&gt;</code> tag and <code>&lt;meta name="description"&gt;</code> shown on search engines and browser tabs.
-            </p>
-          </div>
-
-          <div style={{ background: 'var(--bg-surface-2)', padding: '0.85rem 1rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
-            <strong style={{ color: '#818cf8' }}>2. Application Name in UI</strong>
-            <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)', fontFamily: 'monospace', fontSize: '0.82rem' }}>
-              src/components/layout/Sidebar.tsx <br />
-              src/components/auth/AuthPage.tsx <br />
-              src/App.tsx (LoadingScreen)
-            </p>
-            <p style={{ margin: '4px 0 0 0', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
-              To rename the application in the future, update the brand title in these three files.
-            </p>
-          </div>
-
-          <div style={{ background: 'var(--bg-surface-2)', padding: '0.85rem 1rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
-            <strong style={{ color: '#818cf8' }}>3. Application Logo Icon</strong>
-            <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)', fontFamily: 'monospace', fontSize: '0.82rem' }}>
-              src/components/layout/Sidebar.tsx (lines 80-92) <br />
-              src/components/auth/AuthPage.tsx (logo container)
-            </p>
-            <p style={{ margin: '4px 0 0 0', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
-              Renders the sleek Sparkles badge with purple gradient. You can replace the Lucide icon with an SVG or image tag.
-            </p>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

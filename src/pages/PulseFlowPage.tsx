@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import {
   fetchBackendNews,
+  fetchVercelLiveNews,
   checkBackendHealth,
   fetchDailyBriefing,
   fetchNewsDataLatest,
@@ -522,67 +523,88 @@ const CATEGORY_NAV_TABS = [
   { id: 'Health', label: 'Health', icon: <HeartPulse size={14} /> },
 ];
 
-// ── WEATHER CITIES ROTATION ──────────────────────────────────────────────────
-const WEATHER_LOCATIONS = [
+// ── WEATHER CITIES (OPEN-METEO LIVE + FALLBACK) ──────────────────────────────
+function wmoCodeToLabel(code: number): string {
+  if (code === 0) return 'Clear Sky';
+  if (code <= 3) return 'Partly Cloudy';
+  if (code <= 48) return 'Mist / Fog';
+  if (code <= 67) return 'Rain Showers';
+  if (code <= 82) return 'Heavy Rain';
+  if (code >= 95) return 'Thunderstorm';
+  return 'Cloudy';
+}
+
+const WEATHER_LOCATIONS: Array<{
+  city: string;
+  lat: number;
+  lon: number;
+  temp: string;
+  condition: string;
+  high: string;
+  low: string;
+  humidity: string;
+  wind: string;
+  aqi: string;
+}> = [
   {
-    city: 'Tamil Nadu',
-    temp: '29°C',
-    condition: 'Google Weather',
-    high: '31°C',
-    low: '24°C',
-    humidity: '78%',
-    wind: '14 km/h',
-    aqi: '58 Moderate',
+    city: 'Coimbatore',
+    lat: 11.0168,
+    lon: 76.9558,
+    temp: '--°C',
+    condition: 'Fetching Open-Meteo…',
+    high: '--°C',
+    low: '--°C',
+    humidity: '--%',
+    wind: '-- km/h',
+    aqi: 'Live Open-Meteo',
   },
   {
     city: 'Chennai',
-    temp: '30°C',
-    condition: 'Humid & Overcast',
-    high: '32°C',
-    low: '25°C',
-    humidity: '84%',
-    wind: '18 km/h',
-    aqi: '64 Moderate',
-  },
-  {
-    city: 'Coimbatore',
-    temp: '26°C',
-    condition: 'Pleasant Breeze',
-    high: '28°C',
-    low: '21°C',
-    humidity: '68%',
-    wind: '10 km/h',
-    aqi: '42 Good',
+    lat: 13.0827,
+    lon: 80.2707,
+    temp: '--°C',
+    condition: 'Fetching Open-Meteo…',
+    high: '--°C',
+    low: '--°C',
+    humidity: '--%',
+    wind: '-- km/h',
+    aqi: 'Live Open-Meteo',
   },
   {
     city: 'Bengaluru',
-    temp: '24°C',
-    condition: 'Partly Cloudy',
-    high: '27°C',
-    low: '19°C',
-    humidity: '62%',
-    wind: '12 km/h',
-    aqi: '48 Good',
+    lat: 12.9716,
+    lon: 77.5946,
+    temp: '--°C',
+    condition: 'Fetching Open-Meteo…',
+    high: '--°C',
+    low: '--°C',
+    humidity: '--%',
+    wind: '-- km/h',
+    aqi: 'Live Open-Meteo',
   },
   {
     city: 'New Delhi',
-    temp: '21°C',
-    condition: 'Morning Haze',
-    high: '25°C',
-    low: '14°C',
-    humidity: '55%',
-    wind: '8 km/h',
-    aqi: '185 Unhealthy',
+    lat: 28.6139,
+    lon: 77.209,
+    temp: '--°C',
+    condition: 'Fetching Open-Meteo…',
+    high: '--°C',
+    low: '--°C',
+    humidity: '--%',
+    wind: '-- km/h',
+    aqi: 'Live Open-Meteo',
   },
   {
     city: 'Mumbai',
-    temp: '32°C',
-    condition: 'Coastal Warmth',
-    high: '34°C',
-    low: '26°C',
-    humidity: '74%',
-    wind: '16 km/h',
-    aqi: '110 Moderate',
+    lat: 19.076,
+    lon: 72.8777,
+    temp: '--°C',
+    condition: 'Fetching Open-Meteo…',
+    high: '--°C',
+    low: '--°C',
+    humidity: '--%',
+    wind: '-- km/h',
+    aqi: 'Live Open-Meteo',
   },
 ];
 
@@ -649,8 +671,10 @@ export default function PulseFlowPage() {
   const [debouncedSearch, setDebouncedSearch] = useState<string>('');
 
   // News Data State
-  const [allArticles, setAllArticles] = useState<NewsArticleItem[]>(MASTER_NEWS_CATALOG);
+  const [allArticles, setAllArticles] = useState<NewsArticleItem[]>([]);
   const [isLiveFetching, setIsLiveFetching] = useState<boolean>(false);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [liveWeatherMap, setLiveWeatherMap] = useState<Record<string, typeof WEATHER_LOCATIONS[0]>>({});
   const [selectedArticle, setSelectedArticle] = useState<NewsArticleItem | null>(null);
 
   // Modals & Panels
@@ -726,33 +750,54 @@ export default function PulseFlowPage() {
 
       const targetQuery = queryParam !== undefined ? queryParam : debouncedSearch;
 
-      // 2. Fetch from Python Backend AND user's NewsData.io API in parallel
-      const [backendRes, newsDataRes] = await Promise.allSettled([
+      const catFilter =
+        activeNavTab !== 'Home' &&
+        activeNavTab !== 'For you' &&
+        activeNavTab !== 'Following' &&
+        activeNavTab !== 'News Showcase'
+          ? activeNavTab
+          : undefined;
+
+      // 2. Fetch live Vercel RSS (/api/news), local Python backend fallback, & NewsData.io in parallel
+      const [vercelRes, backendRes, newsDataRes] = await Promise.allSettled([
+        fetchVercelLiveNews({
+          category: catFilter,
+          search: targetQuery || undefined,
+        }),
         fetchBackendNews({
-          category:
-            activeNavTab !== 'Home' &&
-              activeNavTab !== 'For you' &&
-              activeNavTab !== 'Following' &&
-              activeNavTab !== 'News Showcase'
-              ? activeNavTab
-              : undefined,
+          category: catFilter,
           search: targetQuery || undefined,
           limit: 60,
         }),
         fetchNewsDataLatest({
           country: 'in',
-          category:
-            activeNavTab !== 'Home' &&
-              activeNavTab !== 'For you' &&
-              activeNavTab !== 'Following' &&
-              activeNavTab !== 'News Showcase'
-              ? activeNavTab
-              : undefined,
+          category: catFilter,
           q: targetQuery || undefined,
         }),
       ]);
 
       const fetchedItems: NewsArticleItem[] = [];
+
+      // Ingest Live Vercel RSS feeds
+      if (vercelRes.status === 'fulfilled' && vercelRes.value?.articles?.length) {
+        vercelRes.value.articles.forEach((item) => {
+          fetchedItems.push({
+            id: item.id,
+            title: item.title,
+            description: item.description,
+            content: `${item.description} Reported by ${item.source}. Read full publisher reporting.`,
+            category: item.category,
+            source: item.source,
+            publishedAt: formatTimeAgo(item.published_at),
+            timestamp: new Date(item.published_at).getTime(),
+            imageUrl:
+              item.image_url ||
+              'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=600&auto=format&fit=crop&q=80',
+            url: item.url,
+            isNew: true,
+          });
+        });
+      }
 
       // Ingest NewsData.io results
       if (newsDataRes.status === 'fulfilled' && newsDataRes.value.length > 0) {
@@ -796,24 +841,25 @@ export default function PulseFlowPage() {
         });
       }
 
-      // Merge with master catalog, deduplicating by title
+      // Merge live feeds, deduplicating by title; fall back to catalog only if completely offline
       setAllArticles((prev) => {
         const titleMap = new Map<string, NewsArticleItem>();
-        // Add fetched items first (newest)
         fetchedItems.forEach((item) => {
           const normTitle = item.title.toLowerCase().trim().slice(0, 40);
           if (!titleMap.has(normTitle)) titleMap.set(normTitle, item);
         });
-        // Add previous items
-        prev.forEach((item) => {
-          const normTitle = item.title.toLowerCase().trim().slice(0, 40);
-          if (!titleMap.has(normTitle)) titleMap.set(normTitle, item);
-        });
-        // Add master catalog as fallback base
-        MASTER_NEWS_CATALOG.forEach((item) => {
-          const normTitle = item.title.toLowerCase().trim().slice(0, 40);
-          if (!titleMap.has(normTitle)) titleMap.set(normTitle, item);
-        });
+        if (titleMap.size === 0) {
+          prev.forEach((item) => {
+            const normTitle = item.title.toLowerCase().trim().slice(0, 40);
+            if (!titleMap.has(normTitle)) titleMap.set(normTitle, item);
+          });
+        }
+        if (titleMap.size === 0) {
+          MASTER_NEWS_CATALOG.forEach((item) => {
+            const normTitle = item.title.toLowerCase().trim().slice(0, 40);
+            if (!titleMap.has(normTitle)) titleMap.set(normTitle, item);
+          });
+        }
 
         const merged = Array.from(titleMap.values());
         merged.sort((a, b) => b.timestamp - a.timestamp);
@@ -821,7 +867,8 @@ export default function PulseFlowPage() {
       });
 
       if (fetchedItems.length > 0) {
-        showToast(`Synced ${fetchedItems.length} fresh live articles from news feeds!`);
+        setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+        showToast(`Synced ${fetchedItems.length} live articles!`);
       }
     } catch {
       showToast('Serving offline verified news library');
@@ -830,14 +877,47 @@ export default function PulseFlowPage() {
     }
   }, [activeNavTab, debouncedSearch]);
 
+  // Live Weather Fetch via Open-Meteo (keyless)
+  useEffect(() => {
+    const loc = WEATHER_LOCATIONS[weatherIdx];
+    if (!loc) return;
+    let cancelled = false;
+    fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code&daily=temperature_2m_max,temperature_2m_min&timezone=auto`
+    )
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled || !data?.current) return;
+        const cur = data.current;
+        const maxT = data.daily?.temperature_2m_max?.[0];
+        const minT = data.daily?.temperature_2m_min?.[0];
+        setLiveWeatherMap((prev) => ({
+          ...prev,
+          [loc.city]: {
+            ...loc,
+            temp: `${Math.round(cur.temperature_2m)}°C`,
+            condition: wmoCodeToLabel(Number(cur.weather_code ?? 0)),
+            high: typeof maxT === 'number' ? `${Math.round(maxT)}°C` : loc.high,
+            low: typeof minT === 'number' ? `${Math.round(minT)}°C` : loc.low,
+            humidity: typeof cur.relative_humidity_2m === 'number' ? `${Math.round(cur.relative_humidity_2m)}%` : loc.humidity,
+            wind: typeof cur.wind_speed_10m === 'number' ? `${Math.round(cur.wind_speed_10m)} km/h` : loc.wind,
+          },
+        }));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [weatherIdx]);
+
   // Initial load
   useEffect(() => {
     loadAllNews();
   }, [loadAllNews]);
 
-  // Periodic refresh every 5 minutes
+  // Periodic refresh every 15 minutes
   useEffect(() => {
-    const timer = setInterval(() => loadAllNews(), 5 * 60 * 1000);
+    const timer = setInterval(() => loadAllNews(), 15 * 60 * 1000);
     return () => clearInterval(timer);
   }, [loadAllNews]);
 
@@ -1046,7 +1126,8 @@ export default function PulseFlowPage() {
     setWeatherIdx((prev) => (prev - 1 + WEATHER_LOCATIONS.length) % WEATHER_LOCATIONS.length);
   };
 
-  const currentWeather = WEATHER_LOCATIONS[weatherIdx];
+  const baseWeather = WEATHER_LOCATIONS[weatherIdx] || WEATHER_LOCATIONS[0];
+  const currentWeather = liveWeatherMap[baseWeather.city] || baseWeather;
 
   return (
     <div
@@ -1225,7 +1306,12 @@ export default function PulseFlowPage() {
             <span>Jarvis Briefing</span>
           </button>
 
-          {/* Refresh Button & Backend Telemetry */}
+          {/* Last Updated Timestamp + Refresh Button */}
+          {lastUpdated && (
+            <span style={{ fontSize: '0.7rem', color: nfMuted, whiteSpace: 'nowrap' }}>
+              Last updated: {lastUpdated}
+            </span>
+          )}
           <button
             type="button"
             onClick={() => loadAllNews(searchQuery)}

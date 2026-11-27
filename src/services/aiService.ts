@@ -63,6 +63,7 @@ export async function checkAiConfig(): Promise<AiStatusResult> {
     if (!res.ok) {
       return {
         success: Boolean(ENV.openAiApiKey || ENV.geminiApiKey),
+        error: `Endpoint /api/ai returned HTTP ${res.status}`,
         providerConfigured: {
           openai: Boolean(ENV.openAiApiKey),
           gemini: Boolean(ENV.geminiApiKey),
@@ -70,16 +71,20 @@ export async function checkAiConfig(): Promise<AiStatusResult> {
       };
     }
     const data = await res.json();
+    const geminiConfigured = Boolean(data.providerConfigured?.gemini || ENV.geminiApiKey);
+    const openaiConfigured = Boolean(data.providerConfigured?.openai || ENV.openAiApiKey);
     return {
       success: true,
+      error: !geminiConfigured && !openaiConfigured ? 'Missing API Key in Vercel Env' : undefined,
       providerConfigured: {
-        openai: Boolean(data.providerConfigured?.openai || ENV.openAiApiKey),
-        gemini: Boolean(data.providerConfigured?.gemini || ENV.geminiApiKey),
+        openai: openaiConfigured,
+        gemini: geminiConfigured,
       },
     };
-  } catch {
+  } catch (err: unknown) {
     return {
       success: Boolean(ENV.openAiApiKey || ENV.geminiApiKey),
+      error: err instanceof Error ? err.message : 'Unable to reach /api/ai',
       providerConfigured: {
         openai: Boolean(ENV.openAiApiKey),
         gemini: Boolean(ENV.geminiApiKey),
@@ -441,10 +446,9 @@ async function callGeminiDirect(
   userPrompt: string
 ): Promise<{ success: boolean; text?: string; model?: string }> {
   const models = [
-    'gemini-3.1-flash-lite',
-    'gemini-flash-lite-latest',
-    'gemini-3.6-flash',
-    'gemini-3.5-flash',
+    'gemini-3.5-flash-lite',
+    'gemini-3.8-flash',
+    'gemini-4-hydrogen',
   ];
 
   for (const model of models) {
@@ -523,7 +527,7 @@ export async function sendAiChatMessage(
             success: true,
             reply: data.reply || data.message?.content,
             provider: provider === 'openai' ? 'OpenAI ChatGPT' : 'Google Gemini',
-            model: provider === 'openai' ? 'gpt-4o-mini' : 'gemini-3.6-flash',
+            model: provider === 'openai' ? 'gpt-4.1-mini' : 'gemini-3.5-flash-lite',
           };
         }
       }
@@ -546,7 +550,7 @@ export async function sendAiChatMessage(
         success: true,
         reply: geminiDirect.text,
         provider: 'Google Gemini',
-        model: geminiDirect.model || 'gemini-3.6-flash',
+        model: geminiDirect.model || 'gemini-3.5-flash-lite',
       };
     }
   }
@@ -597,7 +601,7 @@ export async function sendAiChatMessage(
           success: true,
           reply: geminiDirect.text,
           provider: 'Google Gemini (Auto-Failover)',
-          model: geminiDirect.model || 'gemini-3.6-flash',
+          model: geminiDirect.model || 'gemini-3.5-flash-lite',
         };
       }
     }
@@ -611,7 +615,7 @@ export async function sendAiChatMessage(
         success: true,
         reply: geminiDirect.text,
         provider: 'Google Gemini',
-        model: geminiDirect.model || 'gemini-3.6-flash',
+        model: geminiDirect.model || 'gemini-3.5-flash-lite',
       };
     }
   }

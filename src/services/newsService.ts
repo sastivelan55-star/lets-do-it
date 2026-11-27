@@ -88,6 +88,41 @@ export function formatTimeAgo(isoString?: string): string {
   }
 }
 
+// ── VERCEL SERVERLESS LIVE RSS NEWS ───────────────────────────────────────────
+
+export async function fetchVercelLiveNews(params?: {
+  category?: string;
+  search?: string;
+}): Promise<{ articles: BackendArticle[]; fetchedAt: string } | null> {
+  try {
+    const query = new URLSearchParams();
+    if (params?.category && params.category !== 'All') {
+      query.set('category', params.category);
+    }
+    if (params?.search && params.search.trim()) {
+      query.set('q', params.search.trim());
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 7000);
+    const res = await fetch(`/api/news?${query.toString()}`, {
+      signal: controller.signal,
+      headers: { Accept: 'application/json' },
+    });
+    clearTimeout(timer);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (Array.isArray(data?.articles) && data.articles.length > 0) {
+      return {
+        articles: data.articles,
+        fetchedAt: data.fetchedAt || new Date().toISOString(),
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 // ── BACKEND NEWS API CALLS ───────────────────────────────────────────────────
 
 export async function fetchBackendNews(params?: {

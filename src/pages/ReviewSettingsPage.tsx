@@ -7,7 +7,6 @@ import {
   User,
   Trash2,
   Database,
-  Info,
 } from 'lucide-react';
 import SettingsPage, { type SettingsTab } from './SettingsPage';
 
@@ -18,8 +17,7 @@ export type ReviewTab =
   | 'ai'
   | 'account'
   | 'recycle-bin'
-  | 'data'
-  | 'branding';
+  | 'data';
 
 interface ReviewSettingsPageProps {
   initialTab?: ReviewTab;
@@ -36,7 +34,6 @@ export default function ReviewSettingsPage({ initialTab = 'areas' }: ReviewSetti
     { id: 'account',     label: 'Profile & Account', icon: <User size={15} />,      color: '#10b981' },
     { id: 'recycle-bin', label: 'Recycle Bin',       icon: <Trash2 size={15} />,    color: '#f43f5e' },
     { id: 'data',        label: 'Data Management',   icon: <Database size={15} />,  color: '#f59e0b' },
-    { id: 'branding',    label: 'Manual Branding',   icon: <Info size={15} />,      color: '#64748b' },
   ];
 
   // Map subtabs to SettingsTab
@@ -56,8 +53,6 @@ export default function ReviewSettingsPage({ initialTab = 'areas' }: ReviewSetti
         return 'recycle-bin';
       case 'data':
         return 'data';
-      case 'branding':
-        return 'branding';
       default:
         return 'areas';
     }

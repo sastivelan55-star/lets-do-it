@@ -118,10 +118,9 @@ async function callGeminiApi(
 ): Promise<{ success: boolean; text?: string; error?: string }> {
   const modelsToTry = [
     preferredModel,
-    'gemini-3.6-flash',
-    'gemini-3.5-flash',
-    'gemini-flash-lite-latest',
-    'gemini-3.1-flash-lite',
+    'gemini-3.5-flash-lite',
+    'gemini-3.8-flash',
+    'gemini-4-hydrogen',
   ].filter(Boolean) as string[];
 
   let lastError = 'Unknown Gemini error';
@@ -220,7 +219,7 @@ Key Capabilities and Knowledge:
         geminiKey,
         systemPromptChat,
         conversationPrompt,
-        body.model || 'gemini-3.6-flash'
+        body.model || 'gemini-3.5-flash-lite'
       );
 
       if (geminiResult.success && geminiResult.text) {
@@ -311,7 +310,7 @@ Key Capabilities and Knowledge:
         geminiKey,
         systemPromptChat,
         conversationPrompt,
-        'gemini-3.6-flash'
+        'gemini-3.5-flash-lite'
       );
 
       if (geminiResult.success && geminiResult.text) {
@@ -341,7 +340,7 @@ Key Capabilities and Knowledge:
     .replace('{TASKS}', (context.tasks || []).slice(0, 15).map((t) => `- [${t.id}] "${t.title}" (area: ${t.lifeArea}, due: ${t.dueDate}, status: ${t.status})`).join('\n') || 'None');
 
   try {
-    const geminiRes = await callGeminiApi(geminiKey, populatedSystemPrompt, promptText, 'gemini-3.6-flash');
+    const geminiRes = await callGeminiApi(geminiKey, populatedSystemPrompt, promptText, 'gemini-3.5-flash-lite');
     if (geminiRes.success && geminiRes.text) {
       // Clean possible markdown JSON wrappers
       let cleaned = geminiRes.text.trim();
