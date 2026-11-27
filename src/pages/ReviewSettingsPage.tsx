@@ -77,7 +77,12 @@ export default function ReviewSettingsPage({ initialTab = 'areas' }: ReviewSetti
             </p>
           </div>
 
-          <div className="section-tabs" role="tablist" aria-label="Review and settings sections">
+          <div
+            className="section-tabs"
+            role="tablist"
+            aria-label="Review and settings sections"
+            style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem', maxWidth: '100%' }}
+          >
             {TABS.map((tab) => (
               <button
                 key={tab.id}
@@ -102,6 +107,7 @@ export default function ReviewSettingsPage({ initialTab = 'areas' }: ReviewSetti
           key={activeTab}
           initialTab={getSettingsInitialTab(activeTab)}
           hideHeader={true}
+          hideTabs={true}
         />
       </div>
     </div>

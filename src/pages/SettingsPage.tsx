@@ -21,7 +21,12 @@ import {
   RefreshCw,
   CheckCircle2,
   ImageIcon,
-  Info
+  Info,
+  Code2,
+  MessageSquare,
+  Briefcase,
+  Heart,
+  Target,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
@@ -354,6 +359,54 @@ const ACCENT_COLORS = [
   { label: 'Amber', value: '#f59e0b' },
 ];
 
+function renderLifeAreaIcon(iconName: string, color: string) {
+  const iconProps = { size: 17, color };
+  let node: React.ReactNode;
+  switch (iconName) {
+    case 'Code2':
+      node = <Code2 {...iconProps} />;
+      break;
+    case 'MessageSquare':
+      node = <MessageSquare {...iconProps} />;
+      break;
+    case 'Briefcase':
+      node = <Briefcase {...iconProps} />;
+      break;
+    case 'Palette':
+      node = <Palette {...iconProps} />;
+      break;
+    case 'Heart':
+      node = <Heart {...iconProps} />;
+      break;
+    case 'Target':
+      node = <Target {...iconProps} />;
+      break;
+    default:
+      node = iconName && iconName.length <= 4 ? (
+        <span style={{ fontSize: '1.05rem', lineHeight: 1 }}>{iconName}</span>
+      ) : (
+        <Target {...iconProps} />
+      );
+  }
+  return (
+    <div
+      style={{
+        width: '36px',
+        height: '36px',
+        borderRadius: '10px',
+        background: `${color}1f`,
+        border: `1px solid ${color}40`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+      }}
+    >
+      {node}
+    </div>
+  );
+}
+
 export default function SettingsPage({ initialTab, hideHeader = false, hideTabs = false }: SettingsPageProps = {}) {
   const {
     settings,
@@ -473,16 +526,6 @@ export default function SettingsPage({ initialTab, hideHeader = false, hideTabs 
         </div>
       )}
 
-      {/* Profile & Identity Card */}
-      <ProfileIdentityCard
-        displayName={settings.displayName}
-        avatarUrl={settings.avatarUrl || settings.profileAvatar}
-        onSave={async (updates) => {
-          await updateSettings(updates);
-          showSaveSuccess('Profile & identity updated.');
-        }}
-      />
-
       {/* Tab Panels */}
       {activeTab === 'areas' && (
         <LifeAreasManager
@@ -500,14 +543,24 @@ export default function SettingsPage({ initialTab, hideHeader = false, hideTabs 
       )}
 
       {activeTab === 'appearance' && (
-        <AppearanceManager
-          settings={settings.appearance || {}}
-          onSave={async (appr) => {
-            await updateAppearance(appr);
-            showSaveSuccess('Appearance settings saved.');
-          }}
-          onUploadBackground={uploadFile}
-        />
+        <>
+          <ProfileIdentityCard
+            displayName={settings.displayName}
+            avatarUrl={settings.avatarUrl || settings.profileAvatar}
+            onSave={async (updates) => {
+              await updateSettings(updates);
+              showSaveSuccess('Profile & identity updated.');
+            }}
+          />
+          <AppearanceManager
+            settings={settings.appearance || {}}
+            onSave={async (appr) => {
+              await updateAppearance(appr);
+              showSaveSuccess('Appearance settings saved.');
+            }}
+            onUploadBackground={uploadFile}
+          />
+        </>
       )}
 
       {activeTab === 'ai' && (
@@ -727,7 +780,7 @@ function LifeAreasManager({
               >
                 {/* Left: icon & details */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, minWidth: 200 }}>
-                  <span style={{ fontSize: '1.3rem' }}>{area.icon}</span>
+                  {renderLifeAreaIcon(area.icon, area.color)}
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <strong style={{ fontSize: '0.92rem', color: 'var(--text-primary)' }}>
@@ -785,12 +838,35 @@ function LifeAreasManager({
                   </button>
                   {/* Toggle enable / disable */}
                   <button
-                    className={`btn btn-sm ${isEnabled ? 'btn-ghost' : 'btn-secondary'}`}
+                    type="button"
+                    role="switch"
+                    aria-checked={isEnabled}
                     onClick={() => handleToggleEnable(area)}
-                    style={{ fontSize: '0.75rem', padding: '0.25rem 0.55rem' }}
-                    title={isEnabled ? 'Disable area' : 'Enable area'}
+                    title={isEnabled ? 'Active — click to hide area' : 'Hidden — click to enable area'}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '4px 10px 4px 6px',
+                      borderRadius: '999px',
+                      border: isEnabled ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid var(--border)',
+                      background: isEnabled ? 'rgba(16, 185, 129, 0.14)' : 'var(--bg-surface-2)',
+                      color: isEnabled ? '#10b981' : 'var(--text-muted)',
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
                   >
-                    {isEnabled ? 'Disable' : 'Enable'}
+                    <span
+                      style={{
+                        width: '14px',
+                        height: '14px',
+                        borderRadius: '50%',
+                        background: isEnabled ? '#10b981' : '#94a3b8',
+                        display: 'inline-block',
+                      }}
+                    />
+                    <span>{isEnabled ? 'Active' : 'Hidden'}</span>
                   </button>
                 </div>
               </div>
